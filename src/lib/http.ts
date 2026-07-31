@@ -14,6 +14,9 @@ export type ApiErrorCode =
   | 'TOO_MANY_ATTEMPTS'
   | 'USER_BANNED'
   | 'NAME_REQUIRED'
+  // images
+  | 'INVALID_FILE_TYPE'
+  | 'FILE_TOO_LARGE'
   // generic
   | 'INVALID_BODY'
   | 'UNAUTHORIZED'
@@ -28,6 +31,8 @@ const status: Record<ApiErrorCode, number> = {
   TOO_MANY_ATTEMPTS: 429,
   USER_BANNED: 403,
   NAME_REQUIRED: 400,
+  INVALID_FILE_TYPE: 400,
+  FILE_TOO_LARGE: 400,
   INVALID_BODY: 400,
   UNAUTHORIZED: 401,
   SMS_FAILED: 502,
@@ -42,6 +47,8 @@ const message: Record<ApiErrorCode, string> = {
   TOO_MANY_ATTEMPTS: 'Too many incorrect attempts for this code',
   USER_BANNED: 'This account is banned',
   NAME_REQUIRED: 'A display name is required to create an account',
+  INVALID_FILE_TYPE: 'File type is not an allowed image format',
+  FILE_TOO_LARGE: 'File exceeds the maximum allowed size',
   INVALID_BODY: 'Request body failed validation',
   UNAUTHORIZED: 'Not signed in',
   SMS_FAILED: 'Could not deliver the verification code',

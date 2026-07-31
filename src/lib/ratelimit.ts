@@ -76,6 +76,27 @@ const OTP_VERIFY_PER_IP: LimiterSpec = {
   windowMs: 15 * 60 * 1000,
 };
 
+/**
+ * Image upload is one of the endpoints CLAUDE.md requires a limiter on.
+ * Each presign hands out write access to R2 for one object; without a cap a
+ * single authenticated account could mint thousands of upload URLs. The
+ * per-IP budget is the looser of the two so a couple of real users behind
+ * one NAT do not throttle each other.
+ */
+const IMAGE_PRESIGN_PER_USER: LimiterSpec = {
+  prefix: 'img:presign:user',
+  tokens: 30,
+  window: '1 h',
+  windowMs: 60 * 60 * 1000,
+};
+
+const IMAGE_PRESIGN_PER_IP: LimiterSpec = {
+  prefix: 'img:presign:ip',
+  tokens: 60,
+  window: '1 h',
+  windowMs: 60 * 60 * 1000,
+};
+
 /** Fixed-window counter used only when there is no Redis (local dev). */
 class InMemoryLimiter implements Limiter {
   private readonly counters = new Map<string, { count: number; reset: number }>();
@@ -144,6 +165,8 @@ export const otpRequestPerIp = (): Limiter => getLimiter(OTP_REQUEST_PER_IP);
 export const otpRequestCooldown = (): Limiter => getLimiter(OTP_REQUEST_COOLDOWN);
 export const otpVerifyPerPhone = (): Limiter => getLimiter(OTP_VERIFY_PER_PHONE);
 export const otpVerifyPerIp = (): Limiter => getLimiter(OTP_VERIFY_PER_IP);
+export const imagePresignPerUser = (): Limiter => getLimiter(IMAGE_PRESIGN_PER_USER);
+export const imagePresignPerIp = (): Limiter => getLimiter(IMAGE_PRESIGN_PER_IP);
 
 /**
  * Vercel sets `x-forwarded-for`; the left-most entry is the client. The

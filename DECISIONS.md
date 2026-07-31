@@ -100,6 +100,14 @@ OTP verify, and image upload.
   whether anyone claims it. Not built, not decided.
 - Whether item location is district-level only, or map pin. Currently
   district only, for privacy.
+- Orphaned R2 objects. A presigned upload can succeed without the client
+  ever creating the item that references the key, leaving the object
+  unreferenced. No sweeper is built yet — `POST /api/images/presign`
+  mints keys under `uploads/{userId}/` and nothing reclaims the ones that
+  never get attached. Options for later: a bucket lifecycle rule on an
+  `uploads/` prefix, or reconciling stored keys against item references
+  inside the sweep cron. Not decided. TODO before image upload ships to
+  real users.
 
 ### 2026-07-31 — npm, not pnpm
 
@@ -199,3 +207,20 @@ things whose regression is unrecoverable. It is not a general test
 suite and should not grow into one by accident. Rate limiting is not
 covered: asserting on the 30-second cooldown means sleeping, which
 buys flakiness rather than confidence.
+
+### 2026-07-31 — Image upload is a presigned PUT to R2, not a proxy
+
+The browser uploads the file straight to R2 with a URL signed by
+`POST /api/images/presign`; the bytes never pass through a route
+handler. Proxying every photo would burn the Vercel bandwidth that
+R2 exists to avoid, and would hit the serverless request-body limit
+on a photo-heavy app.
+
+The signature binds `content-type` and `content-length` (both set on
+the `PutObjectCommand`), so a client cannot upload a different or
+larger file than it declared. Object keys are generated server-side
+as `uploads/{userId}/{uuid}.{ext}` and never accepted from the
+client, so a leaked key cannot be used to guess or overwrite another
+user's objects and the extension cannot be spoofed via a filename.
+Allowlist is jpeg/png/webp, 8 MB max. Presigned URLs expire in five
+minutes; presign is rate limited at 30/user/hour and 60/IP/hour.

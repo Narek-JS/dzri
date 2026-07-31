@@ -74,6 +74,22 @@ export async function setup(): Promise<void> {
 
   process.env.TEST_BASE_URL = TEST_BASE_URL;
 
+  // Presigning an R2 upload is offline crypto — no network call — so the
+  // server only needs *structurally valid* R2 config to sign a URL. Fill in
+  // throwaway values when a machine has no real R2 creds, so the
+  // /api/images/presign happy-path test does not depend on them. `??=` never
+  // overrides a real value from .env.local.
+  const r2TestDefaults: Record<string, string> = {
+    R2_ACCOUNT_ID: 'test-account',
+    R2_ACCESS_KEY_ID: 'test-access-key-id',
+    R2_SECRET_ACCESS_KEY: 'test-secret-access-key',
+    R2_BUCKET: 'dzri-test',
+    R2_PUBLIC_URL: 'https://images.dzri.test',
+  };
+  for (const [key, value] of Object.entries(r2TestDefaults)) {
+    process.env[key] ??= value;
+  }
+
   // Only happens if a previous run leaked its server. Reuse it rather
   // than failing on a port collision, and leave it alone at teardown —
   // it is not this run's to kill.
