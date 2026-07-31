@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  ALLOWED_IMAGE_CONTENT_TYPES,
-  generateObjectKey,
-  isAllowedContentType,
-} from './objectKey';
+import { ALLOWED_IMAGE_CONTENT_TYPES, generateObjectKey, isAllowedContentType } from './objectKey';
 
 // A user id shaped like the real thing (users.id is a v4 uuid), so the
 // namespacing assertions match production keys.

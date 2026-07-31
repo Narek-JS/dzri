@@ -97,6 +97,27 @@ const IMAGE_PRESIGN_PER_IP: LimiterSpec = {
   windowMs: 60 * 60 * 1000,
 };
 
+/**
+ * Item create is on the CLAUDE.md list of endpoints that must be limited.
+ * Each accepted item is a moderation-queue entry and a set of R2 objects
+ * bound into a listing, so an unthrottled create is a spam vector. Per-user
+ * is the tighter budget; per-IP is looser so two real users behind one NAT
+ * do not throttle each other.
+ */
+const ITEM_CREATE_PER_USER: LimiterSpec = {
+  prefix: 'item:create:user',
+  tokens: 10,
+  window: '1 h',
+  windowMs: 60 * 60 * 1000,
+};
+
+const ITEM_CREATE_PER_IP: LimiterSpec = {
+  prefix: 'item:create:ip',
+  tokens: 20,
+  window: '1 h',
+  windowMs: 60 * 60 * 1000,
+};
+
 /** Fixed-window counter used only when there is no Redis (local dev). */
 class InMemoryLimiter implements Limiter {
   private readonly counters = new Map<string, { count: number; reset: number }>();
@@ -167,6 +188,8 @@ export const otpVerifyPerPhone = (): Limiter => getLimiter(OTP_VERIFY_PER_PHONE)
 export const otpVerifyPerIp = (): Limiter => getLimiter(OTP_VERIFY_PER_IP);
 export const imagePresignPerUser = (): Limiter => getLimiter(IMAGE_PRESIGN_PER_USER);
 export const imagePresignPerIp = (): Limiter => getLimiter(IMAGE_PRESIGN_PER_IP);
+export const itemCreatePerUser = (): Limiter => getLimiter(ITEM_CREATE_PER_USER);
+export const itemCreatePerIp = (): Limiter => getLimiter(ITEM_CREATE_PER_IP);
 
 /**
  * Vercel sets `x-forwarded-for`; the left-most entry is the client. The

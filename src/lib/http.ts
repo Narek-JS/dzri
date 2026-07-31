@@ -17,6 +17,13 @@ export type ApiErrorCode =
   // images
   | 'INVALID_FILE_TYPE'
   | 'FILE_TOO_LARGE'
+  // item create
+  | 'INVALID_CATEGORY'
+  | 'INVALID_DISTRICT'
+  | 'IMAGES_REQUIRED'
+  | 'TOO_MANY_IMAGES'
+  | 'INVALID_IMAGE_KEY'
+  | 'IMAGE_NOT_FOUND'
   // generic
   | 'INVALID_BODY'
   | 'UNAUTHORIZED'
@@ -33,6 +40,12 @@ const status: Record<ApiErrorCode, number> = {
   NAME_REQUIRED: 400,
   INVALID_FILE_TYPE: 400,
   FILE_TOO_LARGE: 400,
+  INVALID_CATEGORY: 400,
+  INVALID_DISTRICT: 400,
+  IMAGES_REQUIRED: 400,
+  TOO_MANY_IMAGES: 400,
+  INVALID_IMAGE_KEY: 400,
+  IMAGE_NOT_FOUND: 400,
   INVALID_BODY: 400,
   UNAUTHORIZED: 401,
   SMS_FAILED: 502,
@@ -49,6 +62,12 @@ const message: Record<ApiErrorCode, string> = {
   NAME_REQUIRED: 'A display name is required to create an account',
   INVALID_FILE_TYPE: 'File type is not an allowed image format',
   FILE_TOO_LARGE: 'File exceeds the maximum allowed size',
+  INVALID_CATEGORY: 'Category does not exist',
+  INVALID_DISTRICT: 'District does not exist',
+  IMAGES_REQUIRED: 'At least one image is required',
+  TOO_MANY_IMAGES: 'Too many images for one item',
+  INVALID_IMAGE_KEY: 'An image key is malformed or not owned by the caller',
+  IMAGE_NOT_FOUND: 'A referenced image was never uploaded',
   INVALID_BODY: 'Request body failed validation',
   UNAUTHORIZED: 'Not signed in',
   SMS_FAILED: 'Could not deliver the verification code',

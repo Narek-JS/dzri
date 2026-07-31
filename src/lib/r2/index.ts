@@ -14,3 +14,4 @@ export {
 } from './presign';
 export { publicUrl } from './publicUrl';
 export { deleteObject } from './delete';
+export { headObject } from './headObject';

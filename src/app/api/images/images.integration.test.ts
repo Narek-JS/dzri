@@ -166,9 +166,7 @@ describe.skipIf(!hasDatabase)('images API', () => {
     // The client never sends a key; the server mints it under the user's
     // own prefix so a leaked key cannot reach another user's objects.
     expect(body.key.startsWith(`uploads/${userId}/`)).toBe(true);
-    expect(body.key).toMatch(
-      new RegExp(`^uploads/${userId}/[0-9a-f-]{36}\\.webp$`),
-    );
+    expect(body.key).toMatch(new RegExp(`^uploads/${userId}/[0-9a-f-]{36}\\.webp$`));
 
     // A real presigned URL, expiring in five minutes.
     const url = new URL(body.uploadUrl);
