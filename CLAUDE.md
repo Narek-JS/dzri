@@ -20,14 +20,14 @@ records what was already decided and why.
 ## Commands
 
 ```
-pnpm dev              # local dev
-pnpm build            # production build
-pnpm lint             # eslint
-pnpm typecheck        # tsc --noEmit
-pnpm db:generate      # generate migration from schema changes
-pnpm db:migrate       # apply migrations
-pnpm db:studio        # drizzle studio
-pnpm db:seed          # seed districts and categories
+npm run dev           # local dev
+npm run build         # production build
+npm run lint          # eslint
+npm run typecheck     # tsc --noEmit
+npm run db:generate   # generate migration from schema changes
+npm run db:migrate    # apply migrations
+npm run db:studio     # drizzle studio
+npm run db:seed       # seed districts and categories
 ```
 
 ## Structure

@@ -100,3 +100,14 @@ OTP verify, and image upload.
   whether anyone claims it. Not built, not decided.
 - Whether item location is district-level only, or map pin. Currently
   district only, for privacy.
+
+### 2026-07-31 — npm, not pnpm
+
+No architectural reason for pnpm on a solo repo. Fewer moving parts.
+
+### 2026-07-31 — Neon over Supabase, reasoning recorded
+
+Supabase free projects pause after 7 days idle and need a manual
+dashboard click to resume. Neon suspends and self-wakes with a
+500ms–2s cold start. Supabase's bundled auth and storage are
+unused here — auth is custom phone OTP, images are on R2.

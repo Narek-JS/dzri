@@ -1,0 +1,9 @@
+@import 'tailwindcss';
+
+/* Brand tokens. See BRAND.md — no raw hex anywhere else in the codebase. */
+@theme {
+  --color-brand: #e8894a;
+  --color-brand-strong: #b4530f;
+  --color-brand-tint: #fdf1e7;
+  --color-brand-dark: #f5a76a;
+}
