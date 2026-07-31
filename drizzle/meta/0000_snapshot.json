@@ -1,5 +1,5 @@
 {
-  "id": "270ee86f-586a-44a3-b8c2-748f232d5572",
+  "id": "79269c23-6e96-4a89-b0f6-199bc1b48c09",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -246,6 +246,13 @@
           "notNull": true,
           "default": false
         },
+        "is_admin": {
+          "name": "is_admin",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -471,6 +478,24 @@
           "primaryKey": false,
           "notNull": false
         },
+        "rejection_reason": {
+          "name": "rejection_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_by": {
+          "name": "reviewed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "view_count": {
           "name": "view_count",
           "type": "integer",
@@ -629,6 +654,22 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "items_pending_review_created_at_idx": {
+          "name": "items_pending_review_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"items\".\"status\" = 'pending_review'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -683,6 +724,19 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "items_reviewed_by_users_id_fk": {
+          "name": "items_reviewed_by_users_id_fk",
+          "tableFrom": "items",
+          "tableTo": "users",
+          "columnsFrom": [
+            "reviewed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -692,6 +746,10 @@
         "reserved_needs_user": {
           "name": "reserved_needs_user",
           "value": "\"items\".\"status\" <> 'reserved' or \"items\".\"reserved_for\" is not null"
+        },
+        "rejection_reason_matches_status": {
+          "name": "rejection_reason_matches_status",
+          "value": "(\"items\".\"status\" = 'rejected' and \"items\".\"rejection_reason\" is not null) or (\"items\".\"status\" <> 'rejected' and \"items\".\"rejection_reason\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -992,7 +1050,9 @@
         "reserved",
         "given",
         "expired",
-        "removed"
+        "removed",
+        "pending_review",
+        "rejected"
       ]
     },
     "public.claim_status": {

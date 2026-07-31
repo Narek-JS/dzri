@@ -1,5 +1,5 @@
 CREATE TYPE "public"."item_condition" AS ENUM('working', 'needs_repair', 'for_parts');--> statement-breakpoint
-CREATE TYPE "public"."item_status" AS ENUM('draft', 'active', 'reserved', 'given', 'expired', 'removed');--> statement-breakpoint
+CREATE TYPE "public"."item_status" AS ENUM('draft', 'active', 'reserved', 'given', 'expired', 'removed', 'pending_review', 'rejected');--> statement-breakpoint
 CREATE TYPE "public"."claim_status" AS ENUM('pending', 'approved', 'rejected', 'withdrawn', 'completed', 'no_show');--> statement-breakpoint
 CREATE TYPE "public"."report_reason" AS ENUM('spam', 'selling_not_giving', 'prohibited_item', 'fake_listing', 'offensive', 'other');--> statement-breakpoint
 CREATE TABLE "categories" (
@@ -40,6 +40,7 @@ CREATE TABLE "users" (
 	"avatar_url" text,
 	"district_id" integer,
 	"is_banned" boolean DEFAULT false NOT NULL,
+	"is_admin" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"last_seen_at" timestamp with time zone,
 	CONSTRAINT "users_phone_unique" UNIQUE("phone")
@@ -69,11 +70,15 @@ CREATE TABLE "items" (
 	"reserved_for" uuid,
 	"reserved_until" timestamp with time zone,
 	"given_at" timestamp with time zone,
+	"rejection_reason" text,
+	"reviewed_at" timestamp with time zone,
+	"reviewed_by" uuid,
 	"view_count" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"expires_at" timestamp with time zone DEFAULT now() + interval '30 days' NOT NULL,
-	CONSTRAINT "reserved_needs_user" CHECK ("items"."status" <> 'reserved' or "items"."reserved_for" is not null)
+	CONSTRAINT "reserved_needs_user" CHECK ("items"."status" <> 'reserved' or "items"."reserved_for" is not null),
+	CONSTRAINT "rejection_reason_matches_status" CHECK (("items"."status" = 'rejected' and "items"."rejection_reason" is not null) or ("items"."status" <> 'rejected' and "items"."rejection_reason" is null))
 );
 --> statement-breakpoint
 CREATE TABLE "claims" (
@@ -105,6 +110,7 @@ ALTER TABLE "items" ADD CONSTRAINT "items_user_id_users_id_fk" FOREIGN KEY ("use
 ALTER TABLE "items" ADD CONSTRAINT "items_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "items" ADD CONSTRAINT "items_district_id_districts_id_fk" FOREIGN KEY ("district_id") REFERENCES "public"."districts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "items" ADD CONSTRAINT "items_reserved_for_users_id_fk" FOREIGN KEY ("reserved_for") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "items" ADD CONSTRAINT "items_reviewed_by_users_id_fk" FOREIGN KEY ("reviewed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "claims" ADD CONSTRAINT "claims_item_id_items_id_fk" FOREIGN KEY ("item_id") REFERENCES "public"."items"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "claims" ADD CONSTRAINT "claims_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reports" ADD CONSTRAINT "reports_item_id_items_id_fk" FOREIGN KEY ("item_id") REFERENCES "public"."items"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -118,6 +124,7 @@ CREATE INDEX "items_category_id_status_created_at_idx" ON "items" USING btree ("
 CREATE INDEX "items_user_id_created_at_idx" ON "items" USING btree ("user_id","created_at" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "items_expires_at_idx" ON "items" USING btree ("expires_at") WHERE "items"."status" = 'active';--> statement-breakpoint
 CREATE INDEX "items_reserved_until_idx" ON "items" USING btree ("reserved_until") WHERE "items"."status" = 'reserved';--> statement-breakpoint
+CREATE INDEX "items_pending_review_created_at_idx" ON "items" USING btree ("created_at") WHERE "items"."status" = 'pending_review';--> statement-breakpoint
 CREATE INDEX "claims_item_id_status_created_at_idx" ON "claims" USING btree ("item_id","status","created_at");--> statement-breakpoint
 CREATE INDEX "claims_user_id_created_at_idx" ON "claims" USING btree ("user_id","created_at" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "reports_resolved_at_created_at_idx" ON "reports" USING btree ("resolved_at","created_at") WHERE "reports"."resolved_at" is null;--> statement-breakpoint

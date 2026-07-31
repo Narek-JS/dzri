@@ -23,6 +23,7 @@ create table users (
   avatar_url    text,
   district_id   int references districts(id),
   is_banned     boolean not null default false,
+  is_admin      boolean not null default false,       -- reviews the moderation queue
   created_at    timestamptz not null default now(),
   last_seen_at  timestamptz
 );
@@ -58,13 +59,19 @@ create table categories (
 -- items
 -- ---------------------------------------------------------------
 
+-- Values are in creation order, not logical lifecycle order. The lifecycle is
+--   draft, pending_review, active, rejected, reserved, given, expired, removed
+-- ('pending_review' belongs after 'draft', 'rejected' after 'active'). Nothing
+-- should depend on enum ordinal comparison — sort by an explicit order instead.
 create type item_status as enum (
   'draft',
   'active',
   'reserved',
   'given',
   'expired',
-  'removed'
+  'removed',
+  'pending_review',   -- logically after 'draft'
+  'rejected'          -- logically after 'active'
 );
 
 create type item_condition as enum (
@@ -89,13 +96,23 @@ create table items (
   reserved_until timestamptz,                      -- auto-release deadline
   given_at       timestamptz,
 
+  -- moderation: an admin approves or rejects each pending item
+  rejection_reason text,                           -- required iff status = 'rejected'
+  reviewed_at    timestamptz,
+  reviewed_by    uuid references users(id),
+
   view_count     int not null default 0,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now(),
   expires_at     timestamptz not null default now() + interval '30 days',
 
   constraint reserved_needs_user
-    check (status <> 'reserved' or reserved_for is not null)
+    check (status <> 'reserved' or reserved_for is not null),
+
+  -- a rejected item carries a reason; a non-rejected item never does
+  constraint rejection_reason_matches_status
+    check ((status = 'rejected' and rejection_reason is not null)
+        or (status <> 'rejected' and rejection_reason is null))
 );
 
 -- the feed query: active items, newest first, filtered by district/category
@@ -108,6 +125,9 @@ create index on items (user_id, created_at desc);
 -- for the background job that expires and un-reserves
 create index on items (expires_at) where status = 'active';
 create index on items (reserved_until) where status = 'reserved';
+
+-- the admin moderation queue: pending items, oldest first
+create index on items (created_at) where status = 'pending_review';
 
 create table item_images (
   id         uuid primary key default gen_random_uuid(),

@@ -28,6 +28,7 @@ export const users = pgTable('users', {
   avatarUrl: text('avatar_url'),
   districtId: integer('district_id').references(() => districts.id),
   isBanned: boolean('is_banned').notNull().default(false),
+  isAdmin: boolean('is_admin').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
 });

@@ -108,6 +108,12 @@ OTP verify, and image upload.
   `uploads/` prefix, or reconciling stored keys against item references
   inside the sweep cron. Not decided. TODO before image upload ships to
   real users.
+- Who reviews the moderation queue when volume grows. Pre-moderation is
+  one admin eyeballing every item — fine at launch, impossible at scale.
+  Undecided options: trusted community reviewers, a reputation threshold
+  that auto-approves known-good givers, or flipping `MODERATION_MODE` to
+  `post` and relying on reports. Whoever it is, `is_admin` and
+  `reviewed_by` already record that a human acted.
 
 ### 2026-07-31 — npm, not pnpm
 
@@ -224,3 +230,47 @@ client, so a leaked key cannot be used to guess or overwrite another
 user's objects and the extension cannot be spoofed via a filename.
 Allowlist is jpeg/png/webp, 8 MB max. Presigned URLs expire in five
 minutes; presign is rate limited at 30/user/hour and 60/IP/hour.
+
+### 2026-07-31 — Pre-moderation at launch, switchable to post
+
+Every new item lands in `pending_review`, and an admin approves or
+rejects it — with a reason — before it becomes visible. At launch,
+volume is low enough that a human can eyeball each listing, and the
+first impression of the feed decides whether the platform reads as a
+real place or a dumping ground. Rejections are recorded
+(`rejection_reason`, `reviewed_at`, `reviewed_by`), not silent.
+
+This does not scale, and it must not become load-bearing. Manual
+review is a queue that grows with success, and the approval delay
+competes directly with *just leaving the thing by the bins*: the
+moment posting here is slower than that, we lose. So the mode is a
+single env var, `MODERATION_MODE` (`pre` | `post`), read lazily so it
+flips without a rebuild. `post` publishes new items straight to
+`active` and leans on report-driven review instead.
+
+The switch is deliberately config, not schema: `pending_review` and
+`rejected` already exist in `item_status`, and `initialItemStatus()`
+in `src/lib/moderation.ts` is the single place that reads the mode.
+Anything other than an exact `post` is treated as `pre` — the unsafe
+failure is publishing an unreviewed item, so the default fails toward
+holding it.
+
+One operational note on the migration. This landed first as a three-way
+split — a base migration, one that added the `pending_review` and
+`rejected` enum values, and one that used them — because Postgres will
+not let a new enum value be *used* in the same transaction that adds it,
+and `drizzle-kit migrate` runs all pending migrations in a single
+transaction. That split worked incrementally but could never apply to a
+fresh database in one `db:migrate` run: a new Neon branch would try the
+`ADD VALUE` and the check constraint / partial index that reference it in
+the same transaction, and fail.
+
+So before launch the migrations were squashed into one file. With no
+production data and no other developers, migration history had no value,
+and a single migration removes the trap entirely: `item_status` is one
+plain `CREATE TYPE` with all eight values, there is no `ALTER TYPE ADD
+VALUE`, and nothing is used before it is committed. Keep it one migration
+until launch. The trap only returns once there is data worth preserving
+*and* you must add an enum value and reference it in the same deploy — at
+that point, and only then, put the `ADD VALUE` in its own migration and
+apply it in a separate `db:migrate` run before the one that uses it.
