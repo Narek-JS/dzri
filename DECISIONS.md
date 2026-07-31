@@ -111,3 +111,59 @@ Supabase free projects pause after 7 days idle and need a manual
 dashboard click to resume. Neon suspends and self-wakes with a
 500ms–2s cold start. Supabase's bundled auth and storage are
 unused here — auth is custom phone OTP, images are on R2.
+
+### 2026-07-31 — Session is a stateless JWT cookie, no session table
+
+HS256 JWT in an httpOnly cookie, 90 days, re-issued once a token is
+older than 7 days. A session table would mean a database round trip
+on every request to a serverless function talking to Neon over HTTP,
+which is the wrong cost for reading "who is this".
+
+The trade is that a token cannot be revoked. That matters for exactly
+one case — banning someone — so `requireUser()` reads `is_banned`
+when a request acts on the user's behalf, while `getSession()` stays
+cookie-only for cheap reads like rendering a header.
+
+### 2026-07-31 — OTP codes hashed with peppered HMAC-SHA256, not bcrypt
+
+A 6-digit code has a million possible values. Against a leaked
+database that is a rainbow table for any unkeyed digest and a
+tractable brute force for bcrypt at a sane cost factor. Keying the
+hash with `JWT_SECRET` means the database alone is not enough to
+check a guess at all. The phone number is bound into the hash input
+so a captured hash cannot be replayed against another number.
+
+Bcrypt's slowness buys nothing here that the 5-attempt cap and the
+5-minute expiry do not already buy, and it would add per-verify CPU
+on a serverless function.
+
+### 2026-07-31 — Phone validation is structural, not an operator allowlist
+
+`+374` plus an 8-digit national number, first digit non-zero. It
+deliberately does not check the operator prefix against a list of
+assigned mobile ranges: ranges get allocated, the list goes stale,
+and a stale list silently locks real users out of an account they
+already have. An undeliverable number fails at the SMS gateway,
+which is the layer that actually knows.
+
+### 2026-07-31 — A new user without a name is a flow state, not an error
+
+`users.display_name` is NOT NULL, and that name is what a stranger
+sees before deciding to come to your door — so it cannot be a
+generated placeholder like "User 4821". When a valid code arrives for
+a phone with no account and no name, verify returns
+`{ isNewUser: true }` and leaves the code unconsumed, so the client
+can collect a name and re-submit the same code.
+
+The response is a 200, not an error: nothing went wrong, and the
+client discriminates on `isNewUser` rather than on a status code.
+
+### 2026-07-31 — Rate limiters degrade to in-process counters off production
+
+Missing Upstash credentials are a hard failure in production — an
+unmetered OTP endpoint is a direct SMS bill, and failing closed is
+the only safe default. Locally they fall back to an in-process
+counter with the same interface, so `npm run dev` and `npm run build`
+work on a machine with no secrets. The fallback is per-process and
+therefore useless behind more than one instance, which is exactly why
+it is refused in production.
