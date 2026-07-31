@@ -167,3 +167,35 @@ counter with the same interface, so `npm run dev` and `npm run build`
 work on a machine with no secrets. The fallback is per-process and
 therefore useless behind more than one instance, which is exactly why
 it is refused in production.
+
+### 2026-07-31 — Vitest, split into `npm test` and `npm run test:integration`
+
+Vitest over Jest: it reads `vitest.config.mts` with the same ESM and
+TypeScript setup the rest of the repo already uses, so there is no
+Babel or ts-jest layer to keep in sync with tsconfig. Nothing in the
+project needs Jest's ecosystem.
+
+Two commands, because they have different prerequisites and a single
+`npm test` that needs a database is a test suite people stop running:
+
+- `npm test` — unit only. No database, no server, no network, no
+  secrets. This is the one that runs on every commit.
+- `npm run test:integration` — real route handlers over HTTP against a
+  real Neon branch, per CLAUDE.md. Skips with an explanation when
+  DATABASE_URL is absent rather than failing.
+
+The integration suite runs its own dev server on :3100 with its own
+`distDir` (`.next-test`, via NEXT_DIST_DIR in next.config.ts). Both
+halves of that are load-bearing. Next refuses a second dev server that
+shares a build directory, so without the split the suite would fail
+for anyone who had `npm run dev` open. And the harness force-kills the
+server at the end of a run — a kill that lands mid-write truncates
+generated type files, which breaks `npm run typecheck` and the run
+after it. Pointed at its own directory it can only damage output that
+nothing else reads.
+
+Scope is deliberately narrow — phone-privacy and code-replay, the
+things whose regression is unrecoverable. It is not a general test
+suite and should not grow into one by accident. Rate limiting is not
+covered: asserting on the 30-second cooldown means sleeping, which
+buys flakiness rather than confidence.

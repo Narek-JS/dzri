@@ -1,5 +1,11 @@
 .next
+.next-test
 node_modules
 drizzle
 package-lock.json
 *.md
+
+# Next rewrites this on every `next dev` — including from the integration
+# test harness — in its own formatting. Prettier and Next fighting over it
+# means a dirty working tree after every run.
+tsconfig.json

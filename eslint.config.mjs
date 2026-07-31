@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     'out/**',
     'build/**',
     'next-env.d.ts',
+    // Build output of the integration test server.
+    '.next-test/**',
     // Generated migrations.
     'drizzle/**',
   ]),
