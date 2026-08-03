@@ -26,7 +26,10 @@ export type ApiErrorCode =
   | 'IMAGE_NOT_FOUND'
   // item read
   | 'ITEM_NOT_FOUND'
+  // moderation
+  | 'INVALID_STATUS_TRANSITION'
   // generic
+  | 'NOT_FOUND'
   | 'INVALID_BODY'
   | 'UNAUTHORIZED'
   | 'SMS_FAILED'
@@ -49,6 +52,8 @@ const status: Record<ApiErrorCode, number> = {
   INVALID_IMAGE_KEY: 400,
   IMAGE_NOT_FOUND: 400,
   ITEM_NOT_FOUND: 404,
+  INVALID_STATUS_TRANSITION: 409,
+  NOT_FOUND: 404,
   INVALID_BODY: 400,
   UNAUTHORIZED: 401,
   SMS_FAILED: 502,
@@ -72,6 +77,8 @@ const message: Record<ApiErrorCode, string> = {
   INVALID_IMAGE_KEY: 'An image key is malformed or not owned by the caller',
   IMAGE_NOT_FOUND: 'A referenced image was never uploaded',
   ITEM_NOT_FOUND: 'No item with that id is visible to the requester',
+  INVALID_STATUS_TRANSITION: 'Item is not in a status from which this action is allowed',
+  NOT_FOUND: 'Not found',
   INVALID_BODY: 'Request body failed validation',
   UNAUTHORIZED: 'Not signed in',
   SMS_FAILED: 'Could not deliver the verification code',

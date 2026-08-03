@@ -28,7 +28,21 @@ npm run db:generate   # generate migration from schema changes
 npm run db:migrate    # apply migrations
 npm run db:studio     # drizzle studio
 npm run db:seed       # seed districts and categories
+npm run db:make-admin -- +37477123456   # grant is_admin to a phone
 ```
+
+## Admins
+
+There is no API path to becoming an admin, by design. The first (and
+every) admin is granted out of band with
+`npm run db:make-admin -- <phone>`, run from a machine that holds
+`DATABASE_URL`. The target must have signed in at least once — the
+script flips `is_admin` on an existing user, it does not create one.
+
+Admin routes live under `/api/admin/*` and require `is_admin`. A
+non-admin — anonymous or a logged-in stranger — gets **404, not 403**,
+so the surface is not discoverable by probing paths. Use
+`requireAdmin()` from `src/lib/auth/session.ts`; a null return is a 404.
 
 ## Structure
 

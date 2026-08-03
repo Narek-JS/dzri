@@ -135,3 +135,45 @@ export async function requireUser(): Promise<SessionUser | null> {
     lastSeenAt: user.lastSeenAt,
   };
 }
+
+/**
+ * Like `requireUser`, but also requires `is_admin`. Returns null for an
+ * absent or invalid session, a banned or missing user, *and* for any
+ * authenticated non-admin.
+ *
+ * A route handler turns that single null into a 404 — never a 403. The
+ * admin surface must not be discoverable by a logged-in stranger probing
+ * paths: a 403 confirms the endpoint exists, a 404 says nothing. The flag
+ * is read from the database, not the cookie, so revoking `is_admin` takes
+ * effect immediately and a stale 90-day token cannot carry it.
+ */
+export async function requireAdmin(): Promise<SessionUser | null> {
+  const session = await getSession();
+  if (!session) return null;
+
+  const [user] = await db
+    .select({
+      id: users.id,
+      displayName: users.displayName,
+      avatarUrl: users.avatarUrl,
+      districtId: users.districtId,
+      isBanned: users.isBanned,
+      isAdmin: users.isAdmin,
+      createdAt: users.createdAt,
+      lastSeenAt: users.lastSeenAt,
+    })
+    .from(users)
+    .where(eq(users.id, session.userId))
+    .limit(1);
+
+  if (!user || user.isBanned || !user.isAdmin) return null;
+
+  return {
+    id: user.id,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    districtId: user.districtId,
+    createdAt: user.createdAt,
+    lastSeenAt: user.lastSeenAt,
+  };
+}
