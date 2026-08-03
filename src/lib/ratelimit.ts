@@ -118,6 +118,21 @@ const ITEM_CREATE_PER_IP: LimiterSpec = {
   windowMs: 60 * 60 * 1000,
 };
 
+/**
+ * The public feed is anonymous and indexable, so its only budget is per-IP.
+ * Set high on purpose (DECISIONS.md-style reasoning in the route): a stranger
+ * off a TikTok link scrolling the feed must never be throttled, while a script
+ * hammering it still hits a ceiling. This is a read against a short shared
+ * cache, so most hits never reach the handler at all — the limiter is the
+ * floor under the cache, not the primary defense.
+ */
+const FEED_PER_IP: LimiterSpec = {
+  prefix: 'feed:ip',
+  tokens: 120,
+  window: '1 m',
+  windowMs: 60 * 1000,
+};
+
 /** Fixed-window counter used only when there is no Redis (local dev). */
 class InMemoryLimiter implements Limiter {
   private readonly counters = new Map<string, { count: number; reset: number }>();
@@ -190,6 +205,7 @@ export const imagePresignPerUser = (): Limiter => getLimiter(IMAGE_PRESIGN_PER_U
 export const imagePresignPerIp = (): Limiter => getLimiter(IMAGE_PRESIGN_PER_IP);
 export const itemCreatePerUser = (): Limiter => getLimiter(ITEM_CREATE_PER_USER);
 export const itemCreatePerIp = (): Limiter => getLimiter(ITEM_CREATE_PER_IP);
+export const feedPerIp = (): Limiter => getLimiter(FEED_PER_IP);
 
 /**
  * Vercel sets `x-forwarded-for`; the left-most entry is the client. The

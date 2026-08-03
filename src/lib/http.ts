@@ -24,6 +24,8 @@ export type ApiErrorCode =
   | 'TOO_MANY_IMAGES'
   | 'INVALID_IMAGE_KEY'
   | 'IMAGE_NOT_FOUND'
+  // item read
+  | 'ITEM_NOT_FOUND'
   // generic
   | 'INVALID_BODY'
   | 'UNAUTHORIZED'
@@ -46,6 +48,7 @@ const status: Record<ApiErrorCode, number> = {
   TOO_MANY_IMAGES: 400,
   INVALID_IMAGE_KEY: 400,
   IMAGE_NOT_FOUND: 400,
+  ITEM_NOT_FOUND: 404,
   INVALID_BODY: 400,
   UNAUTHORIZED: 401,
   SMS_FAILED: 502,
@@ -68,6 +71,7 @@ const message: Record<ApiErrorCode, string> = {
   TOO_MANY_IMAGES: 'Too many images for one item',
   INVALID_IMAGE_KEY: 'An image key is malformed or not owned by the caller',
   IMAGE_NOT_FOUND: 'A referenced image was never uploaded',
+  ITEM_NOT_FOUND: 'No item with that id is visible to the requester',
   INVALID_BODY: 'Request body failed validation',
   UNAUTHORIZED: 'Not signed in',
   SMS_FAILED: 'Could not deliver the verification code',

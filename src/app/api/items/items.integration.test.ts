@@ -1,6 +1,8 @@
 import { eq, inArray } from 'drizzle-orm';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import type { ItemStatus } from '@/db/schema';
+
 /**
  * Real routes, real Neon, no mocks (CLAUDE.md).
  *
@@ -41,6 +43,14 @@ type MineItem = {
   claimCount: number;
 };
 type MineResponse = { items: MineItem[]; nextCursor: string | null };
+
+// Only the fields the feed/detail assertions read are typed; the JSON carries
+// more (localized district/category names, thumbnails, giver) and structural
+// typing lets those ride along untyped.
+type FeedItem = { id: string; title: string; createdAt: string };
+type FeedResponse = { items: FeedItem[]; nextCursor: string | null };
+type DetailResponse = { item: { id: string; status: string } };
+
 type ApiErrorBody = { error: { code: string; message: string } };
 
 type ApiResponse = {
@@ -72,10 +82,19 @@ const objectAlwaysExists = async (): Promise<boolean> => true;
 describe.skipIf(!hasDatabase)('items API', () => {
   const createdPhones = new Set<string>();
 
-  // A category and district owned by this suite, so the tests do not depend
-  // on the seed having run on the branch. Cleaned up in afterAll.
+  // Two categories and two districts owned by this suite, so the tests do not
+  // depend on the seed having run on the branch, and the feed's district/
+  // category filters have a second bucket to exclude. Cleaned up in afterAll.
+  // The slugs are unique per run, so a district filter isolates this suite's
+  // rows from anything else on the shared branch.
   let categoryId: number;
   let districtId: number;
+  let categoryId2: number;
+  let districtId2: number;
+  let categorySlug: string;
+  let districtSlug: string;
+  let categorySlug2: string;
+  let districtSlug2: string;
 
   beforeAll(async () => {
     ({ db } = await import('@/db'));
@@ -84,23 +103,28 @@ describe.skipIf(!hasDatabase)('items API', () => {
     ({ createItem } = await import('@/lib/items/create'));
 
     const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-    const [category] = await db
+    categorySlug = `test-cat-${suffix}`;
+    districtSlug = `test-dist-${suffix}`;
+    categorySlug2 = `test-cat2-${suffix}`;
+    districtSlug2 = `test-dist2-${suffix}`;
+
+    const insertedCategories = await db
       .insert(categories)
-      .values({ slug: `test-cat-${suffix}`, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test' })
+      .values([
+        { slug: categorySlug, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test' },
+        { slug: categorySlug2, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test' },
+      ])
       .returning({ id: categories.id });
-    const [district] = await db
+    const insertedDistricts = await db
       .insert(districts)
-      .values({
-        slug: `test-dist-${suffix}`,
-        nameHy: 'Թեստ',
-        nameRu: 'Тест',
-        nameEn: 'Test',
-        region: 'yerevan',
-      })
+      .values([
+        { slug: districtSlug, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test', region: 'yerevan' },
+        { slug: districtSlug2, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test', region: 'yerevan' },
+      ])
       .returning({ id: districts.id });
 
-    categoryId = category.id;
-    districtId = district.id;
+    [categoryId, categoryId2] = insertedCategories.map((c) => c.id);
+    [districtId, districtId2] = insertedDistricts.map((d) => d.id);
   });
 
   // Deleting the users cascades to their items, item_images and claims
@@ -121,8 +145,8 @@ describe.skipIf(!hasDatabase)('items API', () => {
 
     // Reference rows have no cascade; by now afterEach has removed every item
     // that referenced them, so these deletes cannot hit an FK.
-    await db.delete(categories).where(eq(categories.id, categoryId));
-    await db.delete(districts).where(eq(districts.id, districtId));
+    await db.delete(categories).where(inArray(categories.id, [categoryId, categoryId2]));
+    await db.delete(districts).where(inArray(districts.id, [districtId, districtId2]));
   });
 
   function testPhone(): string {
@@ -203,6 +227,55 @@ describe.skipIf(!hasDatabase)('items API', () => {
       imageKeys: [ownedKey(userId, 'a.jpg')],
       ...overrides,
     };
+  }
+
+  /**
+   * Seeds one item through `createItem` with the R2 stub — the same in-process
+   * path the existing tests use — then forces it into `status`. Under the
+   * default moderation mode `createItem` always writes `pending_review`, so
+   * every other feed/detail state (active, reserved, expired, rejected) is
+   * reached by this post-write update, exactly as the moderation flow and the
+   * cron sweep reach them. The row's owner is a tracked-phone user, so afterEach
+   * cascade-deletes it.
+   */
+  async function seedItem(
+    userId: string,
+    status: ItemStatus,
+    overrides: { categoryId?: number; districtId?: number; expiresAt?: Date; title?: string } = {},
+  ): Promise<string> {
+    const result = await createItem(
+      {
+        userId,
+        title: overrides.title ?? 'Ապրանք',
+        description: null,
+        categoryId: overrides.categoryId ?? categoryId,
+        districtId: overrides.districtId ?? districtId,
+        condition: 'working',
+        pickupNotes: null,
+        imageKeys: [ownedKey(userId, 'seed.jpg')],
+      },
+      objectAlwaysExists,
+    );
+    if (!result.ok) throw new Error(`seedItem could not create the row: ${result.code}`);
+
+    // pending_review is already the created status; touch the row only when the
+    // test wants something else, or a non-default expiry.
+    if (status !== 'pending_review' || overrides.expiresAt) {
+      await db
+        .update(items)
+        .set({
+          status,
+          // Two check constraints ride on status: a rejected item must carry a
+          // reason, a reserved item must name who it is reserved for.
+          rejectionReason: status === 'rejected' ? 'Չի համապատասխանում' : null,
+          reservedFor: status === 'reserved' ? userId : null,
+          reservedUntil: status === 'reserved' ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null,
+          ...(overrides.expiresAt ? { expiresAt: overrides.expiresAt } : {}),
+        })
+        .where(eq(items.id, result.id));
+    }
+
+    return result.id;
   }
 
   describe('POST /api/items', () => {
@@ -408,6 +481,173 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const response = await api('/api/items/mine', { cookie });
       expect(response.status, response.text).toBe(200);
       expectNoPhone(response, phone);
+    });
+  });
+
+  describe('GET /api/items (feed)', () => {
+    it('serves the feed to a caller with no cookie at all', async () => {
+      const { userId } = await signIn();
+      const id = await seedItem(userId, 'active');
+
+      // No cookie option passed: a stranger off a shared link.
+      const response = await api(`/api/items?district=${districtSlug}`);
+
+      expect(response.status, response.text).toBe(200);
+      const ids = parse<FeedResponse>(response.text).items.map((item) => item.id);
+      expect(ids).toContain(id);
+    });
+
+    it('excludes pending_review, rejected, reserved and expired items', async () => {
+      const { userId } = await signIn();
+
+      const active = await seedItem(userId, 'active');
+      const pending = await seedItem(userId, 'pending_review');
+      const rejected = await seedItem(userId, 'rejected');
+      const reserved = await seedItem(userId, 'reserved');
+      const expired = await seedItem(userId, 'expired');
+      // Still 'active' but past its expiry: the sweep has not flipped it yet,
+      // and the feed's `expires_at > now()` guard must hide it anyway.
+      const stale = await seedItem(userId, 'active', { expiresAt: new Date(Date.now() - 1000) });
+
+      const response = await api(`/api/items?district=${districtSlug}`);
+      expect(response.status, response.text).toBe(200);
+
+      const ids = parse<FeedResponse>(response.text).items.map((item) => item.id);
+      expect(ids).toContain(active);
+      for (const hidden of [pending, rejected, reserved, expired, stale]) {
+        expect(ids).not.toContain(hidden);
+      }
+    });
+
+    it('filters by district slug, excluding items in another district', async () => {
+      const { userId } = await signIn();
+      const here = await seedItem(userId, 'active', { districtId });
+      const elsewhere = await seedItem(userId, 'active', { districtId: districtId2 });
+
+      const response = await api(`/api/items?district=${districtSlug}`);
+      expect(response.status, response.text).toBe(200);
+
+      const ids = parse<FeedResponse>(response.text).items.map((item) => item.id);
+      expect(ids).toContain(here);
+      expect(ids).not.toContain(elsewhere);
+    });
+
+    it('filters by category slug, excluding items in another category', async () => {
+      const { userId } = await signIn();
+      const here = await seedItem(userId, 'active', { categoryId });
+      const elsewhere = await seedItem(userId, 'active', { categoryId: categoryId2 });
+
+      const response = await api(`/api/items?category=${categorySlug}`);
+      expect(response.status, response.text).toBe(200);
+
+      const ids = parse<FeedResponse>(response.text).items.map((item) => item.id);
+      expect(ids).toContain(here);
+      expect(ids).not.toContain(elsewhere);
+    });
+
+    it('returns an empty page for an unknown slug, not an error', async () => {
+      const { userId } = await signIn();
+      await seedItem(userId, 'active');
+
+      const response = await api('/api/items?district=no-such-district-anywhere');
+      expect(response.status, response.text).toBe(200);
+
+      const body = parse<FeedResponse>(response.text);
+      expect(body.items).toEqual([]);
+      expect(body.nextCursor).toBeNull();
+    });
+
+    it('paginates by cursor with no overlap between the two pages', async () => {
+      const { userId } = await signIn();
+
+      // One more than a full page forces a second page. The suite's private
+      // district holds nothing else, so the two pages must union to exactly
+      // these rows with no id on both.
+      const PAGE_SIZE = 24;
+      const seeded = new Set<string>();
+      for (let i = 0; i < PAGE_SIZE + 1; i++) {
+        seeded.add(await seedItem(userId, 'active', { title: `Էջ ${i}` }));
+      }
+
+      const first = await api(`/api/items?district=${districtSlug}`);
+      expect(first.status, first.text).toBe(200);
+      const firstBody = parse<FeedResponse>(first.text);
+      expect(firstBody.items).toHaveLength(PAGE_SIZE);
+
+      const cursor = firstBody.nextCursor;
+      expect(cursor, 'a full first page must hand back a cursor').not.toBeNull();
+      if (cursor === null) return;
+
+      const second = await api(
+        `/api/items?district=${districtSlug}&cursor=${encodeURIComponent(cursor)}`,
+      );
+      expect(second.status, second.text).toBe(200);
+      const secondBody = parse<FeedResponse>(second.text);
+
+      const firstIds = firstBody.items.map((item) => item.id);
+      const secondIds = secondBody.items.map((item) => item.id);
+
+      // No id appears on both pages, and together they account for every row.
+      expect(firstIds.filter((id) => secondIds.includes(id))).toEqual([]);
+      expect(new Set([...firstIds, ...secondIds])).toEqual(seeded);
+      expect(secondBody.nextCursor).toBeNull();
+    });
+  });
+
+  describe('GET /api/items/[id]', () => {
+    it('returns 200 to an anonymous caller for an active item', async () => {
+      const { userId } = await signIn();
+      const id = await seedItem(userId, 'active');
+
+      const response = await api(`/api/items/${id}`);
+      expect(response.status, response.text).toBe(200);
+
+      const item = parse<DetailResponse>(response.text).item;
+      expect(item.id).toBe(id);
+      expect(item.status).toBe('active');
+    });
+
+    it('returns 404 ITEM_NOT_FOUND to an anonymous caller for a pending_review item', async () => {
+      const { userId } = await signIn();
+      const id = await seedItem(userId, 'pending_review');
+
+      const response = await api(`/api/items/${id}`);
+      expect(response.status, response.text).toBe(404);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('ITEM_NOT_FOUND');
+    });
+
+    it('returns 200 for a pending_review item to its owner', async () => {
+      const owner = await signIn();
+      const id = await seedItem(owner.userId, 'pending_review');
+
+      const response = await api(`/api/items/${id}`, { cookie: owner.cookie });
+      expect(response.status, response.text).toBe(200);
+
+      const item = parse<DetailResponse>(response.text).item;
+      expect(item.id).toBe(id);
+      expect(item.status).toBe('pending_review');
+    });
+
+    it('returns 404 for a malformed uuid in the path', async () => {
+      const response = await api('/api/items/not-a-real-uuid');
+      expect(response.status, response.text).toBe(404);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('ITEM_NOT_FOUND');
+    });
+  });
+
+  // The non-negotiable rule (CLAUDE.md): no phone leaves either read endpoint.
+  describe('phone privacy', () => {
+    it('never returns a phone number from the feed or the detail endpoint', async () => {
+      const { userId, phone } = await signIn();
+      const id = await seedItem(userId, 'active');
+
+      const feed = await api(`/api/items?district=${districtSlug}`);
+      expect(feed.status, feed.text).toBe(200);
+      expectNoPhone(feed, phone);
+
+      const detail = await api(`/api/items/${id}`);
+      expect(detail.status, detail.text).toBe(200);
+      expectNoPhone(detail, phone);
     });
   });
 });
