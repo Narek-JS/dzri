@@ -44,6 +44,46 @@ non-admin — anonymous or a logged-in stranger — gets **404, not 403**,
 so the surface is not discoverable by probing paths. Use
 `requireAdmin()` from `src/lib/auth/session.ts`; a null return is a 404.
 
+## The sweep
+
+`GET /api/cron/sweep` is the housekeeping job. It releases reservations
+past `reserved_until` (marking the approved claim `no_show`), expires
+active items past `expires_at`, and deletes OTP rows more than 24 hours
+past expiry. It returns a JSON summary with the counts and how long the
+run took — that summary is the only visibility into whether the job is
+running at all, so read it before assuming it is.
+
+It is scheduled by `.github/workflows/sweep.yml`, hourly, not by Vercel
+cron — Hobby fires once a day, which is far too slow for a 48-hour
+reservation window. The workflow also has a `workflow_dispatch` trigger,
+so it can be run by hand from the Actions tab.
+
+Auth is a bearer token compared against `CRON_SECRET` in constant time.
+No session, no cookie. A wrong token, or an unset `CRON_SECRET`, is a
+**404, not a 401** — same reasoning as the admin surface. It fails shut:
+without the secret nothing sweeps, which is the safe direction.
+
+Setting it up means putting the *same* value in two places:
+
+```
+# 1. Vercel — the app side
+vercel env add CRON_SECRET production     # or paste it in the dashboard
+
+# 2. GitHub — the caller side, as a repository secret
+gh secret set CRON_SECRET                 # prompts for the value
+
+# generate one:
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+In the UI that is Settings → Secrets and variables → Actions → New
+repository secret, named exactly `CRON_SECRET`. The endpoint URL is not
+a secret and defaults to production in the workflow; override it with a
+repository *variable* named `SWEEP_URL` to point a fork or a preview
+deployment elsewhere. Rotating the secret means changing both sides —
+until they match again every run 404s, and the workflow prints the body
+so that failure is legible in the Actions log.
+
 ## Structure
 
 ```

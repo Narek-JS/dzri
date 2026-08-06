@@ -1,6 +1,6 @@
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, lt, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
 import { otpCodes } from '@/db/schema';
@@ -10,6 +10,14 @@ import { getAuthSecret } from './secret';
 export const OTP_CODE_LENGTH = 6;
 export const OTP_TTL_MINUTES = 5;
 export const OTP_MAX_ATTEMPTS = 5;
+
+/**
+ * How long a dead code's row is kept past its expiry, for the sweep to
+ * delete. Long enough to still be there when somebody asks why a sign-in
+ * failed last night; short enough that the table is not an archive of
+ * credential hashes.
+ */
+export const OTP_RETENTION_HOURS = 24;
 
 const OTP_TTL_MS = OTP_TTL_MINUTES * 60 * 1000;
 
@@ -121,4 +129,25 @@ export async function consumeOtpCode(id: number): Promise<boolean> {
     .returning({ id: otpCodes.id });
 
   return row !== undefined;
+}
+
+/**
+ * Deletes codes that expired more than `OTP_RETENTION_HOURS` ago. Called by
+ * the sweep.
+ *
+ * These rows are dead weight — a code five minutes past its expiry can never
+ * be verified again, consumed or not — and they are peppered hashes of a
+ * credential. Keeping them buys nothing and is one more thing a database dump
+ * would contain. Deleted on `expires_at`, not `consumed_at`, because an
+ * abandoned code is never consumed and would otherwise stay forever.
+ *
+ * @returns how many rows were deleted.
+ */
+export async function deleteExpiredOtpCodes(): Promise<number> {
+  const deleted = await db
+    .delete(otpCodes)
+    .where(lt(otpCodes.expiresAt, sql`now() - make_interval(hours => ${OTP_RETENTION_HOURS})`))
+    .returning({ id: otpCodes.id });
+
+  return deleted.length;
 }

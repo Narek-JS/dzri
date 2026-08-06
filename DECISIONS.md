@@ -317,3 +317,58 @@ where the failure is unrecoverable.
 `user_reliability` is queried with an explicit `in` list of claimant ids
 and never joined, and only its two counts are selected — the view also
 carries `phone`, and it must never back a response.
+
+### 2026-08-07 — The sweep is set-based conditional UPDATEs, not read-then-write
+
+Every step of `/api/cron/sweep` is one UPDATE (or DELETE) whose WHERE clause
+carries the guard, over the whole matching set at once. Nothing reads a row and
+writes it back, so there is no window in which an item's status can change
+between the two — Postgres evaluates the guard against the current row version,
+and an item somebody collected or withdrew from a millisecond earlier simply
+does not match. That is what makes the job safe to run twice, or twice at once,
+which it will be: GitHub's scheduler retries, and a hand-run overlaps.
+
+Releasing a reservation spans two tables, so it is a `db.batch` for the same
+reason claim approval is. The claim update runs *first*, and the order carries
+two things. It needs to see the item still `reserved` to find the claim that
+held it, because the item update erases exactly the columns it matches on. And
+it takes the claim row's lock first — which is the lock complete, withdraw and
+manual no-show all take first too, so a giver confirming a handover in the same
+instant blocks on our claim row, re-reads it as `no_show` after we commit and
+is refused, rather than half-completing against an item we just released.
+
+The item release is deliberately *not* chained on the claim update, unlike the
+approval batch. A `reserved` row with no approved claim behind it is releasable
+all the same, and leaving one stuck forever is the worse failure.
+
+Expiry runs after the release, not before, so an item whose reservation has
+just lapsed is judged on its own expiry in the same run rather than sitting
+back on the feed, already dead, until the next hour.
+
+### 2026-08-07 — A wrong cron token is a 404, and the compare is over digests
+
+Same reasoning as the admin surface: a 401 tells an anonymous prober that the
+endpoint exists and that a token is the thing to guess. A 404 says nothing. An
+unset `CRON_SECRET` refuses everyone too — an open sweep endpoint is a
+stranger's button for expiring other people's listings, so it fails shut and a
+deploy that forgets the secret stops sweeping instead.
+
+The comparison hashes both sides with SHA-256 and `timingSafeEqual`s the
+digests, rather than comparing the tokens directly. `timingSafeEqual` throws on
+a length mismatch, so a direct compare needs a length check first — and that
+check leaks the secret's length. Fixed-width digests leave nothing to branch on.
+
+The endpoint is a GET. It writes, so it is not safe in the HTTP sense, but it is
+idempotent, which is the property that matters here — and GET is what a
+scheduler calls with one line of curl and no body.
+
+### 2026-08-07 — OTP rows are kept 24 hours past expiry, then deleted
+
+The sweep deletes `otp_codes` rows more than 24 hours past `expires_at`. They
+are peppered hashes of a credential and a code five minutes dead can never be
+verified again, so keeping them buys nothing and adds to what a database dump
+would contain. The 24-hour tail exists only so the rows are still there when
+somebody asks why a sign-in failed last night.
+
+Deleted on `expires_at`, not `consumed_at`: an abandoned code is never consumed
+and would otherwise stay forever.

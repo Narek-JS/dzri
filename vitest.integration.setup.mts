@@ -90,6 +90,12 @@ export async function setup(): Promise<void> {
     process.env[key] ??= value;
   }
 
+  // The sweep endpoint refuses every caller when CRON_SECRET is unset, so the
+  // cron suite could not reach it on a machine that has no real one. The same
+  // `??=` and the same literal live in the cron test file, which has to present
+  // whatever token the server is running with.
+  process.env.CRON_SECRET ??= 'integration-test-cron-secret';
+
   // Only happens if a previous run leaked its server. Reuse it rather
   // than failing on a port collision, and leave it alone at teardown —
   // it is not this run's to kill.

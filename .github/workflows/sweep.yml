@@ -1,0 +1,62 @@
+name: sweep
+
+# Vercel Hobby cron fires once a day, which is useless against a 48-hour
+# reservation window — a listing could sit held for somebody who never turned
+# up for most of a day after the window closed. So the schedule lives here
+# instead (DECISIONS.md) and GitHub Actions calls the endpoint hourly.
+#
+# Needs one repository secret, Settings → Secrets and variables → Actions →
+# Secrets: CRON_SECRET, the same value as the CRON_SECRET env var on Vercel.
+#
+# The URL is not a secret and is not stored as one. It defaults to production;
+# to point a fork or a preview deployment somewhere else, set a repository
+# *variable* (same page, Variables tab) named SWEEP_URL.
+#
+# GitHub's scheduler is best-effort and drops runs when the queue is busy, so
+# a missed hour is expected. Nothing here depends on catching every one: the
+# sweep is idempotent and the next run picks up whatever the last one missed.
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  # So it can be run by hand from the Actions tab — after a missed window, or
+  # to confirm the secret still matches after a rotation.
+  workflow_dispatch:
+
+# A run that overlaps its predecessor is harmless (every write is a guarded
+# conditional update), but there is no point paying for two.
+concurrency:
+  group: sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Call the sweep endpoint
+        env:
+          SWEEP_URL: ${{ vars.SWEEP_URL || 'https://dzri.am/api/cron/sweep' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "CRON_SECRET is not set as a repository secret — see the comment at the top of this workflow." >&2
+            exit 1
+          fi
+
+          # --fail-with-body so a non-2xx exits non-zero *and* still prints what
+          # came back. A wrong secret is a 404, deliberately indistinguishable
+          # from a bad path by status alone, so the body is the only clue.
+          # --retry covers a cold serverless function or a Neon wake-up.
+          curl --silent --show-error --fail-with-body \
+               --retry 3 --retry-delay 10 --retry-all-errors \
+               --max-time 120 \
+               --header "Authorization: Bearer ${CRON_SECRET}" \
+               "${SWEEP_URL}"
+
+          # The summary is the only visibility into whether the job is doing
+          # anything; curl does not end the body with a newline.
+          echo
