@@ -119,6 +119,29 @@ const ITEM_CREATE_PER_IP: LimiterSpec = {
 };
 
 /**
+ * Claim create is on the CLAUDE.md list of endpoints that must be limited. A
+ * claim is a notification to a giver and a row in their decision list, so an
+ * unthrottled create lets one account bury every listing on the platform. The
+ * budget is deliberately looser than item create — claiming is the cheap side
+ * of the interaction and a keen user browsing the feed genuinely does claim
+ * several things in a sitting. Per-IP is looser again so a couple of real
+ * users behind one NAT do not throttle each other.
+ */
+const CLAIM_CREATE_PER_USER: LimiterSpec = {
+  prefix: 'claim:create:user',
+  tokens: 20,
+  window: '1 h',
+  windowMs: 60 * 60 * 1000,
+};
+
+const CLAIM_CREATE_PER_IP: LimiterSpec = {
+  prefix: 'claim:create:ip',
+  tokens: 40,
+  window: '1 h',
+  windowMs: 60 * 60 * 1000,
+};
+
+/**
  * The public feed is anonymous and indexable, so its only budget is per-IP.
  * Set high on purpose (DECISIONS.md-style reasoning in the route): a stranger
  * off a TikTok link scrolling the feed must never be throttled, while a script
@@ -205,6 +228,8 @@ export const imagePresignPerUser = (): Limiter => getLimiter(IMAGE_PRESIGN_PER_U
 export const imagePresignPerIp = (): Limiter => getLimiter(IMAGE_PRESIGN_PER_IP);
 export const itemCreatePerUser = (): Limiter => getLimiter(ITEM_CREATE_PER_USER);
 export const itemCreatePerIp = (): Limiter => getLimiter(ITEM_CREATE_PER_IP);
+export const claimCreatePerUser = (): Limiter => getLimiter(CLAIM_CREATE_PER_USER);
+export const claimCreatePerIp = (): Limiter => getLimiter(CLAIM_CREATE_PER_IP);
 export const feedPerIp = (): Limiter => getLimiter(FEED_PER_IP);
 
 /**

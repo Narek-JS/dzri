@@ -26,6 +26,10 @@ export type ApiErrorCode =
   | 'IMAGE_NOT_FOUND'
   // item read
   | 'ITEM_NOT_FOUND'
+  // claims
+  | 'CANNOT_CLAIM_OWN_ITEM'
+  | 'ALREADY_CLAIMED'
+  | 'CLAIM_NOT_FOUND'
   // moderation
   | 'INVALID_STATUS_TRANSITION'
   // generic
@@ -52,6 +56,9 @@ const status: Record<ApiErrorCode, number> = {
   INVALID_IMAGE_KEY: 400,
   IMAGE_NOT_FOUND: 400,
   ITEM_NOT_FOUND: 404,
+  CANNOT_CLAIM_OWN_ITEM: 400,
+  ALREADY_CLAIMED: 409,
+  CLAIM_NOT_FOUND: 404,
   INVALID_STATUS_TRANSITION: 409,
   NOT_FOUND: 404,
   INVALID_BODY: 400,
@@ -77,7 +84,11 @@ const message: Record<ApiErrorCode, string> = {
   INVALID_IMAGE_KEY: 'An image key is malformed or not owned by the caller',
   IMAGE_NOT_FOUND: 'A referenced image was never uploaded',
   ITEM_NOT_FOUND: 'No item with that id is visible to the requester',
-  INVALID_STATUS_TRANSITION: 'Item is not in a status from which this action is allowed',
+  CANNOT_CLAIM_OWN_ITEM: 'A giver cannot claim their own item',
+  ALREADY_CLAIMED: 'This user already has a claim on this item',
+  CLAIM_NOT_FOUND: 'No claim with that id is visible to the requester',
+  INVALID_STATUS_TRANSITION:
+    'The item or claim is not in a status from which this action is allowed',
   NOT_FOUND: 'Not found',
   INVALID_BODY: 'Request body failed validation',
   UNAUTHORIZED: 'Not signed in',

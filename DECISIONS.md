@@ -274,3 +274,46 @@ until launch. The trap only returns once there is data worth preserving
 *and* you must add an enum value and reference it in the same deploy — at
 that point, and only then, put the `ADD VALUE` in its own migration and
 apply it in a separate `db:migrate` run before the one that uses it.
+
+### 2026-08-07 — Claim transitions chain their guards inside one `db.batch`
+
+neon-http has no interactive transaction, so approving a claim — which
+must set the claim to `approved`, reserve the item, and reject the other
+pending claims, all or nothing — is a `db.batch`. A batch is one real
+transaction but cannot branch on a statement's result, so every
+precondition is written as a WHERE clause and a statement whose guard
+fails simply touches zero rows.
+
+The three statements are deliberately *chained* on each other's writes,
+which works because a later statement in the same transaction sees the
+earlier ones: the item moves `active → reserved` only while the claim is
+pending; the claim moves `pending → approved` only if the item is now
+reserved for that claimant; the losing claims are rejected only if the
+claim is now approved. Either the whole thing lands or none of it does.
+
+This is why the guards look redundant and must not be "simplified". Drop
+the `exists` on the item update and a double-click reserves an item
+twice. Drop it on the claim update and you get an approved claim on an
+item somebody else already holds. Drop it on the third statement and a
+failed approval silently rejects every other claimant. The same shape
+guards withdraw, complete and no-show.
+
+### 2026-08-07 — The phone reveal is a SQL `CASE`, and the key is omitted
+
+Phone privacy is the whole trust model (see the 2026-07-31 entry), so the
+reveal is enforced in the *database*, not in the mapping layer: every
+endpoint that could carry a phone selects it as
+`case when status = 'approved' then users.phone end`. A pending or
+rejected row therefore has no phone to leak by the time it reaches
+application code, and a mistake in the response mapping cannot expose
+one.
+
+When there is no phone the key is left out of the JSON entirely rather
+than sent as `null`. A client cannot come to depend on a field that is
+sometimes populated, the integration tests can assert the string "phone"
+never appears at all, and there is no null-vs-value confusion in a place
+where the failure is unrecoverable.
+
+`user_reliability` is queried with an explicit `in` list of claimant ids
+and never joined, and only its two counts are selected — the view also
+carries `phone`, and it must never back a response.
