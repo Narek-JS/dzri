@@ -222,7 +222,15 @@ describe.skipIf(!hasDatabase)('admin API', () => {
         districtId,
         condition: 'working',
         pickupNotes: '3-րդ հարկ',
-        imageKeys: [ownedKey(userId, 'seed.jpg')],
+        images: [
+          {
+            key: ownedKey(userId, 'seed.jpg'),
+            thumbKey: ownedKey(userId, 'seed-thumb.jpg'),
+            width: 1200,
+            height: 900,
+            blurhash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+          },
+        ],
       },
       objectAlwaysExists,
     );

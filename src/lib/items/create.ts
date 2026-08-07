@@ -13,6 +13,26 @@ import { isOwnedImageKey } from './imageKeys';
 /** A listing with no photo does not get claimed, and six is plenty. */
 export const MAX_ITEM_IMAGES = 6;
 
+/**
+ * One photo, as two uploaded objects plus the layout metadata the client
+ * derived from it while it had the decoded bitmap in hand.
+ *
+ * `width`, `height` and `blurhash` describe the *original* and are untrusted
+ * client input — they are shape hints for rendering, nothing more. They are
+ * validated for range and charset by the route's schema before they get here;
+ * nothing downstream computes on them, and the blurhash is only ever handed to
+ * a decoder.
+ */
+export type CreateItemImage = {
+  /** The full-size upload. */
+  key: string;
+  /** Its 400px-longest-edge variant, which is what list views serve. */
+  thumbKey: string;
+  width: number;
+  height: number;
+  blurhash: string;
+};
+
 export type CreateItemInput = {
   userId: string;
   title: string;
@@ -22,7 +42,7 @@ export type CreateItemInput = {
   condition: ItemCondition;
   pickupNotes: string | null;
   /** Ordered: index 0 is the thumbnail, and the array order is gallery order. */
-  imageKeys: string[];
+  images: CreateItemImage[];
 };
 
 /**
@@ -65,25 +85,34 @@ export async function createItem(
   input: CreateItemInput,
   objectExists: (key: string) => Promise<boolean> = headObject,
 ): Promise<CreateItemResult> {
-  const { userId, imageKeys } = input;
+  const { userId, images } = input;
 
-  if (imageKeys.length === 0) {
+  if (images.length === 0) {
     return { ok: false, code: 'IMAGES_REQUIRED' };
   }
-  if (imageKeys.length > MAX_ITEM_IMAGES) {
+  if (images.length > MAX_ITEM_IMAGES) {
     return { ok: false, code: 'TOO_MANY_IMAGES' };
   }
 
+  // Both halves of every pair are checked identically, and every check below
+  // works over this flattened list. A thumb key is a key: it is minted by the
+  // same presign endpoint under the same prefix, and letting it skip the
+  // ownership check would reopen exactly the hole the check exists to close.
+  const allKeys = images.flatMap((image) => [image.key, image.thumbKey]);
+
   // Ownership is the load-bearing check: without it a caller could bind
   // another user's uploaded photos onto their own listing.
-  for (const key of imageKeys) {
+  for (const key of allKeys) {
     if (!isOwnedImageKey(userId, key)) {
       return { ok: false, code: 'INVALID_IMAGE_KEY' };
     }
   }
 
-  // The same key twice would create duplicate gallery rows for one object.
-  if (new Set(imageKeys).size !== imageKeys.length) {
+  // One pool, not one set per role. The same key twice would create duplicate
+  // gallery rows for one object, and a request naming the same object as both
+  // an original and a thumbnail — including `key === thumbKey` on one image —
+  // is a client that has not actually produced a variant.
+  if (new Set(allKeys).size !== allKeys.length) {
     return { ok: false, code: 'INVALID_IMAGE_KEY' };
   }
 
@@ -109,8 +138,11 @@ export async function createItem(
 
   // A key can pass the ownership check yet never have been uploaded — a
   // presign that the client abandoned. HeadObject confirms each object
-  // exists, concurrently rather than in a loop.
-  const present = await Promise.all(imageKeys.map((key) => objectExists(key)));
+  // exists, concurrently rather than in a loop. Both halves of every pair are
+  // checked: an item whose thumb never landed would fall back to serving
+  // originals on the feed, which is the cost this whole pipeline exists to
+  // avoid.
+  const present = await Promise.all(allKeys.map((key) => objectExists(key)));
   if (present.some((exists) => !exists)) {
     return { ok: false, code: 'IMAGE_NOT_FOUND' };
   }
@@ -132,9 +164,13 @@ export async function createItem(
       status,
     }),
     db.insert(itemImages).values(
-      imageKeys.map((key, position) => ({
+      images.map((image, position) => ({
         itemId: id,
-        url: publicUrl(key),
+        url: publicUrl(image.key),
+        thumbUrl: publicUrl(image.thumbKey),
+        width: image.width,
+        height: image.height,
+        blurhash: image.blurhash,
         position,
       })),
     ),

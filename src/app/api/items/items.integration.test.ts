@@ -2,6 +2,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import type { ItemStatus } from '@/db/schema';
+import type { CreateItemImage } from '@/lib/items/create';
 
 /**
  * Real routes, real Neon, no mocks (CLAUDE.md).
@@ -226,6 +227,23 @@ describe.skipIf(!hasDatabase)('items API', () => {
     return `uploads/${userId}/${name}`;
   }
 
+  /**
+   * One image, in the shape POST /api/items takes: an original, its 400px
+   * variant, and the layout hints the client derived while it held the bitmap
+   * decoded. The blurhash is the reference string from the blurhash package's
+   * own README, so it is real base83 rather than something that merely happens
+   * to pass the charset check.
+   */
+  function ownedImage(userId: string, name: string): CreateItemImage {
+    return {
+      key: ownedKey(userId, `${name}.jpg`),
+      thumbKey: ownedKey(userId, `${name}-thumb.jpg`),
+      width: 1200,
+      height: 900,
+      blurhash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+    };
+  }
+
   /** The full valid body, with per-test overrides. */
   function validBody(
     userId: string,
@@ -237,7 +255,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
       categoryId,
       districtId,
       condition: 'working',
-      imageKeys: [ownedKey(userId, 'a.jpg')],
+      images: [ownedImage(userId, 'a')],
       ...overrides,
     };
   }
@@ -265,7 +283,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
         districtId: overrides.districtId ?? districtId,
         condition: 'working',
         pickupNotes: null,
-        imageKeys: [ownedKey(userId, 'seed.jpg')],
+        images: [ownedImage(userId, 'seed')],
       },
       objectAlwaysExists,
     );
@@ -299,10 +317,10 @@ describe.skipIf(!hasDatabase)('items API', () => {
       expect(parse<ApiErrorBody>(response.text).error.code).toBe('UNAUTHORIZED');
     });
 
-    it('rejects an empty imageKeys array with 400 IMAGES_REQUIRED', async () => {
+    it('rejects an empty images array with 400 IMAGES_REQUIRED', async () => {
       const { cookie, userId } = await signIn();
 
-      const response = await post('/api/items', validBody(userId, { imageKeys: [] }), cookie);
+      const response = await post('/api/items', validBody(userId, { images: [] }), cookie);
 
       expect(response.status, response.text).toBe(400);
       expect(parse<ApiErrorBody>(response.text).error.code).toBe('IMAGES_REQUIRED');
@@ -311,8 +329,8 @@ describe.skipIf(!hasDatabase)('items API', () => {
     it('rejects seven images with 400 TOO_MANY_IMAGES', async () => {
       const { cookie, userId } = await signIn();
 
-      const imageKeys = Array.from({ length: 7 }, (_, i) => ownedKey(userId, `${i}.jpg`));
-      const response = await post('/api/items', validBody(userId, { imageKeys }), cookie);
+      const images = Array.from({ length: 7 }, (_, i) => ownedImage(userId, String(i)));
+      const response = await post('/api/items', validBody(userId, { images }), cookie);
 
       expect(response.status, response.text).toBe(400);
       expect(parse<ApiErrorBody>(response.text).error.code).toBe('TOO_MANY_IMAGES');
@@ -325,12 +343,111 @@ describe.skipIf(!hasDatabase)('items API', () => {
 
       const response = await post(
         '/api/items',
-        validBody(userId, { imageKeys: [`uploads/${otherId}/stolen.jpg`] }),
+        validBody(userId, {
+          images: [{ ...ownedImage(userId, 'a'), key: `uploads/${otherId}/stolen.jpg` }],
+        }),
         cookie,
       );
 
       expect(response.status, response.text).toBe(400);
       expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_IMAGE_KEY');
+    });
+
+    it("rejects a thumbKey under another user's prefix with 400 INVALID_IMAGE_KEY", async () => {
+      const { cookie, userId } = await signIn();
+      const otherId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+      expect(otherId).not.toBe(userId);
+
+      // A thumb key is a key. Letting it skip the ownership check would
+      // reopen exactly the hole that check exists to close.
+      const response = await post(
+        '/api/items',
+        validBody(userId, {
+          images: [{ ...ownedImage(userId, 'a'), thumbKey: `uploads/${otherId}/stolen.jpg` }],
+        }),
+        cookie,
+      );
+
+      expect(response.status, response.text).toBe(400);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_IMAGE_KEY');
+    });
+
+    it('rejects an image whose key and thumbKey are the same object', async () => {
+      const { cookie, userId } = await signIn();
+
+      const key = ownedKey(userId, 'same.jpg');
+      const response = await post(
+        '/api/items',
+        validBody(userId, {
+          images: [{ ...ownedImage(userId, 'a'), key, thumbKey: key }],
+        }),
+        cookie,
+      );
+
+      // Naming one object as both halves of the pair is a client that has not
+      // actually produced a variant.
+      expect(response.status, response.text).toBe(400);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_IMAGE_KEY');
+    });
+
+    it("rejects one image's thumbKey reused as another image's key", async () => {
+      const { cookie, userId } = await signIn();
+
+      const shared = ownedKey(userId, 'shared.jpg');
+      const response = await post(
+        '/api/items',
+        validBody(userId, {
+          images: [
+            { ...ownedImage(userId, 'a'), thumbKey: shared },
+            { ...ownedImage(userId, 'b'), key: shared },
+          ],
+        }),
+        cookie,
+      );
+
+      // Duplicates are pooled across both roles, not checked per role.
+      expect(response.status, response.text).toBe(400);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_IMAGE_KEY');
+    });
+
+    it('rejects a blurhash outside base83 with 400 INVALID_BODY', async () => {
+      const { cookie, userId } = await signIn();
+
+      for (const blurhash of [
+        'LEHV6nWB2yk8pyo0adR*.7kCMdn<', // '<' is not in base83
+        'L"HV6nWB2yk8pyo0adR*.7kCMdnj', // nor is '"'
+        'abc', // under the six-character minimum
+        'L'.repeat(41), // over the 40-character cap
+      ]) {
+        const response = await post(
+          '/api/items',
+          validBody(userId, { images: [{ ...ownedImage(userId, 'a'), blurhash }] }),
+          cookie,
+        );
+
+        expect(response.status, `${blurhash.slice(0, 12)}: ${response.text}`).toBe(400);
+        expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_BODY');
+      }
+    });
+
+    it('rejects out-of-range dimensions with 400 INVALID_BODY', async () => {
+      const { cookie, userId } = await signIn();
+
+      for (const size of [
+        { width: 0, height: 900 },
+        { width: -1200, height: 900 },
+        { width: 1200, height: 20_001 },
+        { width: 1200.5, height: 900 },
+      ]) {
+        const response = await post(
+          '/api/items',
+          validBody(userId, { images: [{ ...ownedImage(userId, 'a'), ...size }] }),
+          cookie,
+        );
+
+        expect(response.status, `${JSON.stringify(size)}: ${response.text}`).toBe(400);
+        expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_BODY');
+      }
     });
 
     it('rejects a nonexistent categoryId with 400 INVALID_CATEGORY', async () => {
@@ -351,10 +468,10 @@ describe.skipIf(!hasDatabase)('items API', () => {
       // existence check, which the throwaway server config cannot satisfy.
       const { userId } = await signIn();
 
-      const imageKeys = [
-        ownedKey(userId, 'first.jpg'),
-        ownedKey(userId, 'second.jpg'),
-        ownedKey(userId, 'third.jpg'),
+      const images = [
+        ownedImage(userId, 'first'),
+        ownedImage(userId, 'second'),
+        ownedImage(userId, 'third'),
       ];
 
       const result = await createItem(
@@ -366,7 +483,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
           districtId,
           condition: 'working',
           pickupNotes: null,
-          imageKeys,
+          images,
         },
         objectAlwaysExists,
       );
@@ -378,15 +495,28 @@ describe.skipIf(!hasDatabase)('items API', () => {
       expect(result.status).toBe('pending_review');
 
       const rows = await db
-        .select({ url: itemImages.url, position: itemImages.position })
+        .select({
+          url: itemImages.url,
+          thumbUrl: itemImages.thumbUrl,
+          width: itemImages.width,
+          height: itemImages.height,
+          blurhash: itemImages.blurhash,
+          position: itemImages.position,
+        })
         .from(itemImages)
         .where(eq(itemImages.itemId, result.id))
         .orderBy(itemImages.position);
 
       expect(rows.map((r) => r.position)).toEqual([0, 1, 2]);
-      // Row order follows submission order; each url is the public URL of its key.
+      // Row order follows submission order; each url is the public URL of its
+      // key, and each pair keeps its own variant and layout hints — nothing
+      // populated width, height or blurhash before this pipeline existed.
       rows.forEach((row, i) => {
-        expect(row.url.endsWith(imageKeys[i])).toBe(true);
+        expect(row.url.endsWith(images[i].key)).toBe(true);
+        expect(row.thumbUrl?.endsWith(images[i].thumbKey)).toBe(true);
+        expect(row.width).toBe(images[i].width);
+        expect(row.height).toBe(images[i].height);
+        expect(row.blurhash).toBe(images[i].blurhash);
       });
     });
   });
@@ -412,7 +542,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
           districtId,
           condition: 'working',
           pickupNotes: null,
-          imageKeys: [ownedKey(alice.userId, 'mine.jpg')],
+          images: [ownedImage(alice.userId, 'mine')],
         },
         objectAlwaysExists,
       );
@@ -425,7 +555,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
           districtId,
           condition: 'working',
           pickupNotes: null,
-          imageKeys: [ownedKey(bob.userId, 'theirs.jpg')],
+          images: [ownedImage(bob.userId, 'theirs')],
         },
         objectAlwaysExists,
       );
@@ -453,7 +583,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
           districtId,
           condition: 'working',
           pickupNotes: null,
-          imageKeys: [ownedKey(userId, 'rejected.jpg')],
+          images: [ownedImage(userId, 'rejected')],
         },
         objectAlwaysExists,
       );
@@ -544,7 +674,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
           districtId,
           condition: 'working',
           pickupNotes: null,
-          imageKeys: [ownedKey(userId, 'photo.jpg')],
+          images: [ownedImage(userId, 'photo')],
         },
         objectAlwaysExists,
       );
@@ -1006,6 +1136,107 @@ describe.skipIf(!hasDatabase)('items API', () => {
 
       const stranger = await api(`/api/items/${id}`);
       expect(stranger.status).toBe(404);
+    });
+  });
+
+  /**
+   * Before the two-variant pipeline every one of these served the ORIGINAL
+   * upload — up to 8 MB, in a grid of twenty-four. Egress is this product's
+   * main variable cost (CLAUDE.md), so these assertions are about a bill, not
+   * a field name.
+   */
+  describe('thumbnails', () => {
+    /** Strips the variant off a row so it looks like a pre-pipeline write. */
+    async function clearVariants(itemId: string): Promise<void> {
+      await db.update(itemImages).set({ thumbUrl: null }).where(eq(itemImages.itemId, itemId));
+    }
+
+    it('serves the thumb variant on the public feed, not the original', async () => {
+      const { userId } = await signIn();
+      const id = await seedItem(userId, 'active');
+
+      const response = await api(`/api/items?district=${districtSlug}`);
+      expect(response.status, response.text).toBe(200);
+
+      const row = parse<{ items: { id: string; thumbnailUrl: string | null }[] }>(
+        response.text,
+      ).items.find((item) => item.id === id);
+
+      expect(row?.thumbnailUrl).toContain('seed-thumb.jpg');
+      expect(row?.thumbnailUrl).not.toContain('/seed.jpg');
+    });
+
+    it('falls back to the original on a row written before the variant existed', async () => {
+      const { userId } = await signIn();
+      const id = await seedItem(userId, 'active');
+      await clearVariants(id);
+
+      const response = await api(`/api/items?district=${districtSlug}`);
+      const row = parse<{ items: { id: string; thumbnailUrl: string | null }[] }>(
+        response.text,
+      ).items.find((item) => item.id === id);
+
+      // Not backfilled — it just keeps rendering, at the old cost, on this row.
+      expect(row?.thumbnailUrl).toContain('/seed.jpg');
+    });
+
+    it('serves the thumb variant on /api/items/mine, and falls back without one', async () => {
+      const { cookie, userId } = await signIn();
+      const withVariant = await seedItem(userId, 'active');
+      const without = await seedItem(userId, 'active');
+      await clearVariants(without);
+
+      const response = await api('/api/items/mine', { cookie });
+      expect(response.status, response.text).toBe(200);
+
+      const rows = parse<MineResponse>(response.text).items;
+      expect(rows.find((item) => item.id === withVariant)?.imageUrl).toContain('seed-thumb.jpg');
+      expect(rows.find((item) => item.id === without)?.imageUrl).toContain('/seed.jpg');
+    });
+
+    it('returns both urls plus width, height and blurhash on the detail endpoint', async () => {
+      const { userId } = await signIn();
+      const id = await seedItem(userId, 'active');
+
+      const response = await api(`/api/items/${id}`);
+      expect(response.status, response.text).toBe(200);
+
+      const [image] = parse<{
+        item: {
+          images: {
+            url: string;
+            thumbUrl: string | null;
+            width: number | null;
+            height: number | null;
+            blurhash: string | null;
+            position: number;
+          }[];
+        };
+      }>(response.text).item.images;
+
+      // A gallery, not a list view: it gets the original for the full-size
+      // view and the variant for the strip and the first paint.
+      expect(image.url).toContain('/seed.jpg');
+      expect(image.thumbUrl).toContain('seed-thumb.jpg');
+      expect(image.width).toBe(1200);
+      expect(image.height).toBe(900);
+      expect(image.blurhash).toBe('LEHV6nWB2yk8pyo0adR*.7kCMdnj');
+      expect(image.position).toBe(0);
+    });
+
+    it('returns a null thumbUrl on the detail endpoint for a pre-pipeline row', async () => {
+      const { userId } = await signIn();
+      const id = await seedItem(userId, 'active');
+      await clearVariants(id);
+
+      const response = await api(`/api/items/${id}`);
+      const [image] = parse<{ item: { images: { url: string; thumbUrl: string | null }[] } }>(
+        response.text,
+      ).item.images;
+
+      // The client falls back to `url`, which is what it had before this existed.
+      expect(image.thumbUrl).toBeNull();
+      expect(image.url).toContain('/seed.jpg');
     });
   });
 

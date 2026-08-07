@@ -124,9 +124,14 @@ export async function GET(
   // visible to exactly one person.
   const isPrivateView = isOwner || isEntitledClaimant;
 
+  // A gallery, not a list view, so it gets both: `thumbUrl` for the strip and
+  // the first paint, `url` for the full-size view. `thumbUrl` is null on rows
+  // written before the two-variant pipeline — the client falls back to `url`,
+  // which is what it had to use for everything before this existed.
   const images = await db
     .select({
       url: itemImages.url,
+      thumbUrl: itemImages.thumbUrl,
       width: itemImages.width,
       height: itemImages.height,
       blurhash: itemImages.blurhash,

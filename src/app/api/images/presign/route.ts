@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { requireUser } from '@/lib/auth/session';
 import { apiError, readJson } from '@/lib/http';
-import { MAX_IMAGE_BYTES, isAllowedContentType, presignUpload } from '@/lib/r2';
+import { IMAGE_VARIANTS, isAllowedContentType, maxBytesForVariant, presignUpload } from '@/lib/r2';
 import {
   getClientIp,
   imagePresignPerIp,
@@ -22,10 +22,18 @@ const presignSchema = z.object({
   contentType: z.string().min(1).max(100),
   /**
    * Byte count the client intends to upload. Structurally a positive
-   * integer here; the 8 MB ceiling is enforced in the handler so it maps to
-   * FILE_TOO_LARGE. This value is bound into the signature downstream.
+   * integer here; the per-variant ceiling is enforced in the handler so it
+   * maps to FILE_TOO_LARGE. This value is bound into the signature
+   * downstream.
    */
   contentLength: z.number().int().positive(),
+  /**
+   * Which half of the pair this is. Required — there is no default, because
+   * guessing wrong in the permissive direction would hand a client an 8 MB
+   * signature for something it called a thumbnail, and the cap is the only
+   * server-side control there is over what a thumb may be.
+   */
+  variant: z.enum(IMAGE_VARIANTS),
 });
 
 /**
@@ -36,6 +44,11 @@ const presignSchema = z.object({
  * `requireUser`, not `getSession`: minting an upload credential acts on the
  * user's behalf, so a banned account must not get one. `requireUser` reads
  * `is_banned` and returns null, which becomes the 401 below.
+ *
+ * One call signs one object, and a photo is two objects — the original and its
+ * 400px thumbnail — so a six-photo listing costs twelve calls here. The key is
+ * generated server-side either way; `variant` only decides how many bytes the
+ * signature will accept.
  */
 export async function POST(request: Request): Promise<NextResponse> {
   const user = await requireUser();
@@ -63,12 +76,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     return apiError('INVALID_BODY');
   }
 
-  const { contentType, contentLength } = parsed.data;
+  const { contentType, contentLength, variant } = parsed.data;
 
   if (!isAllowedContentType(contentType)) {
     return apiError('INVALID_FILE_TYPE');
   }
-  if (contentLength > MAX_IMAGE_BYTES) {
+  // 8 MB for an original, 256 KB for a thumb. Nothing here reads the bytes —
+  // the client asserts which variant it is uploading — so this ceiling is the
+  // only thing standing between "thumbnail" and a full-size photo served to
+  // every visitor scrolling the feed.
+  if (contentLength > maxBytesForVariant(variant)) {
     return apiError('FILE_TOO_LARGE');
   }
 

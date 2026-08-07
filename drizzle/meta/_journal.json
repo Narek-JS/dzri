@@ -8,6 +8,13 @@
       "when": 1785522492698,
       "tag": "0000_massive_oracle",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786132737640,
+      "tag": "0001_freezing_terror",
+      "breakpoints": true
     }
   ]
 }

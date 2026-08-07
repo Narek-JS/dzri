@@ -35,8 +35,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     return apiError('INVALID_BODY');
   }
 
+  // The 400px variant where there is one, the original where there is not —
+  // rows predating the two-variant pipeline are never backfilled. This is a
+  // list view, so it must not serve an original (CLAUDE.md).
   const thumbnailUrl = sql<string | null>`(
-    select ${itemImages.url}
+    select coalesce(${itemImages.thumbUrl}, ${itemImages.url})
     from ${itemImages}
     where ${itemImages.itemId} = ${items.id}
     order by ${itemImages.position} asc

@@ -128,7 +128,15 @@ export const itemImages = pgTable(
     itemId: uuid('item_id')
       .notNull()
       .references(() => items.id, { onDelete: 'cascade' }),
+    /** The full-size upload. Never serve this in a list view (CLAUDE.md). */
     url: text('url').notNull(),
+    /**
+     * The 400px-longest-edge variant the client uploaded alongside the
+     * original. Nullable: rows written before the two-variant pipeline have no
+     * variant and are not backfilled, so every read falls back to `url`.
+     */
+    thumbUrl: text('thumb_url'),
+    /** Dimensions of the *original*, for laying out its aspect ratio. */
     width: integer('width'),
     height: integer('height'),
     /** placeholder while loading */

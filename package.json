@@ -25,6 +25,7 @@
     "@neondatabase/serverless": "^1.1.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.1",
+    "blurhash": "^2.0.5",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.5",
     "next": "16.2.12",

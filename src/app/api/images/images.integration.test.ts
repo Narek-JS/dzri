@@ -20,6 +20,7 @@ const BASE_URL = process.env.TEST_BASE_URL ?? 'http://127.0.0.1:3000';
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_THUMB_BYTES = 256 * 1024;
 
 type PresignSuccess = { uploadUrl: string; key: string; publicUrl: string };
 type VerifySuccess = { isNewUser: false; user: { id: string; displayName: string } };
@@ -118,6 +119,7 @@ describe.skipIf(!hasDatabase)('images API', () => {
     const response = await post('/api/images/presign', {
       contentType: 'image/jpeg',
       contentLength: 1024,
+      variant: 'original',
     });
 
     expect(response.status).toBe(401);
@@ -129,7 +131,7 @@ describe.skipIf(!hasDatabase)('images API', () => {
 
     const response = await post(
       '/api/images/presign',
-      { contentType: 'image/gif', contentLength: 1024 },
+      { contentType: 'image/gif', contentLength: 1024, variant: 'original' },
       cookie,
     );
 
@@ -142,7 +144,7 @@ describe.skipIf(!hasDatabase)('images API', () => {
 
     const response = await post(
       '/api/images/presign',
-      { contentType: 'image/jpeg', contentLength: MAX_IMAGE_BYTES + 1 },
+      { contentType: 'image/jpeg', contentLength: MAX_IMAGE_BYTES + 1, variant: 'original' },
       cookie,
     );
 
@@ -155,7 +157,7 @@ describe.skipIf(!hasDatabase)('images API', () => {
 
     const response = await post(
       '/api/images/presign',
-      { contentType: 'image/webp', contentLength: 512 * 1024 },
+      { contentType: 'image/webp', contentLength: 512 * 1024, variant: 'original' },
       cookie,
     );
 
@@ -184,6 +186,74 @@ describe.skipIf(!hasDatabase)('images API', () => {
     expect(body.publicUrl.endsWith(`/${body.key}`)).toBe(true);
   });
 
+  it('rejects a missing variant with 400 INVALID_BODY', async () => {
+    const { cookie } = await signIn();
+
+    // No default: guessing in the permissive direction would hand out an 8 MB
+    // signature for something the client called a thumbnail.
+    const response = await post(
+      '/api/images/presign',
+      { contentType: 'image/jpeg', contentLength: 1024 },
+      cookie,
+    );
+
+    expect(response.status, response.text).toBe(400);
+    expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_BODY');
+  });
+
+  it('rejects an unknown variant with 400 INVALID_BODY', async () => {
+    const { cookie } = await signIn();
+
+    const response = await post(
+      '/api/images/presign',
+      { contentType: 'image/jpeg', contentLength: 1024, variant: 'medium' },
+      cookie,
+    );
+
+    expect(response.status, response.text).toBe(400);
+    expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_BODY');
+  });
+
+  it('caps a thumb at 256 KB even though the same size passes as an original', async () => {
+    const { cookie } = await signIn();
+
+    const overThumbCap = MAX_THUMB_BYTES + 1;
+
+    // The client asserts what a thumb is; this cap is the only server-side
+    // control over it, so it has to bite well below the original's ceiling.
+    const asThumb = await post(
+      '/api/images/presign',
+      { contentType: 'image/jpeg', contentLength: overThumbCap, variant: 'thumb' },
+      cookie,
+    );
+    expect(asThumb.status, asThumb.text).toBe(400);
+    expect(parse<ApiErrorBody>(asThumb.text).error.code).toBe('FILE_TOO_LARGE');
+
+    const asOriginal = await post(
+      '/api/images/presign',
+      { contentType: 'image/jpeg', contentLength: overThumbCap, variant: 'original' },
+      cookie,
+    );
+    expect(asOriginal.status, asOriginal.text).toBe(200);
+  });
+
+  it('signs a thumb at exactly the cap', async () => {
+    const { cookie, userId } = await signIn();
+
+    const response = await post(
+      '/api/images/presign',
+      { contentType: 'image/jpeg', contentLength: MAX_THUMB_BYTES, variant: 'thumb' },
+      cookie,
+    );
+
+    expect(response.status, response.text).toBe(200);
+
+    // A thumb key is minted exactly like an original's — same prefix, same
+    // shape — so `createItem` can hold both to the same ownership rule.
+    const body = parse<PresignSuccess>(response.text);
+    expect(body.key.startsWith(`uploads/${userId}/`)).toBe(true);
+  });
+
   it('never accepts a client-supplied key', async () => {
     const { cookie, userId } = await signIn();
 
@@ -192,6 +262,7 @@ describe.skipIf(!hasDatabase)('images API', () => {
       {
         contentType: 'image/png',
         contentLength: 1024,
+        variant: 'original',
         key: 'uploads/attacker/owned.png',
         Key: 'uploads/attacker/owned.png',
       },

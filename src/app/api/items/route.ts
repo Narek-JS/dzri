@@ -68,8 +68,15 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   const { district, category, condition, cursor } = parsed.data;
 
+  // `thumb_url` is the 400px variant the client uploaded alongside the
+  // original; `url` is the original itself. Rows written before the
+  // two-variant pipeline have no variant and are not backfilled, so the
+  // coalesce is what keeps them rendering — at the old cost, on those rows
+  // only. Serving `url` here for everything is what this endpoint used to do,
+  // and it is the single largest way this product can spend egress
+  // (CLAUDE.md: never serve an original in a list view).
   const thumbnailUrl = sql<string | null>`(
-    select ${itemImages.url}
+    select coalesce(${itemImages.thumbUrl}, ${itemImages.url})
     from ${itemImages}
     where ${itemImages.itemId} = ${items.id}
     order by ${itemImages.position} asc
@@ -129,11 +136,54 @@ export async function GET(request: Request): Promise<NextResponse> {
 }
 
 /**
- * Structural validation only. Image count and key ownership are business
- * rules with their own stable error codes, checked in `createItem`, so
- * `imageKeys` is validated here as a plain array of non-empty strings and
- * left for the creator to size — an empty array becomes IMAGES_REQUIRED and
- * an oversized one TOO_MANY_IMAGES, not a generic INVALID_BODY.
+ * The largest dimension either side of an image may claim.
+ *
+ * These are layout hints, not measurements: nothing on the server decodes the
+ * file to check them. The bound exists so a client cannot put an absurd number
+ * into a column that a page will later turn into a CSS aspect ratio — 20000 is
+ * comfortably past any phone camera and far short of anything that breaks a
+ * layout calculation.
+ */
+const MAX_IMAGE_DIMENSION = 20_000;
+
+/**
+ * BlurHash is base83, and a 9×9 hash — the largest the format allows — is 1 + 1
+ * + 4 + 2 × 80 = 166 characters. The 40-character cap here is well under that
+ * and well over the ~30 a 4×3 hash takes, which is what the client emits.
+ *
+ * The charset is the point rather than the length. This string is stored and
+ * handed back to clients, so it is pinned to exactly the alphabet a decoder
+ * accepts and nothing else. It is never interpolated into markup, a URL, a
+ * query or a style — it goes to `decode()` and nowhere else.
+ */
+const MAX_BLURHASH_LENGTH = 40;
+const MIN_BLURHASH_LENGTH = 6;
+const BLURHASH_CHARSET = /^[0-9A-Za-z#$%*+,\-.:;=?@[\]^_{|}~]+$/;
+
+/**
+ * One photo: the original, its 400px variant, and the layout hints the client
+ * derived while it had the bitmap decoded. Index 0 of the array is the
+ * thumbnail and the array order is gallery order.
+ */
+const itemImageSchema = z.object({
+  key: z.string().min(1),
+  thumbKey: z.string().min(1),
+  width: z.number().int().positive().max(MAX_IMAGE_DIMENSION),
+  height: z.number().int().positive().max(MAX_IMAGE_DIMENSION),
+  blurhash: z.string().min(MIN_BLURHASH_LENGTH).max(MAX_BLURHASH_LENGTH).regex(BLURHASH_CHARSET),
+});
+
+/**
+ * Structural validation only for the keys. Image count and key ownership are
+ * business rules with their own stable error codes, checked in `createItem`,
+ * so `images` is validated here for shape and left for the creator to size —
+ * an empty array becomes IMAGES_REQUIRED and an oversized one TOO_MANY_IMAGES,
+ * not a generic INVALID_BODY.
+ *
+ * `width`, `height` and `blurhash` are the exception: they are bounded here,
+ * because they have no business meaning to fail on. There is no
+ * "INVALID_DIMENSION" for a client that sends a negative height — that is a
+ * malformed body.
  */
 const createItemSchema = z.object({
   title: z.string().trim().min(3).max(100),
@@ -142,7 +192,7 @@ const createItemSchema = z.object({
   districtId: z.number().int().positive(),
   condition: z.enum(['working', 'needs_repair', 'for_parts']),
   pickupNotes: z.string().trim().max(300).nullish(),
-  imageKeys: z.array(z.string().min(1)),
+  images: z.array(itemImageSchema),
 });
 
 /** Empty strings survive `.trim()` as `''`; store absence as null, not `''`. */
@@ -184,7 +234,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       districtId: parsed.data.districtId,
       condition: parsed.data.condition,
       pickupNotes: orNull(parsed.data.pickupNotes),
-      imageKeys: parsed.data.imageKeys,
+      images: parsed.data.images,
     });
 
     if (!result.ok) {

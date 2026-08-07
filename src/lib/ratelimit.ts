@@ -82,17 +82,23 @@ const OTP_VERIFY_PER_IP: LimiterSpec = {
  * single authenticated account could mint thousands of upload URLs. The
  * per-IP budget is the looser of the two so a couple of real users behind
  * one NAT do not throttle each other.
+ *
+ * Doubled when the two-variant pipeline landed: every photo is now an original
+ * *and* a thumb, so six photos cost twelve presigns and one full item costs
+ * twelve of a budget that used to be thirty. The old 60/IP would have become
+ * the binding limit for two people on one connection posting normal listings,
+ * which is a throttle on real use rather than on abuse.
  */
 const IMAGE_PRESIGN_PER_USER: LimiterSpec = {
   prefix: 'img:presign:user',
-  tokens: 30,
+  tokens: 60,
   window: '1 h',
   windowMs: 60 * 60 * 1000,
 };
 
 const IMAGE_PRESIGN_PER_IP: LimiterSpec = {
   prefix: 'img:presign:ip',
-  tokens: 60,
+  tokens: 120,
   window: '1 h',
   windowMs: 60 * 60 * 1000,
 };

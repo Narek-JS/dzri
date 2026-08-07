@@ -197,7 +197,15 @@ describe.skipIf(!hasDatabase)('cron sweep', () => {
         districtId,
         condition: 'working',
         pickupNotes: null,
-        imageKeys: [`uploads/${userId}/seed.jpg`],
+        images: [
+          {
+            key: `uploads/${userId}/seed.jpg`,
+            thumbKey: `uploads/${userId}/seed-thumb.jpg`,
+            width: 1200,
+            height: 900,
+            blurhash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+          },
+        ],
       },
       objectAlwaysExists,
     );

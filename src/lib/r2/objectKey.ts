@@ -1,20 +1,33 @@
 import { randomUUID } from 'node:crypto';
 
-/**
- * The only content types a client may upload. Deliberately narrow: these
- * are the three formats the client-side compressor emits, and a short
- * allowlist is what lets the file extension be derived from the declared
- * type instead of trusted from a client-supplied filename.
- *
- * The map value is the extension stored in the object key.
- */
-export const ALLOWED_IMAGE_CONTENT_TYPES = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-} as const;
+import { ALLOWED_IMAGE_CONTENT_TYPES, isAllowedContentType } from '@/lib/images/contentTypes';
+import type { AllowedContentType } from '@/lib/images/contentTypes';
 
-export type AllowedContentType = keyof typeof ALLOWED_IMAGE_CONTENT_TYPES;
+// The allowlist itself lives in `src/lib/images/` so the browser-side
+// compressor can share it without pulling `node:crypto` and the S3 SDK into
+// the client bundle. Re-exported here because this is where the server has
+// always reached for it.
+export { ALLOWED_IMAGE_CONTENT_TYPES, isAllowedContentType };
+export type { AllowedContentType };
+
+/**
+ * An upload is one of two things, and the difference is a byte ceiling.
+ *
+ * `original` is the photo itself. `thumb` is the 400px-longest-edge variant
+ * the client derives from it, which is what every list view serves — egress is
+ * this product's main variable cost (CLAUDE.md), and a feed of full-size
+ * photos is the single largest way to spend it.
+ *
+ * Nothing on the server *looks* at the bytes: the client asserts which is
+ * which, and R2 receives whatever it PUTs. The cap is therefore the only
+ * server-side control over what a "thumb" can be. 256 KB is several times what
+ * a 400px JPEG needs and still two orders of magnitude below an original, so a
+ * client that quietly uploaded a full photo as a thumb would be refused before
+ * it ever got a signature.
+ */
+export const IMAGE_VARIANTS = ['original', 'thumb'] as const;
+
+export type ImageVariant = (typeof IMAGE_VARIANTS)[number];
 
 /**
  * 8 MB. Bound into the presigned request so a client cannot upload more
@@ -23,8 +36,11 @@ export type AllowedContentType = keyof typeof ALLOWED_IMAGE_CONTENT_TYPES;
  */
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
-export function isAllowedContentType(value: string): value is AllowedContentType {
-  return Object.prototype.hasOwnProperty.call(ALLOWED_IMAGE_CONTENT_TYPES, value);
+/** 256 KB — a generous ceiling for 400px on its longest edge. */
+export const MAX_THUMB_BYTES = 256 * 1024;
+
+export function maxBytesForVariant(variant: ImageVariant): number {
+  return variant === 'thumb' ? MAX_THUMB_BYTES : MAX_IMAGE_BYTES;
 }
 
 /**
