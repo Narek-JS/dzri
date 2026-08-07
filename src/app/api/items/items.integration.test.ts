@@ -57,6 +57,7 @@ type ApiResponse = {
   status: number;
   text: string;
   cookies: string[];
+  cacheControl: string | null;
 };
 
 function parse<T>(text: string): T {
@@ -181,7 +182,12 @@ describe.skipIf(!hasDatabase)('items API', () => {
       },
     });
 
-    return { status: res.status, text: await res.text(), cookies: res.headers.getSetCookie() };
+    return {
+      status: res.status,
+      text: await res.text(),
+      cookies: res.headers.getSetCookie(),
+      cacheControl: res.headers.get('cache-control'),
+    };
   }
 
   function post(path: string, body: unknown, cookie?: string): Promise<ApiResponse> {
@@ -638,6 +644,168 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const response = await api('/api/items/not-a-real-uuid');
       expect(response.status, response.text).toBe(404);
       expect(parse<ApiErrorBody>(response.text).error.code).toBe('ITEM_NOT_FOUND');
+    });
+  });
+
+  /**
+   * Approving a claim moves the item to `reserved`, which is invisible to
+   * everyone but the owner — so without this the claimant's own approved claim
+   * dead-ends at a 404 the moment they are picked.
+   *
+   * The whole scenario is built through real endpoints: two users, a real
+   * claim, a real approval. That is the only way to get an item into `reserved`
+   * with a genuinely approved claim behind it.
+   */
+  describe('GET /api/items/[id] — claimant access to a reserved item', () => {
+    /**
+     * Seeds an active item, has `claimant` claim it, has the owner approve it,
+     * and returns the item id. The item is `reserved` afterwards.
+     */
+    async function reserveFor(
+      owner: { cookie: string; userId: string },
+      claimant: { cookie: string },
+    ): Promise<{ itemId: string; claimId: string }> {
+      const itemId = await seedItem(owner.userId, 'active');
+
+      const created = await post(`/api/items/${itemId}/claims`, {}, claimant.cookie);
+      expect(created.status, created.text).toBe(201);
+      const claimId = parse<{ id: string }>(created.text).id;
+
+      const approved = await post(`/api/claims/${claimId}/approve`, {}, owner.cookie);
+      expect(approved.status, approved.text).toBe(200);
+
+      return { itemId, claimId };
+    }
+
+    it('returns 200 to the approved claimant for a reserved item', async () => {
+      const owner = await signIn();
+      const claimant = await signIn();
+      const { itemId } = await reserveFor(owner, claimant);
+
+      const response = await api(`/api/items/${itemId}`, { cookie: claimant.cookie });
+      expect(response.status, response.text).toBe(200);
+
+      const item = parse<DetailResponse>(response.text).item;
+      expect(item.id).toBe(itemId);
+      // The UI renders "reserved for you" off this.
+      expect(item.status).toBe('reserved');
+    });
+
+    it('returns 404 to a rejected claimant on the same reserved item', async () => {
+      const owner = await signIn();
+      const winner = await signIn();
+      const loser = await signIn();
+
+      const itemId = await seedItem(owner.userId, 'active');
+
+      // Both claim while it is still active; approving the winner rejects the
+      // loser automatically.
+      const winning = await post(`/api/items/${itemId}/claims`, {}, winner.cookie);
+      expect(winning.status, winning.text).toBe(201);
+      const losing = await post(`/api/items/${itemId}/claims`, {}, loser.cookie);
+      expect(losing.status, losing.text).toBe(201);
+
+      const approved = await post(
+        `/api/claims/${parse<{ id: string }>(winning.text).id}/approve`,
+        {},
+        owner.cookie,
+      );
+      expect(approved.status, approved.text).toBe(200);
+
+      const forWinner = await api(`/api/items/${itemId}`, { cookie: winner.cookie });
+      expect(forWinner.status, forWinner.text).toBe(200);
+
+      // Held a claim once; that is not a key to a listing that is no longer public.
+      const forLoser = await api(`/api/items/${itemId}`, { cookie: loser.cookie });
+      expect(forLoser.status, forLoser.text).toBe(404);
+      expect(parse<ApiErrorBody>(forLoser.text).error.code).toBe('ITEM_NOT_FOUND');
+    });
+
+    it('returns 404 to a withdrawn claimant and to a signed-in stranger', async () => {
+      const owner = await signIn();
+      const claimant = await signIn();
+      const stranger = await signIn();
+      const { itemId, claimId } = await reserveFor(owner, claimant);
+
+      const strangerView = await api(`/api/items/${itemId}`, { cookie: stranger.cookie });
+      expect(strangerView.status, strangerView.text).toBe(404);
+
+      const withdrawn = await post(`/api/claims/${claimId}/withdraw`, {}, claimant.cookie);
+      expect(withdrawn.status, withdrawn.text).toBe(200);
+
+      // Withdrawing releases the item back to active, so make it non-public
+      // again before re-checking: the point is that the ex-claimant has no
+      // standing, not that the item happens to be visible.
+      await db.update(items).set({ status: 'pending_review' }).where(eq(items.id, itemId));
+
+      const afterWithdraw = await api(`/api/items/${itemId}`, { cookie: claimant.cookie });
+      expect(afterWithdraw.status, afterWithdraw.text).toBe(404);
+    });
+
+    it('keeps access for a completed claim', async () => {
+      const owner = await signIn();
+      const claimant = await signIn();
+      const { itemId, claimId } = await reserveFor(owner, claimant);
+
+      const completed = await post(`/api/claims/${claimId}/complete`, {}, owner.cookie);
+      expect(completed.status, completed.text).toBe(200);
+
+      const response = await api(`/api/items/${itemId}`, { cookie: claimant.cookie });
+      expect(response.status, response.text).toBe(200);
+      expect(parse<DetailResponse>(response.text).item.status).toBe('given');
+    });
+
+    it('carries no phone key and no public cache header', async () => {
+      const owner = await signIn();
+      const claimant = await signIn();
+      const { itemId } = await reserveFor(owner, claimant);
+
+      const response = await api(`/api/items/${itemId}`, { cookie: claimant.cookie });
+      expect(response.status, response.text).toBe(200);
+
+      // The claimant already has the giver's phone from GET /api/claims/mine.
+      // This must not become a fourth endpoint that carries one.
+      expectNoPhone(response, owner.phone);
+      expectNoPhone(response, claimant.phone);
+
+      // A reserved item is visible to exactly one person; it must never enter
+      // a shared cache.
+      expect(response.cacheControl).toBe('no-store, private');
+    });
+
+    it('does not increment view_count for the claimant', async () => {
+      const owner = await signIn();
+      const claimant = await signIn();
+      const { itemId } = await reserveFor(owner, claimant);
+
+      const before = await db
+        .select({ viewCount: items.viewCount })
+        .from(items)
+        .where(eq(items.id, itemId));
+
+      await api(`/api/items/${itemId}`, { cookie: claimant.cookie });
+      await api(`/api/items/${itemId}`, { cookie: claimant.cookie });
+
+      const after = await db
+        .select({ viewCount: items.viewCount })
+        .from(items)
+        .where(eq(items.id, itemId));
+
+      expect(after[0].viewCount).toBe(before[0].viewCount);
+    });
+
+    it('leaves the public and owner cache behaviour unchanged', async () => {
+      const owner = await signIn();
+      const activeId = await seedItem(owner.userId, 'active');
+      const pendingId = await seedItem(owner.userId, 'pending_review');
+
+      const anonymous = await api(`/api/items/${activeId}`);
+      expect(anonymous.status, anonymous.text).toBe(200);
+      expect(anonymous.cacheControl).toBe('public, s-maxage=60, stale-while-revalidate=300');
+
+      const ownerView = await api(`/api/items/${pendingId}`, { cookie: owner.cookie });
+      expect(ownerView.status, ownerView.text).toBe(200);
+      expect(ownerView.cacheControl).toBe('no-store, private');
     });
   });
 
