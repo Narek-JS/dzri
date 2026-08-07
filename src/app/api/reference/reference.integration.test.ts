@@ -201,7 +201,9 @@ describe.skipIf(!hasDatabase)('GET /api/reference', () => {
     const response = await get();
     const body = JSON.parse(response.text) as ReferenceResponse;
 
-    const positions = categorySlugs.map((slug) => body.categories.findIndex((c) => c.slug === slug));
+    const positions = categorySlugs.map((slug) =>
+      body.categories.findIndex((c) => c.slug === slug),
+    );
     expect(positions.every((index) => index >= 0)).toBe(true);
 
     // position 1, then the two position-2 rows broken apart by slug.

@@ -71,6 +71,7 @@ let users: (typeof import('@/db/schema'))['users'];
 let otpCodes: (typeof import('@/db/schema'))['otpCodes'];
 let items: (typeof import('@/db/schema'))['items'];
 let itemImages: (typeof import('@/db/schema'))['itemImages'];
+let claims: (typeof import('@/db/schema'))['claims'];
 let categories: (typeof import('@/db/schema'))['categories'];
 let districts: (typeof import('@/db/schema'))['districts'];
 let hashOtpCode: (typeof import('@/lib/auth/otp'))['hashOtpCode'];
@@ -98,7 +99,8 @@ describe.skipIf(!hasDatabase)('items API', () => {
 
   beforeAll(async () => {
     ({ db } = await import('@/db'));
-    ({ users, otpCodes, items, itemImages, categories, districts } = await import('@/db/schema'));
+    ({ users, otpCodes, items, itemImages, claims, categories, districts } =
+      await import('@/db/schema'));
     ({ hashOtpCode } = await import('@/lib/auth/otp'));
     ({ createItem } = await import('@/lib/items/create'));
 
@@ -184,6 +186,10 @@ describe.skipIf(!hasDatabase)('items API', () => {
 
   function post(path: string, body: unknown, cookie?: string): Promise<ApiResponse> {
     return api(path, { method: 'POST', body: JSON.stringify(body), cookie });
+  }
+
+  function del(path: string, cookie?: string): Promise<ApiResponse> {
+    return api(path, { method: 'DELETE', cookie });
   }
 
   /** No phone, in any form, anywhere in the response body. */
@@ -632,6 +638,147 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const response = await api('/api/items/not-a-real-uuid');
       expect(response.status, response.text).toBe(404);
       expect(parse<ApiErrorBody>(response.text).error.code).toBe('ITEM_NOT_FOUND');
+    });
+  });
+
+  describe('DELETE /api/items/[id]', () => {
+    it('rejects an anonymous caller with 401', async () => {
+      const { userId } = await signIn();
+      const id = await seedItem(userId, 'active');
+
+      const response = await del(`/api/items/${id}`);
+
+      expect(response.status, response.text).toBe(401);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 404 to a signed-in stranger, never 403', async () => {
+      const owner = await signIn();
+      const stranger = await signIn();
+      const id = await seedItem(owner.userId, 'active');
+
+      const response = await del(`/api/items/${id}`, stranger.cookie);
+
+      // 403 would confirm the id names a real item. It must not.
+      expect(response.status, response.text).toBe(404);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('ITEM_NOT_FOUND');
+
+      // And the item is untouched.
+      const [row] = await db.select({ status: items.status }).from(items).where(eq(items.id, id));
+      expect(row.status).toBe('active');
+    });
+
+    it('soft-deletes an active item for its owner, keeping the row and its images', async () => {
+      const owner = await signIn();
+      const id = await seedItem(owner.userId, 'active');
+
+      const response = await del(`/api/items/${id}`, owner.cookie);
+      expect(response.status, response.text).toBe(200);
+
+      const [row] = await db.select({ status: items.status }).from(items).where(eq(items.id, id));
+      expect(row.status).toBe('removed');
+
+      // Soft delete: the image rows survive, so the R2 objects stay referenced.
+      const images = await db
+        .select({ url: itemImages.url })
+        .from(itemImages)
+        .where(eq(itemImages.itemId, id));
+      expect(images.length).toBeGreaterThan(0);
+    });
+
+    it('rejects pending claims on the removed item', async () => {
+      const owner = await signIn();
+      const claimant = await signIn();
+      const id = await seedItem(owner.userId, 'active');
+
+      const claim = await post(`/api/items/${id}/claims`, {}, claimant.cookie);
+      expect(claim.status, claim.text).toBe(201);
+
+      const response = await del(`/api/items/${id}`, owner.cookie);
+      expect(response.status, response.text).toBe(200);
+
+      const rows = await db
+        .select({ status: claims.status })
+        .from(claims)
+        .where(eq(claims.itemId, id));
+      expect(rows.map((row) => row.status)).toEqual(['rejected']);
+    });
+
+    it('refuses a reserved item with 409, so it cannot vanish from under its claimant', async () => {
+      const owner = await signIn();
+      const id = await seedItem(owner.userId, 'reserved');
+
+      const response = await del(`/api/items/${id}`, owner.cookie);
+
+      expect(response.status, response.text).toBe(409);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_STATUS_TRANSITION');
+
+      const [row] = await db.select({ status: items.status }).from(items).where(eq(items.id, id));
+      expect(row.status).toBe('reserved');
+    });
+
+    it('refuses given and expired items with 409', async () => {
+      const owner = await signIn();
+
+      for (const status of ['given', 'expired'] as const) {
+        const id = await seedItem(owner.userId, status);
+        const response = await del(`/api/items/${id}`, owner.cookie);
+
+        expect(response.status, `${status}: ${response.text}`).toBe(409);
+        expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_STATUS_TRANSITION');
+      }
+    });
+
+    it('removes a pending_review item and a rejected one', async () => {
+      const owner = await signIn();
+
+      for (const status of ['pending_review', 'rejected'] as const) {
+        const id = await seedItem(owner.userId, status);
+        const response = await del(`/api/items/${id}`, owner.cookie);
+
+        expect(response.status, `${status}: ${response.text}`).toBe(200);
+
+        const [row] = await db
+          .select({ status: items.status, rejectionReason: items.rejectionReason })
+          .from(items)
+          .where(eq(items.id, id));
+        expect(row.status).toBe('removed');
+        // rejection_reason_matches_status forbids a non-rejected item from
+        // carrying a reason, so removing a rejected item has to clear it.
+        expect(row.rejectionReason).toBeNull();
+      }
+    });
+
+    it('refuses a second delete with 409', async () => {
+      const owner = await signIn();
+      const id = await seedItem(owner.userId, 'active');
+
+      expect((await del(`/api/items/${id}`, owner.cookie)).status).toBe(200);
+
+      const second = await del(`/api/items/${id}`, owner.cookie);
+      expect(second.status, second.text).toBe(409);
+      expect(parse<ApiErrorBody>(second.text).error.code).toBe('INVALID_STATUS_TRANSITION');
+    });
+
+    it('returns 404 for a malformed uuid', async () => {
+      const { cookie } = await signIn();
+
+      const response = await del('/api/items/not-a-real-uuid', cookie);
+      expect(response.status, response.text).toBe(404);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('ITEM_NOT_FOUND');
+    });
+
+    it('hides a removed item from the feed and from its own detail page', async () => {
+      const owner = await signIn();
+      const id = await seedItem(owner.userId, 'active');
+
+      expect((await del(`/api/items/${id}`, owner.cookie)).status).toBe(200);
+
+      const feed = await api(`/api/items?district=${districtSlug}`);
+      expect(parse<FeedResponse>(feed.text).items.map((item) => item.id)).not.toContain(id);
+
+      const stranger = await api(`/api/items/${id}`);
+      expect(stranger.status).toBe(404);
     });
   });
 

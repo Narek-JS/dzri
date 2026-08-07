@@ -3,10 +3,11 @@ import { NextResponse } from 'next/server';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { getSession } from '@/lib/auth/session';
+import { getSession, requireUser } from '@/lib/auth/session';
 import { db } from '@/db';
 import { categories, districts, itemImages, items, users } from '@/db/schema';
 import { apiError } from '@/lib/http';
+import { removeItem } from '@/lib/items/remove';
 
 /**
  * A public detail response is identical for everyone, so it lands in the same
@@ -135,5 +136,52 @@ export async function GET(
       },
     },
     { headers: { 'Cache-Control': isOwner ? OWNER_CACHE : PUBLIC_CACHE } },
+  );
+}
+
+/**
+ * DELETE /api/items/[id] — the giver takes their own listing down.
+ *
+ * OWNER ONLY. Anybody else — signed in or not — gets 404, the same answer the
+ * read path gives them, so a stranger cannot learn that an id names a real
+ * item by trying to delete it.
+ *
+ * Soft delete: the item moves to `removed`, which hides it everywhere, but the
+ * row, its images and its R2 objects all stay. See `removeItem` for why, and
+ * for why `reserved`, `given` and `expired` are refused with
+ * INVALID_STATUS_TRANSITION rather than removed — an item somebody is on their
+ * way to collect must not vanish from under them.
+ *
+ * `requireUser`, not `getSession`: this acts on the user's behalf and writes,
+ * so a banned account must be turned away (it reads `is_banned`).
+ *
+ * The response is the resolved status rather than a bare 204, so the client can
+ * update the row it is showing without a re-fetch.
+ */
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  const user = await requireUser();
+  if (!user) {
+    return apiError('UNAUTHORIZED');
+  }
+
+  const { id } = await params;
+
+  // A malformed uuid can never name an item; short-circuit rather than letting
+  // it reach Postgres and 500.
+  if (!z.string().uuid().safeParse(id).success) {
+    return apiError('ITEM_NOT_FOUND');
+  }
+
+  const result = await removeItem(id, user.id);
+  if (!result.ok) {
+    return apiError(result.code);
+  }
+
+  return NextResponse.json(
+    { id, status: 'removed' },
+    { headers: { 'Cache-Control': OWNER_CACHE } },
   );
 }
