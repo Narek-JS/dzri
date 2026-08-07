@@ -28,10 +28,11 @@ the default.
 Switch on `code`. Never show `message` to a user — all user-facing copy
 is translated on the client. Codes are listed per endpoint below.
 
-**Phone numbers.** A phone number is returned by exactly two endpoints,
-and only for an approved claim. Everywhere else the field is absent —
-not null, absent. Do not write client code that expects a `phone` key to
-exist.
+**Phone numbers.** A phone number is returned by exactly three endpoints
+— `POST /api/claims/[id]/approve`, `GET /api/items/[id]/claims` and
+`GET /api/claims/mine` — and only for an approved claim. Everywhere else
+the field is absent — not null, absent. Do not write client code that
+expects a `phone` key to exist. See Rule 1 at the end.
 
 **Dates.** ISO 8601 strings in JSON. Cursors are ISO timestamps taken
 from the previous page's `nextCursor`.
@@ -43,13 +44,40 @@ last page. Pass `?cursor=<value>` to get the next one.
 
 ## Reference data
 
-**There is no endpoint for districts and categories yet.** The create-item
-form needs both as dropdowns, and the feed needs them as filters. They
-live in the `districts` and `categories` tables, seeded with 22 districts
-(12 Yerevan + 10 marzes) and 10 categories, each with `slug`, `nameHy`,
-`nameRu`, `nameEn`.
+### GET /api/reference
 
-This must be built before the create form. See "Known gaps" at the end.
+Every district and every category, in one response. No auth.
+
+The create-item form needs both as dropdowns and the feed needs them as
+filters. There is no pagination and no filtering — both tables are small
+and fixed (22 districts, 12 Yerevan + 10 marzes; 10 categories).
+
+**200**
+
+```json
+{
+  "districts": [
+    { "id": 7, "slug": "kentron", "nameHy": "Կենտրոն", "nameRu": "Кентрон", "nameEn": "Kentron" }
+  ],
+  "categories": [
+    { "id": 1, "slug": "furniture", "nameHy": "Կահույք", "nameRu": "Мебель", "nameEn": "Furniture", "icon": "🪑", "position": 0 }
+  ]
+}
+```
+
+Districts are ordered by region then `nameHy`, which groups the Yerevan
+districts together and the marzes after them. Categories are ordered by
+`position` then `slug`. Render them in the order you receive them — the
+ordering is server-side so every client agrees, and the tiebreaks exist
+so two rows never swap places between requests.
+
+`region` is not returned. It orders the list; it is not a grouping field
+for the UI.
+
+`Cache-Control: public, max-age=300, stale-while-revalidate=86400`. Fetch
+it once per session and keep it.
+
+**Errors:** none beyond `INTERNAL` 500.
 
 ---
 
@@ -193,8 +221,13 @@ Requires auth.
 **Body**
 
 ```json
-{ "contentType": "image/jpeg", "contentLength": 524288 }
+{ "contentType": "image/jpeg", "contentLength": 524288, "variant": "original" }
 ```
+
+`variant` is **required** — `original` or `thumb`. There is no default.
+It sets the byte ceiling the signature will accept, and nothing on the
+server looks at the bytes, so this is the only thing that makes a
+thumbnail a thumbnail.
 
 **200**
 
@@ -206,28 +239,46 @@ Requires auth.
 }
 ```
 
+Identical for both variants — the key is minted server-side under the
+same prefix either way.
+
 **Errors**
 
 | Code | Status | Meaning |
 |---|---|---|
 | `UNAUTHORIZED` | 401 | |
+| `INVALID_BODY` | 400 | Missing or unknown `variant` |
 | `INVALID_FILE_TYPE` | 400 | Only jpeg, png, webp |
-| `FILE_TOO_LARGE` | 400 | Max 8 MB |
-| `RATE_LIMITED` | 429 | 30/user/hour, 60/IP/hour |
+| `FILE_TOO_LARGE` | 400 | Over the cap for the declared variant |
+| `RATE_LIMITED` | 429 | 60/user/hour, 120/IP/hour |
+
+| Variant | Cap |
+|---|---|
+| `original` | 8 MB |
+| `thumb` | 256 KB |
 
 **Upload flow**
 
-1. Compress the image client-side. Bandwidth is a real cost, and phone
-   photos are 4 MB before compression.
-2. `POST /api/images/presign` with the compressed size and type.
-3. `PUT` the bytes to `uploadUrl` with `Content-Type` and
+Every photo is **two uploads**, so a six-photo listing is twelve presigns
+and twelve PUTs. That is what the raised rate limits are for.
+
+1. Run the file through `prepareImage` from `src/lib/images/`. It gives
+   you a compressed original (1600px longest edge), a 400px thumbnail,
+   the original's `width` and `height`, and a `blurhash` — all from one
+   decode, in the browser. Phone photos are 4 MB before compression and
+   bandwidth is a real cost.
+2. `POST /api/images/presign` **twice**, once per variant, with that
+   variant's byte count and the same content type. The pipeline never
+   transcodes: both variants keep the source type.
+3. `PUT` each blob to its `uploadUrl` with `Content-Type` and
    `Content-Length` matching exactly what you declared. The signature
    binds both — a mismatch is rejected by R2.
-4. Keep `key`. That's what you send to `POST /api/items`.
+4. Keep both keys. They go to `POST /api/items` as `key` and `thumbKey`
+   of the same entry, along with the width, height and blurhash.
 
 The presigned URL expires in **5 minutes**. Uploading is a separate step
-from creating the item, so an abandoned form leaves an orphan object in
-the bucket. That's accepted for now.
+from creating the item, so an abandoned form leaves orphan objects in the
+bucket — now two per photo rather than one. That's accepted for now.
 
 ---
 
@@ -287,10 +338,19 @@ to render server-side and cheap to re-fetch.
 
 One listing.
 
-Public when the item is `active` and unexpired. **The owner** may also
-fetch their own item in any status, so they can see a pending or rejected
-listing. Everyone else gets **404**, never 403 — a 403 would confirm the
-id exists, which leaks that someone posted something that got rejected.
+Public when the item is `active` and unexpired. Two other people may
+fetch it in **any** status:
+
+- **the owner**, so they can see their own pending or rejected listing;
+- **an approved or completed claimant**. Approving a claim moves the item
+  to `reserved`, which is not public — without this the claimant's own
+  approved claim would dead-end at a 404 the moment they were picked.
+  Read `status` to render "reserved for you".
+
+A claimant whose claim is `rejected`, `withdrawn`, `no_show` or still
+`pending` gets nothing. Everyone else gets **404**, never 403 — a 403
+would confirm the id exists, which leaks that someone posted something
+that got rejected.
 
 A malformed uuid also returns 404.
 
@@ -308,7 +368,14 @@ A malformed uuid also returns 404.
     "createdAt": "...",
     "expiresAt": "...",
     "images": [
-      { "url": "https://...", "width": 1200, "height": 900, "blurhash": null, "position": 0 }
+      {
+        "url": "https://.../photo.jpg",
+        "thumbUrl": "https://.../photo-thumb.jpg",
+        "width": 1200,
+        "height": 900,
+        "blurhash": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+        "position": 0
+      }
     ],
     "district": { "slug": "...", "nameHy": "...", "nameRu": "...", "nameEn": "..." },
     "category": { "slug": "...", "nameHy": "...", "nameRu": "...", "nameEn": "..." },
@@ -317,16 +384,59 @@ A malformed uuid also returns 404.
 }
 ```
 
-Never the giver's phone — not for anyone, including the owner.
+Never the giver's phone — not for anyone, including the owner and
+including the approved claimant. The claimant gets the number from
+`GET /api/claims/mine`; this is not a fourth phone-bearing endpoint.
 
-`view_count` increments on public fetches only, not when the owner looks
-at their own item.
+`thumbUrl` is the 400px variant. It is `null` on images uploaded before
+the two-variant pipeline existed — fall back to `url` when it is. Use
+`thumbUrl` for the gallery strip and the first paint, `url` for the
+full-size view.
+
+`view_count` increments on public fetches only — not when the owner looks
+at their own item, and not for the approved claimant.
 
 **Cache.** Public view: `s-maxage=60, stale-while-revalidate=300`.
-Owner view: `no-store, private` — an owner's view of a pending item must
-never land in a shared cache.
+Owner and claimant views: `no-store, private` — a pending item, and a
+`reserved` item visible to exactly one person, must never land in a
+shared cache.
 
 **Errors:** `ITEM_NOT_FOUND` 404.
+
+---
+
+### DELETE /api/items/[id]
+
+The giver takes their own listing down. Requires auth.
+
+**Owner only.** Anyone else — signed in or not — gets **404**, never 403.
+
+**No body.**
+
+**200** `{ "id": "uuid", "status": "removed" }`
+
+This is a **soft delete**. The item goes to `removed`, which hides it
+from the feed, from search and from every stranger's detail view. The row
+and its photos stay, so claims that pointed at it still resolve and a
+claimant's history does not develop holes.
+
+Allowed from `draft`, `pending_review`, `active` and `rejected`. Every
+still-`pending` claim on the item is **rejected** in the same
+transaction — what those people asked for is gone.
+
+Refused from `reserved`, `given` and `expired` with
+`INVALID_STATUS_TRANSITION`. `reserved` is the one to explain in the UI:
+somebody was picked and may be on their way. The giver's route out is
+"they didn't turn up" (`no-show`) or "it's done" (`complete`) — not
+deletion. A second delete is also a 409.
+
+**Errors**
+
+| Code | Status | Meaning |
+|---|---|---|
+| `UNAUTHORIZED` | 401 | |
+| `ITEM_NOT_FOUND` | 404 | Not yours, doesn't exist, or a malformed uuid |
+| `INVALID_STATUS_TRANSITION` | 409 | Reserved, given, expired, or already removed |
 
 ---
 
@@ -346,7 +456,15 @@ Creates a listing. Requires auth.
   "districtId": 7,
   "condition": "working",
   "pickupNotes": "3-րդ հարկ",
-  "imageKeys": ["uploads/{userId}/a.jpg", "uploads/{userId}/b.jpg"]
+  "images": [
+    {
+      "key": "uploads/{userId}/a.jpg",
+      "thumbKey": "uploads/{userId}/a-thumb.jpg",
+      "width": 1600,
+      "height": 1200,
+      "blurhash": "LEHV6nWB2yk8pyo0adR*.7kCMdnj"
+    }
+  ]
 }
 ```
 
@@ -358,9 +476,29 @@ Creates a listing. Requires auth.
 | `districtId` | int, must exist |
 | `condition` | `working` \| `needs_repair` \| `for_parts` |
 | `pickupNotes` | max 300, optional |
-| `imageKeys` | 1–6 keys, from presign, in gallery order |
+| `images` | 1–6 entries, in gallery order |
+
+Each entry:
+
+| Field | Rule |
+|---|---|
+| `key` | the original, from a `variant: "original"` presign |
+| `thumbKey` | its 400px variant, from a `variant: "thumb"` presign |
+| `width` | positive int, max 20000 — of the **original** |
+| `height` | positive int, max 20000 |
+| `blurhash` | 6–40 chars, base83 only |
 
 Image order matters: index 0 is the thumbnail.
+
+Every key — original and thumb alike — must be under
+`uploads/{yourUserId}/` and must already exist in R2. No key may repeat
+anywhere in the request, so `key` and `thumbKey` of the same entry cannot
+be the same object.
+
+`width`, `height` and `blurhash` are yours to compute and are used only
+for layout: reserve the right aspect ratio and paint the blurhash while
+the image loads. `prepareImage` in `src/lib/images/` produces all three
+plus both blobs from one decode.
 
 **201**
 
@@ -377,11 +515,11 @@ The UI must say this after posting, or the giver will think it failed.
 | Code | Status | Meaning |
 |---|---|---|
 | `UNAUTHORIZED` | 401 | |
-| `INVALID_BODY` | 400 | Failed field validation |
-| `IMAGES_REQUIRED` | 400 | Empty `imageKeys` |
+| `INVALID_BODY` | 400 | Failed field validation, incl. a bad width, height or blurhash |
+| `IMAGES_REQUIRED` | 400 | Empty `images` |
 | `TOO_MANY_IMAGES` | 400 | More than 6 |
-| `INVALID_IMAGE_KEY` | 400 | Key not under `uploads/{yourUserId}/`, or a duplicate |
-| `IMAGE_NOT_FOUND` | 400 | Key was never actually uploaded to R2 |
+| `INVALID_IMAGE_KEY` | 400 | A `key` or `thumbKey` not under `uploads/{yourUserId}/`, or a duplicate |
+| `IMAGE_NOT_FOUND` | 400 | A `key` or `thumbKey` was never actually uploaded to R2 |
 | `INVALID_CATEGORY` | 400 | |
 | `INVALID_DISTRICT` | 400 | |
 | `RATE_LIMITED` | 429 | 10/user/hour, 20/IP/hour |
@@ -406,8 +544,9 @@ The caller's own listings, newest first. Requires auth.
       "rejectionReason": "Նկարը հստակ չէ",
       "createdAt": "...",
       "expiresAt": "...",
-      "imageUrl": "https://.../photo.jpg",
-      "claimCount": 3
+      "imageUrl": "https://.../photo-thumb.jpg",
+      "claimCount": 3,
+      "pendingClaimCount": 1
     }
   ],
   "nextCursor": null
@@ -415,7 +554,12 @@ The caller's own listings, newest first. Requires auth.
 ```
 
 20 per page. `rejectionReason` is user-facing text written by an admin —
-show it verbatim. `claimCount` is how many people have asked for the item.
+show it verbatim.
+
+`claimCount` is how many people have asked for the item, ever, whatever
+became of those claims. `pendingClaimCount` counts only the ones still
+`pending` — people waiting on a decision right now. That is the number to
+badge; `claimCount` is history and does not go down.
 
 `Cache-Control: no-store, private`.
 
@@ -781,7 +925,7 @@ Documented here only so nobody wires a UI button to it.
 | `reserved` | Held 48h for an approved claimant | No |
 | `given` | Handed over, terminal | No |
 | `expired` | 30 days passed, terminal | No |
-| `removed` | Unused so far | No |
+| `removed` | Giver deleted it, terminal | No |
 
 ## Claim status reference
 
@@ -856,15 +1000,15 @@ A `429` may carry a `Retry-After` header, in whole seconds.
 
 Things the UI will need that don't exist yet:
 
-- **`GET /api/reference`** — districts and categories for form dropdowns
-  and feed filters. Must be built before the create form.
 - **`PATCH /api/items/[id]`** — editing a listing.
-- **`DELETE /api/items/[id]`** — the giver removing their own item
-  (the `removed` status exists but nothing sets it).
 - **`PATCH /api/auth/me`** — changing display name, avatar, district.
 - **Notifications.** A giver has no way to learn someone claimed their
   item except by opening the app. This is the biggest product gap.
 - **`POST /api/items/[id]/report`** — the `reports` table exists but no
   endpoint writes to it.
 - **Orphan image cleanup.** Presigned uploads that never get attached to
-  an item stay in R2 forever.
+  an item stay in R2 forever — and since every photo is now two objects,
+  an abandoned form leaves twice as many.
+- **`GET /api/claims/mine` still serves originals.** Its `thumbnailUrl`
+  reads `item_images.url`, not the variant, so the claimant's list is the
+  one list view that has not been moved onto thumbnails.

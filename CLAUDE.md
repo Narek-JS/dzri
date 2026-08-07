@@ -117,15 +117,40 @@ per phone *and* per IP.
 **OTP storage.** Only the hash is stored. Codes expire in 5 minutes,
 max 5 verify attempts, and a consumed code cannot be reused.
 
-**Image cost.** Compress client-side before upload. Store one
-original plus generated thumbnails. Never serve an original in a
-list view. Egress is the main variable cost of this product.
+**Image cost.** Compress client-side before upload. Every photo is
+uploaded twice — the original and a 400px-longest-edge thumbnail,
+both presigned separately, both stored on the `item_images` row
+(`url` and `thumb_url`). The browser makes both variants; nothing
+resizes server-side, because the bytes never pass through a route
+handler. Never serve an original in a list view: list views read
+`coalesce(thumb_url, url)`, and the fallback exists only for rows
+written before the pipeline. Egress is the main variable cost of
+this product.
 
-**Status transitions.** Items move
-`draft → active → reserved → given`, with `expired` and `removed` as
-terminal states. Never set `reserved` without `reserved_for` and
-`reserved_until`. Never mutate status directly in a route handler —
-go through the transition helpers in `src/lib/items/`.
+**Status transitions.** The real flow, which is wider than the
+original four states because moderation sits in front of it:
+
+```
+draft ──> pending_review ──approve──> active ──> reserved ──> given
+                │                        │
+                └──reject──> rejected    └──> expired
+```
+
+`given` and `expired` are terminal. `removed` is terminal too and is
+reachable by the giver from `draft`, `pending_review`, `active` or
+`rejected` — never from `reserved`, `given` or `expired`, because an
+item somebody is on their way to collect must not vanish from under
+them. `reserved` returns to `active` on withdraw, no-show, or the
+sweep releasing it at `reserved_until`.
+
+New items land in `pending_review` or `active` depending on
+`MODERATION_MODE`; nothing writes `draft` yet. Never set `reserved`
+without `reserved_for` and `reserved_until`. A `rejected` item must
+carry a `rejection_reason` and a non-rejected one must not — the
+`rejection_reason_matches_status` check enforces it, so any
+transition *out* of `rejected` has to clear it. Never mutate status
+directly in a route handler — go through the transition helpers in
+`src/lib/items/`.
 
 **Cron endpoint.** `/api/cron/sweep` expires stale active items and
 releases reservations past `reserved_until`. Authenticated by a

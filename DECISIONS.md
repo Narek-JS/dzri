@@ -372,3 +372,122 @@ somebody asks why a sign-in failed last night.
 
 Deleted on `expires_at`, not `consumed_at`: an abandoned code is never consumed
 and would otherwise stay forever.
+
+### 2026-08-08 — Deleting an item is a soft delete to `removed`
+
+`DELETE /api/items/[id]` sets `status = 'removed'`. The row stays, the
+`item_images` rows stay, and the R2 objects stay.
+
+The status already existed and nothing set it, so the choice here was really
+between flipping it and deleting rows. Deleting rows loses more than storage:
+`claims.item_id` cascades, so a hard delete would silently erase every claim
+ever made on the item, including completed ones. A claimant opening their own
+history would find handovers they actually made had disappeared, and
+`user_reliability` — which counts `completed` and `no_show` over the claims
+table — would quietly revise somebody's record every time a giver tidied up.
+A giver must not be able to edit a stranger's reliability by deleting a
+listing.
+
+Refused from `reserved`, `given` and `expired`. `reserved` is the one that
+matters: there is a live approved claim behind it, the other hopefuls have
+already been turned away, and the person who was picked may be on a bus. The
+giver's route out is no-show or complete, or waiting for the sweep — not
+making the thing disappear mid-journey. `given` and `expired` are terminal and
+there is nothing left to take down. A second delete is refused the same way, so
+the endpoint reports what happened rather than silently succeeding twice.
+
+Every *pending* claim on the item is rejected in the same transaction. What
+they asked for is gone; leaving them pending would leave people waiting on a
+decision that can never come.
+
+Ownership is checked before status, so a stranger gets 404 rather than a 409
+that would confirm the id is real and disclose what state it is in.
+
+Reclaiming the R2 objects is deliberately not attempted here. It is the same
+unsolved orphan problem listed under Open questions, and a delete path that
+half-solves it — deleting objects for removed items but not for abandoned
+uploads — would be a second mechanism to keep correct rather than a fix.
+
+### 2026-08-08 — An approved claimant can read the item they were promised
+
+Approving a claim moves the item to `reserved`, and `reserved` is invisible to
+everyone but the owner. The effect was that the claimant's own approved claim
+dead-ended at a 404 at exactly the moment they were picked — the one moment
+they most need to re-read the pickup notes, look at the photos and check the
+district. `GET /api/items/[id]` therefore also answers a user holding a claim
+on that item with status `approved` or `completed`, in any item status.
+
+`completed` is included because the record of what changed hands should not
+evaporate on handover; the claimant can still open what they collected.
+`rejected` and `withdrawn` are not: holding a claim once is not a standing key
+to a listing that is no longer public. Everyone else still gets 404.
+
+The response carries no phone, for the claimant as for everyone else. They
+already have the giver's number from `GET /api/claims/mine`, which is where the
+reveal belongs — Rule 1 names three phone-bearing endpoints, and the cost of a
+fourth is not one more field, it is one more place to get wrong forever.
+
+The claimant view is `no-store, private`. A `reserved` item is visible to
+exactly one person on the planet, so a shared cache entry for it is a leak
+waiting for the next request. `view_count` does not move for them either, for
+the same reason it does not move for the owner: it measures public interest,
+and the person who was picked opening it five times on their way over is not
+that.
+
+The claim lookup only runs for a signed-in caller looking at a non-public item,
+so the anonymous path and the ordinary public path cost exactly what they did
+before.
+
+### 2026-08-08 — Two image variants, both made by the browser
+
+Every photo is now uploaded twice: a compressed original and a
+400px-longest-edge variant, presigned separately and stored on one
+`item_images` row as `url` and `thumb_url`. The client also computes the
+original's width, height and blurhash and sends them along;
+`POST /api/items` takes `images: [{ key, thumbKey, width, height, blurhash }]`
+where it used to take `imageKeys: string[]`. No UI consumed the old shape yet,
+so it was replaced outright rather than versioned.
+
+This exists because the feed was serving originals. `GET /api/items` selected
+`item_images.url` at position 0 — the 8 MB-ceiling upload — twenty-four to a
+page, to anonymous visitors, from the endpoint most likely to be linked from
+social media. Egress is this product's main variable cost and that was the
+largest single way to spend it.
+
+The resizing happens in the browser because there is nowhere else for it to
+happen. The bytes go straight to R2 and never pass through a route handler, by
+an earlier decision that is not worth reversing; a server-side resize would
+mean proxying every photo through Vercel to avoid serving it from R2, which is
+backwards. The cost is that the server never sees the pixels, so *the client
+asserts what a thumbnail is*. The 256 KB cap on a `thumb` presign is the only
+control over that assertion, which is why `variant` is a required field with no
+default: defaulting it in the permissive direction would hand out an 8 MB
+signature for something labelled a thumbnail and quietly undo the whole change.
+
+Presign budgets doubled to 60/user/hour and 120/IP/hour. Six photos cost twelve
+presigns now, so one ordinary listing spent a fifth of the old per-user budget,
+and the old 60/IP would have throttled two real people posting from one
+connection — a limit that bites normal use is a limit that gets raised in an
+incident instead of in a commit.
+
+`thumb_url` is nullable and existing rows are not backfilled. There is nothing
+to backfill *from* — regenerating a variant would mean the server downloading
+each original out of R2 and resizing it, which is the proxying this design
+exists to avoid. Reads coalesce `thumb_url` to `url`, so old rows keep
+rendering at the old cost and only those rows pay it.
+
+Both halves of a pair are held to the same rules: the same
+`uploads/{userId}/` ownership check, the same HeadObject existence check, and
+one pooled duplicate check across both roles, so naming one object as both an
+original and a thumbnail is refused. `width`, `height` and `blurhash` are
+untrusted client input used only for layout — bounded and charset-checked at
+the schema, never computed on, and the blurhash goes to a decoder and nowhere
+else.
+
+Two consequences worth writing down. Orphaned R2 objects now accumulate at
+**twice** the rate: an abandoned form leaves two objects per photo. That is the
+same unsolved problem already under Open questions, made twice as expensive,
+and it is still unfixed. And this shipped as a second migration file rather
+than a squash into the first — the "keep it one migration until launch" note
+above is about the `ALTER TYPE ADD VALUE` trap, and a plain `ADD COLUMN` has
+no such trap and applies cleanly to a fresh branch in one `db:migrate` run.

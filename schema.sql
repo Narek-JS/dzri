@@ -129,14 +129,18 @@ create index on items (reserved_until) where status = 'reserved';
 -- the admin moderation queue: pending items, oldest first
 create index on items (created_at) where status = 'pending_review';
 
+-- every photo is uploaded twice: the original, and a 400px-longest-edge
+-- variant the browser derives from it. list views serve the variant --
+-- egress is the main variable cost of this product.
 create table item_images (
   id         uuid primary key default gen_random_uuid(),
   item_id    uuid not null references items(id) on delete cascade,
-  url        text not null,
-  width      int,
+  url        text not null,                        -- the original upload
+  thumb_url  text,                                 -- null on rows predating the variant
+  width      int,                                  -- of the original, for aspect ratio
   height     int,
   blurhash   text,                                 -- placeholder while loading
-  position   smallint not null default 0,
+  position   smallint not null default 0,          -- 0 is the thumbnail
   created_at timestamptz not null default now()
 );
 
