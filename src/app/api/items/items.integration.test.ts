@@ -41,6 +41,7 @@ type MineItem = {
   expiresAt: string;
   imageUrl: string | null;
   claimCount: number;
+  pendingClaimCount: number;
 };
 type MineResponse = { items: MineItem[]; nextCursor: string | null };
 
@@ -471,6 +472,64 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const row = parse<MineResponse>(response.text).items.find((item) => item.id === created.id);
       expect(row?.status).toBe('rejected');
       expect(row?.rejectionReason).toBe(reason);
+    });
+
+    it('counts every claim in claimCount and only pending ones in pendingClaimCount', async () => {
+      const owner = await signIn();
+      const first = await signIn();
+      const second = await signIn();
+      const third = await signIn();
+
+      const id = await seedItem(owner.userId, 'active');
+
+      const claimIds: string[] = [];
+      for (const claimant of [first, second, third]) {
+        const created = await post(`/api/items/${id}/claims`, {}, claimant.cookie);
+        expect(created.status, created.text).toBe(201);
+        claimIds.push(parse<{ id: string }>(created.text).id);
+      }
+
+      const allPending = await api('/api/items/mine', { cookie: owner.cookie });
+      expect(allPending.status, allPending.text).toBe(200);
+      const beforeRow = parse<MineResponse>(allPending.text).items.find((item) => item.id === id);
+      expect(beforeRow?.claimCount).toBe(3);
+      expect(beforeRow?.pendingClaimCount).toBe(3);
+
+      // Rejecting one leaves the historical count alone and drops the
+      // actionable one.
+      const rejected = await post(`/api/claims/${claimIds[0]}/reject`, {}, owner.cookie);
+      expect(rejected.status, rejected.text).toBe(200);
+
+      const afterReject = await api('/api/items/mine', { cookie: owner.cookie });
+      const rejectRow = parse<MineResponse>(afterReject.text).items.find((item) => item.id === id);
+      expect(rejectRow?.claimCount).toBe(3);
+      expect(rejectRow?.pendingClaimCount).toBe(2);
+
+      // Approving takes the winner out of `pending` and auto-rejects the loser,
+      // so nothing is left waiting on a decision.
+      const approved = await post(`/api/claims/${claimIds[1]}/approve`, {}, owner.cookie);
+      expect(approved.status, approved.text).toBe(200);
+
+      const afterApprove = await api('/api/items/mine', { cookie: owner.cookie });
+      const approveRow = parse<MineResponse>(afterApprove.text).items.find(
+        (item) => item.id === id,
+      );
+      expect(approveRow?.claimCount).toBe(3);
+      expect(approveRow?.pendingClaimCount).toBe(0);
+    });
+
+    it('reports zero counts for an item nobody has claimed', async () => {
+      const owner = await signIn();
+      const id = await seedItem(owner.userId, 'active');
+
+      const response = await api('/api/items/mine', { cookie: owner.cookie });
+      expect(response.status, response.text).toBe(200);
+
+      // The lateral must not drop an item that joins to no claims at all.
+      const row = parse<MineResponse>(response.text).items.find((item) => item.id === id);
+      expect(row).toBeDefined();
+      expect(row?.claimCount).toBe(0);
+      expect(row?.pendingClaimCount).toBe(0);
     });
 
     it('never includes a phone number in the response', async () => {
