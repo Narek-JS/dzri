@@ -210,13 +210,14 @@ create table reports (
 create index on reports (resolved_at, created_at) where resolved_at is null;
 
 -- no-show tracking: a giver marks a claim 'no_show', which is how
--- you identify the users who ruin the platform for everyone else
+-- you identify the users who ruin the platform for everyone else.
+-- No phone here: the id is what callers join on, and the reveal lives
+-- in a status-guarded case over users.phone instead.
 create view user_reliability as
 select
   u.id,
-  u.phone,
   count(*) filter (where c.status = 'completed') as completed,
   count(*) filter (where c.status = 'no_show')   as no_shows
 from users u
 left join claims c on c.user_id = u.id
-group by u.id, u.phone;
+group by u.id;

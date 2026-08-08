@@ -149,8 +149,9 @@ export async function GET(
 
   // Queried by id rather than joined: `user_reliability` aggregates over every
   // user, and an explicit `in` list is a filter Postgres pushes down into the
-  // grouping instead of materializing the whole view. Only the two counts are
-  // selected — the view also carries `phone`, and it must never be read here.
+  // grouping instead of materializing the whole view. The view carries an id
+  // and two counts and nothing else — the phone on this page comes from the
+  // status-guarded case above, never from here.
   const reliabilityRows = claimantIds.length
     ? await db
         .select({

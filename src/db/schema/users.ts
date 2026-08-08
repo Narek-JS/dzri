@@ -52,23 +52,25 @@ export const otpCodes = pgTable(
  * No-show tracking: a giver marks a claim 'no_show', which is how you
  * identify the users who ruin the platform for everyone else.
  *
- * This view carries `phone`. It is for internal/admin use only and must
- * never back a public endpoint.
+ * The view carries no phone. It used to, and the id is all its one caller
+ * ever needed — `GET /api/items/[id]/claims` looks reliability up by
+ * claimant id and reveals a phone from `users` under a status-guarded CASE
+ * instead. A phone column here was one careless `select()` away from being
+ * the leak the whole trust model is built to prevent, so it is gone rather
+ * than documented as forbidden.
  */
 export const userReliability = pgView('user_reliability', {
   id: uuid('id'),
-  phone: text('phone'),
   completed: bigint('completed', { mode: 'number' }),
   noShows: bigint('no_shows', { mode: 'number' }),
 }).as(
   sql`select
   u.id,
-  u.phone,
   count(*) filter (where c.status = 'completed') as completed,
   count(*) filter (where c.status = 'no_show')   as no_shows
 from users u
 left join claims c on c.user_id = u.id
-group by u.id, u.phone`,
+group by u.id`,
 );
 
 export type User = typeof users.$inferSelect;

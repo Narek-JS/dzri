@@ -491,3 +491,24 @@ and it is still unfixed. And this shipped as a second migration file rather
 than a squash into the first — the "keep it one migration until launch" note
 above is about the `ALTER TYPE ADD VALUE` trap, and a plain `ADD COLUMN` has
 no such trap and applies cleanly to a fresh branch in one `db:migrate` run.
+
+### 2026-08-08 — `user_reliability` no longer selects `phone`
+
+The 2026-08-07 entry above ends by noting that the view "also carries
+`phone`, and it must never back a response", and that its one caller
+therefore selects only the two counts. That is now enforced by the view
+instead of by a comment: `phone` is dropped from `user_reliability` in
+migration `0002`.
+
+Nothing needed it. `GET /api/items/[id]/claims` — the only reader —
+joins reliability to claimants by id and gets the phone, when there is
+one to get, from the status-guarded `case` over `users.phone` that
+DECISIONS.md already describes as the single mechanism for a reveal. A
+second copy of the column, sitting in an aggregate view with no status
+attached to it, was a phone number reachable by a `select()` that
+forgot to name its columns — the exact mistake CLAUDE.md's phone rule
+exists to make impossible.
+
+Dropping a column from a view means `DROP VIEW` then `CREATE VIEW`,
+which drizzle-kit generates as one migration. Views hold no data, so
+there is nothing to preserve across the drop and nothing to backfill.
