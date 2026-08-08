@@ -3,12 +3,18 @@ import createMiddleware from 'next-intl/middleware';
 import { routing } from '@/i18n/routing';
 
 /**
+ * `proxy.ts`, not `middleware.ts`: Next 16.2 renamed the convention (the
+ * exported function and `config` shape are unchanged, only the filename —
+ * https://nextjs.org/docs/messages/middleware-to-proxy) and warns on the
+ * old name, so this repo uses the current one rather than the deprecated
+ * next-intl example filename.
+ *
  * Resolves the locale for every page request — from the `/ru`/`/en`
  * prefix, then the `NEXT_LOCALE` cookie, then `Accept-Language` — and
  * redirects or rewrites accordingly. There is no auth middleware to
  * compose with: sessions are read cookie-only inside route handlers and
  * server components (`src/lib/auth/session.ts`), never at the edge, so
- * this is the only middleware in the app.
+ * this is the only proxy/middleware in the app.
  */
 export default createMiddleware(routing);
 

@@ -6,4 +6,35 @@
   --color-brand-strong: #b4530f;
   --color-brand-tint: #fdf1e7;
   --color-brand-dark: #f5a76a;
+
+  /*
+   * Body font stack — see src/lib/fonts.ts for why it's two font families,
+   * not one: Armenian and Cyrillic coverage don't live in a single Noto
+   * family. --font-noto-armenian and --font-noto-sans are set by next/font
+   * on <html> in [locale]/layout.tsx.
+   */
+  --font-sans:
+    var(--font-noto-armenian), var(--font-noto-sans), ui-sans-serif, system-ui, sans-serif;
+
+  /* The "dzri" wordmark only (BRAND.md) — never body text. */
+  --font-wordmark: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * Dark-mode mapping (BRAND.md: "brand-dark | Dark mode substitute for
+ * brand"). OS preference only — no toggle. brand-strong and brand-tint
+ * have no documented dark substitute and are left alone; components that
+ * need a dark-mode-aware fill or tint use Tailwind's `dark:` variant
+ * directly.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-brand: var(--color-brand-dark);
+  }
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+  }
 }
