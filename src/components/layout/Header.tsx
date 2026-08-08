@@ -1,8 +1,11 @@
 'use client';
 
+import { useState } from 'react';
+
 import { useTranslations } from 'next-intl';
 
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
+import { api } from '@/lib/api/client';
 import { useSession } from '@/lib/auth/sessionContext';
 
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -16,6 +19,20 @@ import { Nav } from './Nav';
 export function Header() {
   const t = useTranslations();
   const session = useSession();
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+    try {
+      await api.auth.logout();
+    } finally {
+      setLoggingOut(false);
+    }
+    router.refresh();
+  }
 
   return (
     <header className="flex items-center justify-between gap-6 px-6 py-4">
@@ -38,8 +55,16 @@ export function Header() {
         </Link>
 
         {session ? (
-          <span className="text-sm text-neutral-600">
+          <span className="flex items-center gap-2 text-sm text-neutral-600">
             {t('session.signedInAs', { name: session.displayName })}
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="text-brand-strong hover:underline disabled:opacity-50"
+            >
+              {t('session.logout')}
+            </button>
           </span>
         ) : (
           <Link href="/login" className="text-sm hover:text-brand-strong">
