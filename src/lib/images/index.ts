@@ -11,4 +11,6 @@ export {
   scaleToFit,
   type Size,
 } from './dimensions';
+export { ImagePrepareError, type ImagePrepareErrorCode } from './errors';
 export { prepareImage, type PreparedImage } from './prepare';
+export { THUMB_MAX_BYTES, THUMB_QUALITY_STEPS } from './thumbQuality';

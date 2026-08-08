@@ -10,6 +10,8 @@ import {
   scaleToFit,
 } from './dimensions';
 import type { Size } from './dimensions';
+import { ImagePrepareError } from './errors';
+import { THUMB_MAX_BYTES, THUMB_QUALITY_STEPS, encodeUnderCap } from './thumbQuality';
 
 /**
  * Turns one file the user picked into everything `POST /api/items` needs for
@@ -17,10 +19,10 @@ import type { Size } from './dimensions';
  *
  * This runs in the BROWSER. It is a pure module — no React, no i18n, no
  * network — so it can be called from a form component, a worker, or a test
- * harness, and it throws plain `Error`s that the caller translates. Nothing
- * here imports from `src/lib/r2/`, which pulls in `node:crypto` and the S3
- * SDK; the shared content-type allowlist lives in `./contentTypes` for exactly
- * that reason.
+ * harness, and it throws `ImagePrepareError`s (./errors) that the caller
+ * translates. Nothing here imports from `src/lib/r2/`, which pulls in
+ * `node:crypto` and the S3 SDK; the shared content-type allowlist lives in
+ * `./contentTypes` for exactly that reason.
  *
  * Why the client does the resizing at all: the bytes go straight from the
  * browser to R2 and never pass through a route handler (DECISIONS.md), so
@@ -31,8 +33,12 @@ import type { Size } from './dimensions';
  *
  * Compression quality is applied to JPEG and WebP. PNG ignores it: the format
  * is lossless and the canvas encoder takes no quality hint for it.
+ *
+ * Every failure is an `ImagePrepareError` with a stable `code` — never a
+ * plain `Error` — so a caller (the create-item form) can switch on it the
+ * same way it already switches on `ApiClientError.code`.
  */
-const COMPRESSION_QUALITY = 0.82;
+const ORIGINAL_QUALITY = 0.82;
 
 export type PreparedImage = {
   /** Same type as the source file — the pipeline never transcodes. */
@@ -53,10 +59,26 @@ export async function prepareImage(file: Blob): Promise<PreparedImage> {
   // The type comes from the OS's idea of the file. Checking it here means the
   // caller fails on the file picker rather than on a presign round trip.
   if (!isAllowedContentType(contentType)) {
-    throw new Error(`Unsupported image type: ${contentType || 'unknown'}`);
+    throw new ImagePrepareError(
+      'UNSUPPORTED_TYPE',
+      `Unsupported image type: ${contentType || 'unknown'}`,
+    );
   }
 
-  const bitmap = await createImageBitmap(file);
+  // `imageOrientation` defaults to `'none'` per spec — createImageBitmap
+  // decodes the raw pixel grid and ignores any EXIF orientation tag, unlike
+  // an `<img>` or a CSS background, which auto-rotate. A phone held upright
+  // for a portrait shot writes orientation 6 or 8 and stores the pixels
+  // landscape; decoding with the default would carry that sideways grid
+  // through both variants. `'from-image'` applies the tag during decode, so
+  // `bitmap.width`/`height` already come out upright and everything drawn
+  // from it — both variants, the blurhash sample — is oriented correctly.
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch (cause) {
+    throw new ImagePrepareError('DECODE_FAILED', `Could not decode image: ${String(cause)}`);
+  }
 
   try {
     const source: Size = { width: bitmap.width, height: bitmap.height };
@@ -68,8 +90,8 @@ export async function prepareImage(file: Blob): Promise<PreparedImage> {
     const thumbSize = scaleToFit(source, THUMB_LONGEST_EDGE);
 
     const [original, thumb] = await Promise.all([
-      renderToBlob(bitmap, originalSize, contentType),
-      renderToBlob(bitmap, thumbSize, contentType),
+      renderToBlob(bitmap, originalSize, contentType, ORIGINAL_QUALITY),
+      renderThumbToBlob(bitmap, thumbSize, contentType),
     ]);
 
     return {
@@ -111,7 +133,8 @@ function computeBlurhash(bitmap: ImageBitmap, source: Size): string {
  */
 type Canvas2D = {
   context: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
-  toBlob: (contentType: AllowedContentType) => Promise<Blob>;
+  /** `quality` is ignored by the encoder for PNG — lossless, no lever. */
+  toBlob: (contentType: AllowedContentType, quality: number | undefined) => Promise<Blob>;
 };
 
 function createCanvas(size: Size): Canvas2D {
@@ -119,12 +142,15 @@ function createCanvas(size: Size): Canvas2D {
     const canvas = new OffscreenCanvas(size.width, size.height);
     const context = canvas.getContext('2d');
 
-    if (!context) throw new Error('Could not get a 2D context for image resizing');
+    if (!context)
+      throw new ImagePrepareError(
+        'CANVAS_UNAVAILABLE',
+        'Could not get a 2D context for image resizing',
+      );
 
     return {
       context,
-      toBlob: (contentType) =>
-        canvas.convertToBlob({ type: contentType, quality: COMPRESSION_QUALITY }),
+      toBlob: (contentType, quality) => canvas.convertToBlob({ type: contentType, quality }),
     };
   }
 
@@ -133,23 +159,32 @@ function createCanvas(size: Size): Canvas2D {
   canvas.height = size.height;
 
   const context = canvas.getContext('2d');
-  if (!context) throw new Error('Could not get a 2D context for image resizing');
+  if (!context)
+    throw new ImagePrepareError(
+      'CANVAS_UNAVAILABLE',
+      'Could not get a 2D context for image resizing',
+    );
 
   return {
     context,
-    toBlob: (contentType) =>
+    toBlob: (contentType, quality) =>
       new Promise((resolve, reject) => {
         canvas.toBlob(
-          (blob) => (blob ? resolve(blob) : reject(new Error('Canvas produced no image data'))),
+          (blob) =>
+            blob
+              ? resolve(blob)
+              : reject(new ImagePrepareError('ENCODE_FAILED', 'Canvas produced no image data')),
           contentType,
-          COMPRESSION_QUALITY,
+          quality,
         );
       }),
   };
 }
 
 /**
- * Draws the bitmap scaled into a canvas of `size` and encodes it.
+ * Draws the bitmap scaled into a canvas of `size` and encodes it at a fixed
+ * quality. Used for the original, which has no byte cap to hit — only the
+ * thumbnail needs to retry at successively lower quality.
  *
  * `imageSmoothingQuality: 'high'` matters here: the default in some browsers
  * is a nearest-neighbour-ish downscale, which on a 4x reduction turns fine
@@ -159,6 +194,7 @@ async function renderToBlob(
   bitmap: ImageBitmap,
   size: Size,
   contentType: AllowedContentType,
+  quality: number | undefined,
 ): Promise<Blob> {
   const canvas = createCanvas(size);
 
@@ -166,7 +202,30 @@ async function renderToBlob(
   canvas.context.imageSmoothingQuality = 'high';
   canvas.context.drawImage(bitmap, 0, 0, size.width, size.height);
 
-  return canvas.toBlob(contentType);
+  return canvas.toBlob(contentType, quality);
+}
+
+/**
+ * Renders the thumbnail, reducing quality step by step until it fits under
+ * `THUMB_MAX_BYTES` (DECISIONS.md: the 256 KB presign cap is the *only*
+ * server-side control over what a "thumb" is, so this must not hand back
+ * something the presign would refuse). PNG has no quality lever — one
+ * attempt only, so a PNG that doesn't fit fails immediately rather than
+ * re-encoding the same bytes five times for nothing.
+ */
+async function renderThumbToBlob(
+  bitmap: ImageBitmap,
+  size: Size,
+  contentType: AllowedContentType,
+): Promise<Blob> {
+  const steps: readonly (number | undefined)[] =
+    contentType === 'image/png' ? [undefined] : THUMB_QUALITY_STEPS;
+
+  return encodeUnderCap(
+    (quality) => renderToBlob(bitmap, size, contentType, quality),
+    steps,
+    THUMB_MAX_BYTES,
+  );
 }
 
 function renderToImageData(bitmap: ImageBitmap, size: Size): ImageData {
