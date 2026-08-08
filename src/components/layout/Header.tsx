@@ -31,6 +31,12 @@ export function Header() {
     } finally {
       setLoggingOut(false);
     }
+    // No push() here, so none of the push/refresh ordering [locale]/login's
+    // completeSignIn() has to worry about applies — refresh() re-fetches
+    // the layout (and this header) for whatever page we're already on.
+    // Verified in a browser: this alone updates the header immediately,
+    // no reload, once [locale]/layout.tsx stopped being misclassified as
+    // static (see the `dynamic` export there).
     router.refresh();
   }
 

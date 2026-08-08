@@ -14,9 +14,32 @@ import { getSession } from '@/lib/auth/session';
 import { SessionProvider } from '@/lib/auth/sessionContext';
 import { manrope, notoSans, notoSansArmenian } from '@/lib/fonts';
 
-export function generateStaticParams(): Array<{ locale: string }> {
-  return routing.locales.map((locale) => ({ locale }));
-}
+/**
+ * There used to be a `generateStaticParams` here returning `routing.locales`,
+ * on the theory that `getSession()` below (which reads the session cookie on
+ * every render) would force dynamic rendering regardless, so declaring the
+ * locales as static params was a harmless nod to next-intl's own docs.
+ *
+ * It was not harmless. In dev (`next dev`, Turbopack), Next writes every
+ * path `generateStaticParams` returns into `.next/dev/prerender-manifest.json`
+ * as soon as the route is first hit — independent of whether the render also
+ * reads a dynamic API — and a route present in that manifest gets treated as
+ * SSG for client-router (RSC) navigations specifically: the server tags the
+ * response `x-nextjs-cache` / `NEXT_IS_PRERENDER_HEADER`, and the client
+ * router then caches it under the `static` staleTime bucket (300s) instead
+ * of `dynamic` (0s, always-revalidate). Confirmed by inspecting that
+ * manifest directly — it listed `/hy`, `/ru`, `/en` and every nested page
+ * under them — and by capturing real `router.push`/`router.refresh` traffic
+ * in a browser, where both came back `x-nextjs-cache: HIT` serving the
+ * pre-sign-in render. That is what left the header showing "log in" after a
+ * real sign-in until a full reload bypassed the client router entirely.
+ *
+ * `force-dynamic` is the explicit version of what the removed comment
+ * assumed implicitly: this layout is never eligible for the Full Route
+ * Cache, full stop — `npm run build` already showed every `[locale]` route
+ * as `ƒ Dynamic`, so no real static optimization is lost.
+ */
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,
@@ -54,11 +77,9 @@ export default async function LocaleLayout({
     notFound();
   }
 
-  // Opts this layout and everything under it into static rendering — see
+  // Still required by next-intl even without generateStaticParams — see
   // https://next-intl.dev/docs/getting-started/app-router/with-i18n-routing.
-  // getSession() below reads the session cookie regardless, which makes
-  // Next render the page dynamically anyway — the header needs to know
-  // who's signed in on every request, so that trade is intentional.
+  // It just no longer buys any static rendering here (see `dynamic` above).
   setRequestLocale(locale);
 
   // Cookie-only (see src/lib/auth/session.ts) — cheap enough to call on

@@ -70,9 +70,23 @@ export default function LoginPage() {
     setFormError(null);
   }
 
+  /**
+   * Order matters and is not interchangeable. `router.refresh()` re-fetches
+   * data for the CURRENT route (still /login at the moment this runs); if it
+   * ran first, `router.push()` navigates away before that refetch can apply,
+   * discarding it. And `push()` alone isn't enough either — a client-side
+   * navigation to a page under the same already-mounted layout swaps only
+   * the page segment, not the layout, so the header (rendered by the layout,
+   * from SessionProvider) would keep showing the pre-sign-in session.
+   * `push()` first, then `refresh()` (now against the destination, which is
+   * "current" by the time it runs) re-fetches the whole tree — layout
+   * included — with the session cookie that verifyOtp just set. Verified in
+   * a real browser: without this order, the header still reads "log in" on
+   * the destination page until a full reload.
+   */
   function completeSignIn() {
-    router.refresh();
     router.push(safeNext);
+    router.refresh();
   }
 
   /** CODE_EXPIRED and TOO_MANY_ATTEMPTS kill the code outright (API.md) —
