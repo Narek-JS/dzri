@@ -20,7 +20,28 @@
   },
   "session": {
     "login": "Войти",
-    "signedInAs": "Вы вошли как {name}"
+    "signedInAs": "Вы вошли как {name}",
+    "logout": "Выйти"
+  },
+  "login": {
+    "phone": {
+      "label": "Номер телефона",
+      "placeholder": "077 12 34 56",
+      "submit": "Отправить код"
+    },
+    "code": {
+      "description": "Код отправлен на номер {phone}",
+      "label": "Код",
+      "submit": "Подтвердить",
+      "back": "Изменить номер",
+      "resend": "Отправить код ещё раз",
+      "resendIn": "Отправить повторно через {seconds} с"
+    },
+    "name": {
+      "description": "Новый аккаунт. Укажите имя.",
+      "label": "Имя",
+      "submit": "Завершить"
+    }
   },
   "pages": {
     "feed": "Вещи",

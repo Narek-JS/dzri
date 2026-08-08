@@ -20,7 +20,28 @@
   },
   "session": {
     "login": "Log in",
-    "signedInAs": "Signed in as {name}"
+    "signedInAs": "Signed in as {name}",
+    "logout": "Log out"
+  },
+  "login": {
+    "phone": {
+      "label": "Phone number",
+      "placeholder": "077 12 34 56",
+      "submit": "Send code"
+    },
+    "code": {
+      "description": "Code sent to {phone}",
+      "label": "Code",
+      "submit": "Confirm",
+      "back": "Change number",
+      "resend": "Resend code",
+      "resendIn": "Resend in {seconds}s"
+    },
+    "name": {
+      "description": "New account. Enter a name.",
+      "label": "Name",
+      "submit": "Finish"
+    }
   },
   "pages": {
     "feed": "Items",

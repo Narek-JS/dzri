@@ -20,7 +20,28 @@
   },
   "session": {
     "login": "Մուտք",
-    "signedInAs": "Դուք մուտք եք գործել որպես {name}"
+    "signedInAs": "Դուք մուտք եք գործել որպես {name}",
+    "logout": "Ելք"
+  },
+  "login": {
+    "phone": {
+      "label": "Հեռախոսահամար",
+      "placeholder": "077 12 34 56",
+      "submit": "Ուղարկել կոդը"
+    },
+    "code": {
+      "description": "Կոդն ուղարկվել է {phone} համարին",
+      "label": "Կոդ",
+      "submit": "Հաստատել",
+      "back": "Փոխել համարը",
+      "resend": "Կրկին ուղարկել կոդը",
+      "resendIn": "Կրկին ուղարկել {seconds} վրկ հետո"
+    },
+    "name": {
+      "description": "Նոր հաշիվ է։ Նշեք ձեր անունը։",
+      "label": "Անուն",
+      "submit": "Ավարտել"
+    }
   },
   "pages": {
     "feed": "Իրեր",
