@@ -8,6 +8,8 @@ import { notFound } from 'next/navigation';
 import '../globals.css';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { routing } from '@/i18n/routing';
+import { getSession } from '@/lib/auth/session';
+import { SessionProvider } from '@/lib/auth/sessionContext';
 import { manrope, notoSans, notoSansArmenian } from '@/lib/fonts';
 
 export function generateStaticParams(): Array<{ locale: string }> {
@@ -52,7 +54,14 @@ export default async function LocaleLayout({
 
   // Opts this layout and everything under it into static rendering — see
   // https://next-intl.dev/docs/getting-started/app-router/with-i18n-routing.
+  // getSession() below reads the session cookie regardless, which makes
+  // Next render the page dynamically anyway — the header needs to know
+  // who's signed in on every request, so that trade is intentional.
   setRequestLocale(locale);
+
+  // Cookie-only (see src/lib/auth/session.ts) — cheap enough to call on
+  // every page for the header, unlike requireUser()'s database round trip.
+  const session = await getSession();
 
   return (
     <html
@@ -60,7 +69,9 @@ export default async function LocaleLayout({
       className={`h-full antialiased ${notoSansArmenian.variable} ${notoSans.variable} ${manrope.variable}`}
     >
       <body className="flex min-h-full flex-col">
-        <NextIntlClientProvider locale={locale}>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider locale={locale}>
+          <SessionProvider session={session}>{children}</SessionProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
