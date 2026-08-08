@@ -6,6 +6,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 
 import '../globals.css';
+import { Footer } from '@/components/layout/Footer';
+import { Header } from '@/components/layout/Header';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { routing } from '@/i18n/routing';
 import { getSession } from '@/lib/auth/session';
@@ -70,7 +72,11 @@ export default async function LocaleLayout({
     >
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider locale={locale}>
-          <SessionProvider session={session}>{children}</SessionProvider>
+          <SessionProvider session={session}>
+            <Header />
+            <div className="flex flex-1 flex-col">{children}</div>
+            <Footer />
+          </SessionProvider>
         </NextIntlClientProvider>
       </body>
     </html>
