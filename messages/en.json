@@ -1,0 +1,73 @@
+{
+  "shell": {
+    "wordmark": "dzri",
+    "footer": {
+      "tagline": "Items nobody needs anymore, for whoever needs them."
+    }
+  },
+  "languageSwitcher": {
+    "label": "Language",
+    "hy": "Armenian",
+    "ru": "Russian",
+    "en": "English"
+  },
+  "nav": {
+    "feed": "Items",
+    "create": "Post",
+    "myItems": "My items",
+    "myClaims": "My claims",
+    "admin": "Admin"
+  },
+  "session": {
+    "login": "Log in",
+    "signedInAs": "Signed in as {name}"
+  },
+  "pages": {
+    "feed": "Items",
+    "itemDetail": "Item detail",
+    "create": "Post an item",
+    "myItems": "My items",
+    "myClaims": "My claims",
+    "itemClaims": "Claims on this item",
+    "admin": "Admin",
+    "login": "Log in"
+  },
+  "notFound": {
+    "title": "Not found",
+    "description": "This page does not exist or has moved.",
+    "backToFeed": "Back to items"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "Try again, or come back later.",
+    "retry": "Try again"
+  },
+  "errors": {
+    "invalidPhone": "Phone number is not valid",
+    "rateLimited": "Too many attempts. Try again shortly",
+    "invalidCode": "Code is wrong or no longer valid",
+    "codeExpired": "Code has expired",
+    "tooManyAttempts": "Too many wrong attempts for this code",
+    "userBanned": "This account is banned",
+    "nameRequired": "A name is required",
+    "invalidFileType": "File type is not allowed",
+    "fileTooLarge": "File is too large",
+    "invalidCategory": "This category does not exist",
+    "invalidDistrict": "This district does not exist",
+    "imagesRequired": "At least one photo is required",
+    "tooManyImages": "Too many photos",
+    "invalidImageKey": "One of the photos is invalid",
+    "imageNotFound": "One of the photos was not found",
+    "notFound": "Not found",
+    "cannotClaimOwnItem": "You cannot claim your own item",
+    "alreadyClaimed": "You already claimed this item",
+    "invalidStatusTransition": "This action is not available right now",
+    "invalidBody": "The form was not filled in correctly",
+    "unauthorized": "Sign in is required",
+    "smsFailed": "Could not send the code",
+    "internal": "Unexpected error"
+  },
+  "common": {
+    "pendingClaimCount": "{count, plural, one {# pending claim} other {# pending claims}}"
+  }
+}

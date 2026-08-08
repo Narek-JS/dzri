@@ -1,0 +1,73 @@
+{
+  "shell": {
+    "wordmark": "dzri",
+    "footer": {
+      "tagline": "Իրեր, որ այլևս պետք չեն, նրանց, ում պետք են։"
+    }
+  },
+  "languageSwitcher": {
+    "label": "Լեզու",
+    "hy": "Հայերեն",
+    "ru": "Ռուսերեն",
+    "en": "Անգլերեն"
+  },
+  "nav": {
+    "feed": "Իրեր",
+    "create": "Տեղադրել",
+    "myItems": "Իմ իրերը",
+    "myClaims": "Իմ հայտերը",
+    "admin": "Ադմին"
+  },
+  "session": {
+    "login": "Մուտք",
+    "signedInAs": "Դուք մուտք եք գործել որպես {name}"
+  },
+  "pages": {
+    "feed": "Իրեր",
+    "itemDetail": "Իրի մանրամասներ",
+    "create": "Տեղադրել իր",
+    "myItems": "Իմ իրերը",
+    "myClaims": "Իմ հայտերը",
+    "itemClaims": "Հայտեր այս իրի համար",
+    "admin": "Ադմին",
+    "login": "Մուտք"
+  },
+  "notFound": {
+    "title": "Չգտնվեց",
+    "description": "Այս էջը գոյություն չունի կամ տեղափոխվել է։",
+    "backToFeed": "Վերադառնալ իրերին"
+  },
+  "error": {
+    "title": "Ինչ-որ բան այնպես չգնաց",
+    "description": "Փորձեք նորից կամ վերադարձեք ավելի ուշ։",
+    "retry": "Փորձել կրկին"
+  },
+  "errors": {
+    "invalidPhone": "Հեռախոսահամարը վավեր չէ",
+    "rateLimited": "Չափազանց շատ փորձեր։ Փորձեք մի փոքր ուշ",
+    "invalidCode": "Կոդը սխալ է կամ այլևս վավեր չէ",
+    "codeExpired": "Կոդի ժամկետը լրացել է",
+    "tooManyAttempts": "Չափազանց շատ սխալ փորձեր այս կոդի համար",
+    "userBanned": "Այս հաշիվն արգելափակված է",
+    "nameRequired": "Անհրաժեշտ է անուն նշել",
+    "invalidFileType": "Չթույլատրված ֆայլի տեսակ",
+    "fileTooLarge": "Ֆայլը չափազանց մեծ է",
+    "invalidCategory": "Այս կատեգորիան գոյություն չունի",
+    "invalidDistrict": "Այս թաղամասը գոյություն չունի",
+    "imagesRequired": "Անհրաժեշտ է առնվազն մեկ նկար",
+    "tooManyImages": "Չափազանց շատ նկարներ",
+    "invalidImageKey": "Նկարներից մեկը վավեր չէ",
+    "imageNotFound": "Նկարներից մեկը չի հայտնաբերվել",
+    "notFound": "Չգտնվեց",
+    "cannotClaimOwnItem": "Չեք կարող հայտ ներկայացնել սեփական իրի համար",
+    "alreadyClaimed": "Դուք արդեն հայտ եք ներկայացրել այս իրի համար",
+    "invalidStatusTransition": "Այս գործողությունն այժմ հնարավոր չէ",
+    "invalidBody": "Ձևը սխալ է լրացված",
+    "unauthorized": "Անհրաժեշտ է մուտք գործել",
+    "smsFailed": "Չհաջողվեց ուղարկել կոդը",
+    "internal": "Անսպասելի սխալ"
+  },
+  "common": {
+    "pendingClaimCount": "{count, plural, one {# սպասող հայտ} other {# սպասող հայտ}}"
+  }
+}

@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next';
 
+import createNextIntlPlugin from 'next-intl/plugin';
+
 const nextConfig: NextConfig = {
   // Pin the workspace root; a stray lockfile above this directory otherwise
   // makes Next infer the wrong one.
@@ -13,4 +15,9 @@ const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR ?? '.next',
 };
 
-export default nextConfig;
+// Wires src/i18n/request.ts into the RSC render so server components can
+// call getTranslations()/getMessages() without threading the locale
+// through every call site by hand.
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+
+export default withNextIntl(nextConfig);
