@@ -28,17 +28,32 @@ import type { ClaimStatus, ItemCondition, ItemStatus } from '@/db/schema';
  * message } }` envelope (CLAUDE.md, API.md). `message` is the server's log
  * string — never render it to a user. Map `code` through
  * `apiErrorMessageKey` to an i18n key instead.
+ *
+ * `retryAfterSeconds` mirrors a `Retry-After` header on a 429 (API.md: "in
+ * whole seconds"). Undefined when the header is missing or not a
+ * non-negative integer — callers fall back to their own default cooldown
+ * rather than trusting a malformed value.
  */
 export class ApiClientError extends Error {
   readonly status: number;
   readonly code: ApiErrorCode;
+  readonly retryAfterSeconds?: number;
 
-  constructor(status: number, code: ApiErrorCode, message: string) {
+  constructor(status: number, code: ApiErrorCode, message: string, retryAfterSeconds?: number) {
     super(message);
     this.name = 'ApiClientError';
     this.status = status;
     this.code = code;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
+}
+
+/** Whole non-negative seconds only — anything else is treated as absent. */
+function parseRetryAfterSeconds(headers: Headers): number | undefined {
+  const raw = headers.get('Retry-After');
+  if (raw === null || !/^\d+$/.test(raw)) return undefined;
+
+  return Number(raw);
 }
 
 /**
@@ -110,6 +125,7 @@ async function apiFetch<TResponse>(path: string, init?: RequestInit): Promise<TR
       response.status,
       body?.error.code ?? 'INTERNAL',
       body?.error.message ?? 'Request failed',
+      parseRetryAfterSeconds(response.headers),
     );
   }
 

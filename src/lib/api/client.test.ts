@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ApiClientError, apiErrorMessageKey } from './client';
+import { ApiClientError, api, apiErrorMessageKey } from './client';
 
 import type { ApiErrorCode } from '@/lib/http';
 
@@ -66,5 +66,59 @@ describe('ApiClientError', () => {
     expect(error.status).toBe(404);
     expect(error.code).toBe('ITEM_NOT_FOUND');
     expect(error).toBeInstanceOf(Error);
+    expect(error.retryAfterSeconds).toBeUndefined();
+  });
+
+  it('carries an explicit retryAfterSeconds when given one', () => {
+    const error = new ApiClientError(429, 'RATE_LIMITED', 'Too many requests', 30);
+
+    expect(error.retryAfterSeconds).toBe(30);
+  });
+});
+
+describe('retryAfterSeconds parsed off a 429 response', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch(headers: Record<string, string>): void {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: { code: 'RATE_LIMITED', message: 'log only' } }), {
+            status: 429,
+            headers,
+          }),
+      ),
+    );
+  }
+
+  async function requestOtpError(): Promise<ApiClientError> {
+    const error: unknown = await api.auth.requestOtp({ phone: '077123456' }).catch((e) => e);
+
+    if (!(error instanceof ApiClientError)) {
+      throw new Error('expected api.auth.requestOtp to reject with an ApiClientError');
+    }
+
+    return error;
+  }
+
+  it('is the whole-second value when the header is present', async () => {
+    stubFetch({ 'Retry-After': '30' });
+
+    expect((await requestOtpError()).retryAfterSeconds).toBe(30);
+  });
+
+  it('is undefined when the header is absent', async () => {
+    stubFetch({});
+
+    expect((await requestOtpError()).retryAfterSeconds).toBeUndefined();
+  });
+
+  it('is undefined when the header is not a whole non-negative integer', async () => {
+    stubFetch({ 'Retry-After': 'soon' });
+
+    expect((await requestOtpError()).retryAfterSeconds).toBeUndefined();
   });
 });
