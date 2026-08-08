@@ -14,3 +14,12 @@ export {
 export { ImagePrepareError, type ImagePrepareErrorCode } from './errors';
 export { prepareImage, type PreparedImage } from './prepare';
 export { THUMB_MAX_BYTES, THUMB_QUALITY_STEPS } from './thumbQuality';
+export {
+  ImageUploadError,
+  MAX_CONCURRENT_UPLOADS,
+  createUploadQueue,
+  uploadPreparedImage,
+  type ImageUploadErrorCode,
+  type UploadedImage,
+  type UploadQueue,
+} from './upload';
