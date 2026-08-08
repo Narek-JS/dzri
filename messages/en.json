@@ -88,6 +88,42 @@
     "smsFailed": "Could not send the code",
     "internal": "Unexpected error"
   },
+  "createItem": {
+    "title": { "label": "Title" },
+    "description": { "label": "Description" },
+    "category": { "label": "Category", "placeholder": "Choose a category" },
+    "district": { "label": "District", "placeholder": "Choose a district" },
+    "condition": {
+      "label": "Condition",
+      "working": "Working",
+      "needsRepair": "Needs repair",
+      "forParts": "For parts"
+    },
+    "pickupNotes": { "label": "Pickup notes" },
+    "photos": {
+      "label": "Photos",
+      "help": "The first photo is the listing thumbnail. Add 1 to 6 photos.",
+      "add": "Add photos",
+      "cover": "Cover",
+      "remove": "Remove",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "status": { "preparing": "Preparing…", "uploading": "Uploading…" },
+      "errors": {
+        "unsupportedType": "This file type is not supported",
+        "thumbTooLarge": "This photo could not be compressed enough",
+        "decodeFailed": "This photo could not be read",
+        "generic": "This photo could not be uploaded"
+      }
+    },
+    "submit": "Post",
+    "success": {
+      "title": "Listing submitted",
+      "description": "It is waiting for review and will not appear on the feed until an admin approves it.",
+      "backToFeed": "Back to items",
+      "viewMyItems": "View my items"
+    }
+  },
   "common": {
     "pendingClaimCount": "{count, plural, one {# pending claim} other {# pending claims}}"
   }
