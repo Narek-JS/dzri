@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
 
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { getSession, requireUser } from '@/lib/auth/session';
-import { db } from '@/db';
-import { categories, claims, districts, itemImages, items, users } from '@/db/schema';
 import { apiError } from '@/lib/http';
+import { getItemForViewer } from '@/lib/items/visibility';
 import { removeItem } from '@/lib/items/remove';
 
 /**
@@ -18,36 +16,21 @@ import { removeItem } from '@/lib/items/remove';
 const PUBLIC_CACHE = 'public, s-maxage=60, stale-while-revalidate=300';
 const PRIVATE_CACHE = 'no-store, private';
 
-/** The claim statuses that entitle their holder to keep reading the item. */
-const ENTITLED_CLAIM_STATUSES = ['approved', 'completed'] as const;
-
 /**
  * GET /api/items/[id] — a single listing.
  *
- * PUBLIC when the item is `active` and unexpired. Two people may also read it
- * outside that window:
+ * A thin wrapper: `getItemForViewer` (src/lib/items/visibility.ts) is the one
+ * place that decides who may read an item and what it costs them (a view
+ * count bump). This route handler only turns that answer into an HTTP
+ * response — same statuses, same 404s, same cache headers as before the
+ * logic moved. The item-detail page (src/app/[locale]/items/[id]) calls the
+ * same function directly rather than reimplementing any of it, per
+ * CLAUDE.md: two copies of this rule is two places to get it wrong forever.
  *
- *  - the OWNER, in *any* status, so they can see their own listing while it is
- *    pending or rejected;
- *  - a CLAIMANT holding an `approved` or `completed` claim on it, also in any
- *    status. Approving a claim moves the item to `reserved`, so without this
- *    the claimant's own approved claim dead-ends at a 404 the instant they are
- *    picked — the one moment they most need to look at what they are collecting
- *    and where from. A `completed` claim keeps reading it afterwards, because
- *    the record of what changed hands should not evaporate on handover.
- *
- * A rejected or withdrawn claimant gets nothing: they held a claim once, and
- * that is not entitlement to a listing that is no longer public.
- *
- * Nobody else can see a non-active item, and they get a 404, not a 403: a 403
- * would confirm the id exists, leaking that someone posted something that was
- * rejected. An invalid uuid is the same 404 — a bad path must not 500.
- *
- * The giver's `displayName` and `avatarUrl` are the only user fields returned.
- * The phone is never selected here, for anyone — not the owner, and not the
- * approved claimant, who already has it from `GET /api/claims/mine` (CLAUDE.md
- * Rule 1 lists three phone-bearing endpoints, and this must not become a
- * fourth).
+ * `rejectionReason` and `ownerId`, which the shared function returns for a
+ * caller that needs them, are deliberately left off this response — no
+ * behaviour change from before the extraction. The phone is never selected
+ * by the shared query for anyone (CLAUDE.md Rule 1).
  */
 export async function GET(
   _request: Request,
@@ -55,152 +38,36 @@ export async function GET(
 ): Promise<NextResponse> {
   const { id } = await params;
 
-  // An invalid uuid can never match a row; short-circuit to 404 rather than
-  // letting a malformed value reach the database and 500.
-  if (!z.string().uuid().safeParse(id).success) {
-    return apiError('ITEM_NOT_FOUND');
-  }
-
   // Cookie-only, so the anonymous path stays a single query with no session
-  // round trip. We only need the id to decide ownership.
+  // round trip.
   const session = await getSession();
 
-  const [row] = await db
-    .select({
-      id: items.id,
-      userId: items.userId,
-      title: items.title,
-      description: items.description,
-      condition: items.condition,
-      pickupNotes: items.pickupNotes,
-      status: items.status,
-      createdAt: items.createdAt,
-      expiresAt: items.expiresAt,
-      district: {
-        slug: districts.slug,
-        nameHy: districts.nameHy,
-        nameRu: districts.nameRu,
-        nameEn: districts.nameEn,
-      },
-      category: {
-        slug: categories.slug,
-        nameHy: categories.nameHy,
-        nameRu: categories.nameRu,
-        nameEn: categories.nameEn,
-      },
-      giver: {
-        displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-      },
-    })
-    .from(items)
-    .innerJoin(districts, eq(items.districtId, districts.id))
-    .innerJoin(categories, eq(items.categoryId, categories.id))
-    .innerJoin(users, eq(items.userId, users.id))
-    .where(eq(items.id, id))
-    .limit(1);
-
-  if (!row) {
+  const result = await getItemForViewer(id, session);
+  if (!result) {
     return apiError('ITEM_NOT_FOUND');
   }
 
-  const isOwner = session?.userId === row.userId;
-  const isPublic = row.status === 'active' && row.expiresAt.getTime() > Date.now();
-
-  // Only asked when it can change the answer: a signed-in stranger looking at
-  // an item that is not public. The anonymous path and the ordinary public
-  // path stay exactly as cheap as they were.
-  const isEntitledClaimant =
-    !isOwner && !isPublic && session ? await hasEntitlingClaim(id, session.userId) : false;
-
-  // Anyone who is not the owner or an entitled claimant may see only a live,
-  // active listing. Everything else is a 404 to them — never a 403.
-  if (!isOwner && !isPublic && !isEntitledClaimant) {
-    return apiError('ITEM_NOT_FOUND');
-  }
-
-  // The owner and the claimant both get a response nobody else may see, so
-  // neither may land in a shared cache. A `reserved` item in particular is
-  // visible to exactly one person.
-  const isPrivateView = isOwner || isEntitledClaimant;
-
-  // A gallery, not a list view, so it gets both: `thumbUrl` for the strip and
-  // the first paint, `url` for the full-size view. `thumbUrl` is null on rows
-  // written before the two-variant pipeline — the client falls back to `url`,
-  // which is what it had to use for everything before this existed.
-  const images = await db
-    .select({
-      url: itemImages.url,
-      thumbUrl: itemImages.thumbUrl,
-      width: itemImages.width,
-      height: itemImages.height,
-      blurhash: itemImages.blurhash,
-      position: itemImages.position,
-    })
-    .from(itemImages)
-    .where(eq(itemImages.itemId, id))
-    .orderBy(asc(itemImages.position));
-
-  // View count is a measure of public interest, so it only moves on a public
-  // fetch — never when the owner looks at their own listing, and never when the
-  // person who was picked opens it for the tenth time on their way over, or the
-  // number means nothing. Guard on `status = 'active'` too so a race that flips
-  // the item out of active between the read and the write cannot bump a
-  // non-visible row.
-  if (!isPrivateView) {
-    await db
-      .update(items)
-      .set({ viewCount: sql`${items.viewCount} + 1` })
-      .where(and(eq(items.id, id), eq(items.status, 'active')));
-  }
+  const { item, isPrivateView } = result;
 
   return NextResponse.json(
     {
       item: {
-        id: row.id,
-        title: row.title,
-        description: row.description,
-        condition: row.condition,
-        pickupNotes: row.pickupNotes,
-        status: row.status,
-        createdAt: row.createdAt,
-        expiresAt: row.expiresAt,
-        images,
-        district: row.district,
-        category: row.category,
-        giver: row.giver,
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        condition: item.condition,
+        pickupNotes: item.pickupNotes,
+        status: item.status,
+        createdAt: item.createdAt,
+        expiresAt: item.expiresAt,
+        images: item.images,
+        district: item.district,
+        category: item.category,
+        giver: item.giver,
       },
     },
     { headers: { 'Cache-Control': isPrivateView ? PRIVATE_CACHE : PUBLIC_CACHE } },
   );
-}
-
-/**
- * Does this user hold a claim on this item that entitles them to keep reading
- * it after it stops being public?
- *
- * `approved` and `completed` only. A rejected or withdrawn claimant is a
- * stranger again — they asked once and it did not happen, which is not a key
- * to a listing that is no longer on the feed.
- *
- * Selects nothing but a literal: the answer is the existence of the row, and
- * selecting a column here would put claim data on a code path whose response
- * has no business carrying any.
- */
-async function hasEntitlingClaim(itemId: string, userId: string): Promise<boolean> {
-  const [claim] = await db
-    .select({ present: sql<number>`1` })
-    .from(claims)
-    .where(
-      and(
-        eq(claims.itemId, itemId),
-        eq(claims.userId, userId),
-        inArray(claims.status, ENTITLED_CLAIM_STATUSES),
-      ),
-    )
-    .limit(1);
-
-  return Boolean(claim);
 }
 
 /**
