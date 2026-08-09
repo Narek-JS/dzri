@@ -169,11 +169,24 @@
     "pendingClaimCount": "{count, plural, one {# pending claim} other {# pending claims}}"
   },
   "feed": {
+    "filters": {
+      "toggle": "Filters",
+      "toggleActive": "Filters, {count} active",
+      "district": { "label": "District", "all": "All districts" },
+      "category": { "label": "Category", "all": "All categories" },
+      "condition": { "label": "Condition", "all": "Any condition" },
+      "clearAll": "Clear all"
+    },
     "empty": {
       "noItems": {
         "title": "Nothing posted yet",
         "description": "When someone gives something away, it will appear here.",
         "cta": "Post an item"
+      },
+      "noMatches": {
+        "title": "No matches for these filters",
+        "description": "Try a different district, category or condition.",
+        "clear": "Clear filters"
       }
     }
   }
