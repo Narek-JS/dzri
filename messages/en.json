@@ -124,6 +124,47 @@
       "viewMyItems": "View my items"
     }
   },
+  "itemDetail": {
+    "gallery": {
+      "photoAlt": "Photo of {title}",
+      "photoThumbnailAlt": "Photo {index}",
+      "openFullSize": "View full size",
+      "close": "Close"
+    },
+    "banner": {
+      "pendingReview": {
+        "title": "Awaiting review",
+        "description": "Not yet visible on the feed."
+      },
+      "rejected": {
+        "title": "Listing rejected"
+      },
+      "active": {
+        "viewClaims": "View claims"
+      },
+      "reservedForYou": {
+        "title": "Reserved for you",
+        "description": "The giver picked you. Their number is on your claims page."
+      }
+    },
+    "pickupNotes": { "label": "Pickup notes" },
+    "postedBy": "Posted by {name} · {date}",
+    "claim": {
+      "message": {
+        "label": "Message (optional)",
+        "placeholder": "Say when you can come by"
+      },
+      "submit": "I want this",
+      "success": {
+        "title": "Claim sent",
+        "description": "The giver decides who gets it. Numbers are exchanged only if they pick you."
+      },
+      "alreadyClaimed": {
+        "title": "Already asked",
+        "description": "You already asked for this item. The giver decides who gets it."
+      }
+    }
+  },
   "common": {
     "pendingClaimCount": "{count, plural, one {# pending claim} other {# pending claims}}"
   }

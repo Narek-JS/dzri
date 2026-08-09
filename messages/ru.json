@@ -124,6 +124,47 @@
       "viewMyItems": "Посмотреть мои вещи"
     }
   },
+  "itemDetail": {
+    "gallery": {
+      "photoAlt": "Фото «{title}»",
+      "photoThumbnailAlt": "Фото {index}",
+      "openFullSize": "Посмотреть в полном размере",
+      "close": "Закрыть"
+    },
+    "banner": {
+      "pendingReview": {
+        "title": "Ожидает проверки",
+        "description": "Пока не видно в общей ленте."
+      },
+      "rejected": {
+        "title": "Объявление отклонено"
+      },
+      "active": {
+        "viewClaims": "Посмотреть заявки"
+      },
+      "reservedForYou": {
+        "title": "Забронировано для вас",
+        "description": "Вас выбрали. Номер телефона — на странице ваших заявок."
+      }
+    },
+    "pickupNotes": { "label": "Заметки о получении" },
+    "postedBy": "Разместил(а) {name} · {date}",
+    "claim": {
+      "message": {
+        "label": "Сообщение (необязательно)",
+        "placeholder": "Укажите, когда сможете забрать"
+      },
+      "submit": "Хочу это",
+      "success": {
+        "title": "Заявка отправлена",
+        "description": "Хозяин вещи решает, кому её отдать. Номера телефонов становятся известны, только если выберут вас."
+      },
+      "alreadyClaimed": {
+        "title": "Вы уже подали заявку",
+        "description": "Вы уже подали заявку на эту вещь. Хозяин решает, кому её отдать."
+      }
+    }
+  },
   "common": {
     "pendingClaimCount": "{count, plural, one {# заявка в ожидании} few {# заявки в ожидании} many {# заявок в ожидании} other {# заявки в ожидании}}"
   }
