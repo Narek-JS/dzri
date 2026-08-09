@@ -188,6 +188,8 @@
         "description": "Try a different district, category or condition.",
         "clear": "Clear filters"
       }
-    }
+    },
+    "loadMore": "Load more",
+    "loadingMore": "Loading…"
   }
 }

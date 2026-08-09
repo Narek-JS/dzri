@@ -1,29 +1,17 @@
-import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { Link } from '@/i18n/navigation';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
+import { type FeedItem } from '@/lib/api/client';
 import { getFeed } from '@/lib/items/feed';
 import { getReferenceData } from '@/lib/reference';
 
 import { FeedFilters } from './FeedFilters';
-import { ItemCard } from './ItemCard';
+import { FeedList } from './FeedList';
 
 import type { ItemCondition } from '@/db/schema';
 
 const CONDITIONS: readonly ItemCondition[] = ['working', 'needs_repair', 'for_parts'];
-const CONDITION_LABEL_KEYS: Record<ItemCondition, string> = {
-  working: 'createItem.condition.working',
-  needs_repair: 'createItem.condition.needsRepair',
-  for_parts: 'createItem.condition.forParts',
-};
-
-type LocalizedRef = { nameHy: string; nameRu: string; nameEn: string };
-
-function localizedName(ref: LocalizedRef, locale: string): string {
-  if (locale === 'ru') return ref.nameRu;
-  if (locale === 'en') return ref.nameEn;
-  return ref.nameHy;
-}
 
 /**
  * A URL search param can be a string, a repeated-key array, or absent.
@@ -59,10 +47,13 @@ type SearchParams = Record<string, string | string[] | undefined>;
  *
  * `getFeed` (src/lib/items/feed.ts) is the exact query `GET /api/items`
  * runs, called directly rather than over HTTP — the same split
- * `getItemForViewer` already established for the item detail page.
- *
- * Infinite scroll lands in the next commit; this is still just the first
- * page, now filterable.
+ * `getItemForViewer` already established for the item detail page. Pages
+ * 2+ are `FeedList`'s job: it is handed this first page as `initialItems`
+ * and renders it directly (no client-side refetch), then extends the same
+ * grid itself as the viewer scrolls. `FeedList` is keyed on the filter
+ * string so that changing a filter — a fresh navigation, a fresh server
+ * render — remounts it with clean state instead of appending page 2 of a
+ * district nobody is looking at anymore onto page 1 of the one they are.
  */
 export default async function FeedPage({
   params,
@@ -80,11 +71,10 @@ export default async function FeedPage({
   const conditionParam = firstParam(sp.condition);
   const condition = isItemCondition(conditionParam) ? conditionParam : undefined;
 
-  const [feed, { districts, categories }, t, format] = await Promise.all([
+  const [feed, { districts, categories }, t] = await Promise.all([
     getFeed({ district, category, condition }),
     getReferenceData(),
     getTranslations(),
-    getFormatter(),
   ]);
 
   // "No items at all" (nobody has filtered anything, and the feed is
@@ -98,6 +88,16 @@ export default async function FeedPage({
   const hasActiveFilter =
     district !== undefined || category !== undefined || condition !== undefined;
 
+  const items: FeedItem[] = feed.items.map((item) => ({
+    id: item.id,
+    title: item.title,
+    condition: item.condition,
+    createdAt: item.createdAt.toISOString(),
+    thumbnailUrl: item.thumbnailUrl,
+    district: item.district,
+    category: item.category,
+  }));
+
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-8">
       {/* The nav already reads "Items" for this page; a second visible
@@ -107,7 +107,7 @@ export default async function FeedPage({
 
       <FeedFilters districts={districts} categories={categories} />
 
-      {feed.items.length === 0 ? (
+      {items.length === 0 ? (
         hasActiveFilter ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <p className="text-lg font-medium text-neutral-800">
@@ -131,18 +131,14 @@ export default async function FeedPage({
           </div>
         )
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {feed.items.map((item) => (
-            <ItemCard
-              key={item.id}
-              item={{ ...item, createdAt: item.createdAt.toISOString() }}
-              thumbnailAlt={t('itemDetail.gallery.photoAlt', { title: item.title })}
-              conditionLabel={t(CONDITION_LABEL_KEYS[item.condition] as Parameters<typeof t>[0])}
-              districtName={localizedName(item.district, locale)}
-              postedAgo={format.relativeTime(item.createdAt, new Date())}
-            />
-          ))}
-        </div>
+        <FeedList
+          key={`${district ?? ''}|${category ?? ''}|${condition ?? ''}`}
+          initialItems={items}
+          initialNextCursor={feed.nextCursor}
+          district={district}
+          category={category}
+          condition={condition}
+        />
       )}
     </main>
   );
