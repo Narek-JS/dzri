@@ -191,5 +191,30 @@
     },
     "loadMore": "Բեռնել ավելին",
     "loadingMore": "Բեռնվում է…"
+  },
+  "admin": {
+    "stats": {
+      "pendingCount": "Սպասում է հաստատման",
+      "oldestPending": "Ամենահին հայտարարությունը",
+      "oldestPendingNone": "Չկա սպասող"
+    },
+    "queue": {
+      "empty": "Հերթը դատարկ է",
+      "submittedAgo": "Ներկայացվել է {time}",
+      "giver": {
+        "approvedCount": "{count} հաստատված",
+        "rejectedCount": "{count} մերժված"
+      },
+      "approve": "Հաստատել",
+      "reject": {
+        "open": "Մերժել",
+        "reasonLabel": "Պատճառ",
+        "reasonHint": "Ցուցադրվում է հայտատուին ճիշտ այնպես, ինչպես գրված է, ոչ թե որպես ներքին նշում",
+        "cancel": "Չեղարկել",
+        "submit": "Հաստատել մերժումը"
+      },
+      "alreadyReviewed": "Արդեն դիտարկված է — հեռացվել է հերթից",
+      "dismiss": "Փակել"
+    }
   }
 }

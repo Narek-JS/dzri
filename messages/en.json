@@ -191,5 +191,30 @@
     },
     "loadMore": "Load more",
     "loadingMore": "Loading…"
+  },
+  "admin": {
+    "stats": {
+      "pendingCount": "Awaiting review",
+      "oldestPending": "Oldest submission",
+      "oldestPendingNone": "None waiting"
+    },
+    "queue": {
+      "empty": "The queue is empty",
+      "submittedAgo": "Submitted {time}",
+      "giver": {
+        "approvedCount": "{count} approved",
+        "rejectedCount": "{count} rejected"
+      },
+      "approve": "Approve",
+      "reject": {
+        "open": "Reject",
+        "reasonLabel": "Reason",
+        "reasonHint": "Shown to the giver exactly as written, not an internal note",
+        "cancel": "Cancel",
+        "submit": "Confirm rejection"
+      },
+      "alreadyReviewed": "Already reviewed — removed from the queue",
+      "dismiss": "Dismiss"
+    }
   }
 }

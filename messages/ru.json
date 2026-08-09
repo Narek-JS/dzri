@@ -191,5 +191,30 @@
     },
     "loadMore": "Загрузить ещё",
     "loadingMore": "Загрузка…"
+  },
+  "admin": {
+    "stats": {
+      "pendingCount": "Ожидает проверки",
+      "oldestPending": "Самое старое объявление",
+      "oldestPendingNone": "Нет ожидающих"
+    },
+    "queue": {
+      "empty": "Очередь пуста",
+      "submittedAgo": "Отправлено {time}",
+      "giver": {
+        "approvedCount": "{count} одобрено",
+        "rejectedCount": "{count} отклонено"
+      },
+      "approve": "Одобрить",
+      "reject": {
+        "open": "Отклонить",
+        "reasonLabel": "Причина",
+        "reasonHint": "Показывается хозяину вещи точно в этом виде, это не внутренняя заметка",
+        "cancel": "Отмена",
+        "submit": "Подтвердить отклонение"
+      },
+      "alreadyReviewed": "Уже проверено — удалено из очереди",
+      "dismiss": "Скрыть"
+    }
   }
 }
