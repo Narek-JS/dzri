@@ -167,5 +167,14 @@
   },
   "common": {
     "pendingClaimCount": "{count, plural, one {# սպասող հայտ} other {# սպասող հայտ}}"
+  },
+  "feed": {
+    "empty": {
+      "noItems": {
+        "title": "Դեռ ոչինչ տեղադրված չէ",
+        "description": "Երբ որևէ մեկը ինչ-որ բան նվիրի, այն կհայտնվի այստեղ։",
+        "cta": "Տեղադրել իր"
+      }
+    }
   }
 }

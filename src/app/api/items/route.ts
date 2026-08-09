@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
 
-import { and, desc, eq, gt, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { requireUser } from '@/lib/auth/session';
-import { db } from '@/db';
-import { categories, districts, itemImages, items } from '@/db/schema';
 import { apiError, readJson } from '@/lib/http';
 import { createItem } from '@/lib/items/create';
+import { getFeed } from '@/lib/items/feed';
 import {
   feedPerIp,
   getClientIp,
@@ -15,9 +13,6 @@ import {
   itemCreatePerUser,
   retryAfterHeader,
 } from '@/lib/ratelimit';
-
-/** One screen of the public feed. The client asks for more with `nextCursor`. */
-const FEED_PAGE_SIZE = 24;
 
 /**
  * A stale link should never 500, so the only hard failures here are a
@@ -66,64 +61,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     return apiError('INVALID_BODY');
   }
 
-  const { district, category, condition, cursor } = parsed.data;
-
-  // `thumb_url` is the 400px variant the client uploaded alongside the
-  // original; `url` is the original itself. Rows written before the
-  // two-variant pipeline have no variant and are not backfilled, so the
-  // coalesce is what keeps them rendering — at the old cost, on those rows
-  // only. Serving `url` here for everything is what this endpoint used to do,
-  // and it is the single largest way this product can spend egress
-  // (CLAUDE.md: never serve an original in a list view).
-  const thumbnailUrl = sql<string | null>`(
-    select coalesce(${itemImages.thumbUrl}, ${itemImages.url})
-    from ${itemImages}
-    where ${itemImages.itemId} = ${items.id}
-    order by ${itemImages.position} asc
-    limit 1
-  )`;
-
-  // Reserved items are deliberately excluded (a viewer should not see something
-  // already spoken for), as is everything that is not `active`.
-  const filters = [eq(items.status, 'active'), gt(items.expiresAt, sql`now()`)];
-  if (cursor) filters.push(lt(items.createdAt, new Date(cursor)));
-  // An unknown slug matches nothing here — that is the empty-page behavior, not
-  // an error path.
-  if (district) filters.push(eq(districts.slug, district));
-  if (category) filters.push(eq(categories.slug, category));
-  if (condition) filters.push(eq(items.condition, condition));
-
-  // Fetch one extra to learn whether another page exists without a count query.
-  const rows = await db
-    .select({
-      id: items.id,
-      title: items.title,
-      condition: items.condition,
-      createdAt: items.createdAt,
-      thumbnailUrl,
-      district: {
-        slug: districts.slug,
-        nameHy: districts.nameHy,
-        nameRu: districts.nameRu,
-        nameEn: districts.nameEn,
-      },
-      category: {
-        slug: categories.slug,
-        nameHy: categories.nameHy,
-        nameRu: categories.nameRu,
-        nameEn: categories.nameEn,
-      },
-    })
-    .from(items)
-    .innerJoin(districts, eq(items.districtId, districts.id))
-    .innerJoin(categories, eq(items.categoryId, categories.id))
-    .where(and(...filters))
-    .orderBy(desc(items.createdAt), desc(items.id))
-    .limit(FEED_PAGE_SIZE + 1);
-
-  const hasMore = rows.length > FEED_PAGE_SIZE;
-  const page = hasMore ? rows.slice(0, FEED_PAGE_SIZE) : rows;
-  const nextCursor = hasMore ? page[page.length - 1].createdAt.toISOString() : null;
+  const { items: page, nextCursor } = await getFeed(parsed.data);
 
   return NextResponse.json(
     { items: page, nextCursor },

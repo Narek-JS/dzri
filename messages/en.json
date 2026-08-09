@@ -167,5 +167,14 @@
   },
   "common": {
     "pendingClaimCount": "{count, plural, one {# pending claim} other {# pending claims}}"
+  },
+  "feed": {
+    "empty": {
+      "noItems": {
+        "title": "Nothing posted yet",
+        "description": "When someone gives something away, it will appear here.",
+        "cta": "Post an item"
+      }
+    }
   }
 }
