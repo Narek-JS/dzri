@@ -15,7 +15,12 @@ export type GalleryImage = {
   blurhash: string | null;
 };
 
-/** Used when a row predates width/height (API.md: layout metadata only). */
+/**
+ * Used only by the lightbox, whose own aspect ratio may follow the photo:
+ * it is a fixed-position overlay, so resizing it never moves page content.
+ * Falls back for a row that predates width/height (API.md: layout metadata
+ * only).
+ */
 const FALLBACK_ASPECT_RATIO = '4 / 3';
 
 /**
@@ -29,6 +34,25 @@ const FALLBACK_ASPECT_RATIO = '4 / 3';
  * tapping the hero, ever requests `url`. `thumbUrl` is null on rows from
  * before the two-variant pipeline, so every read falls back to `url`.
  *
+ * The hero's box is a fixed `aspect-square` — not derived from whichever
+ * photo is selected. It used to be (`style={{ aspectRatio }}` off the
+ * current image's stored width/height), which meant every thumbnail click
+ * resized the box and shifted everything below it: correct on first paint,
+ * wrong the moment the viewer interacts. A stable box is the fix, and
+ * square is the specific shape because (1) it already reads as this app's
+ * language for a photo slot — PhotoTile.tsx uses the same class for the
+ * create-item tiles — and (2) on a phone-width viewport it caps the hero's
+ * height at the viewport's width, where a portrait-biased ratio would run
+ * taller than the screen for a landscape photo's letterbox gutters, or a
+ * landscape-biased one would do the same sideways for a portrait photo.
+ *
+ * A mismatched photo is `object-contain`, not `object-cover`: the whole
+ * photo stays visible, gutters open up on whichever axis is shorter. Those
+ * gutters must not stay the blurhash forever — that reads as a stuck
+ * loading state — so the placeholder is unmounted the moment the real
+ * image's `onLoad` fires for the currently-selected source, leaving the
+ * container's own neutral background as the resting gutter color.
+ *
  * A client component because switching the hero photo and opening the
  * lightbox are both interactions with no reason to round-trip the server —
  * the images themselves already came down with the page.
@@ -37,6 +61,11 @@ export function ItemGallery({ images, title }: { images: GalleryImage[]; title: 
   const t = useTranslations('itemDetail.gallery');
   const [selected, setSelected] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  // The src whose `onLoad` most recently fired. Compared against the current
+  // heroSrc rather than a plain boolean, so switching to a photo the browser
+  // has not cached yet (or has evicted) correctly shows the blurhash again
+  // instead of carrying over the previous photo's "loaded" state.
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
 
   useEffect(() => {
     if (!lightboxOpen) return;
@@ -53,7 +82,8 @@ export function ItemGallery({ images, title }: { images: GalleryImage[]; title: 
 
   const current = images[selected] ?? images[0];
   const heroSrc = current.thumbUrl ?? current.url;
-  const aspectRatio =
+  const heroLoaded = loadedSrc === heroSrc;
+  const lightboxAspectRatio =
     current.width && current.height
       ? `${current.width} / ${current.height}`
       : FALLBACK_ASPECT_RATIO;
@@ -64,10 +94,9 @@ export function ItemGallery({ images, title }: { images: GalleryImage[]; title: 
         type="button"
         onClick={() => setLightboxOpen(true)}
         aria-label={t('openFullSize')}
-        className="relative block w-full overflow-hidden rounded bg-neutral-100"
-        style={{ aspectRatio }}
+        className="relative block aspect-square w-full overflow-hidden rounded bg-neutral-100"
       >
-        {current.blurhash && (
+        {current.blurhash && !heroLoaded && (
           <BlurhashCanvas hash={current.blurhash} className="absolute inset-0 h-full w-full" />
         )}
         <Image
@@ -76,8 +105,9 @@ export function ItemGallery({ images, title }: { images: GalleryImage[]; title: 
           alt={t('photoAlt', { title })}
           fill
           sizes="(min-width: 768px) 768px, 100vw"
-          className="object-cover"
+          className="object-contain"
           priority={selected === 0}
+          onLoad={() => setLoadedSrc(heroSrc)}
         />
       </button>
 
@@ -123,7 +153,7 @@ export function ItemGallery({ images, title }: { images: GalleryImage[]; title: 
           </button>
           <div
             className="relative max-h-full w-full max-w-3xl"
-            style={{ aspectRatio }}
+            style={{ aspectRatio: lightboxAspectRatio }}
             onClick={(event) => event.stopPropagation()}
           >
             {current.blurhash && (
