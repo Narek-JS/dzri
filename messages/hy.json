@@ -175,6 +175,11 @@
       "week": "{count, plural, one {# շաբաթ առաջ} other {# շաբաթ առաջ}}",
       "month": "{count, plural, one {# ամիս առաջ} other {# ամիս առաջ}}",
       "year": "{count, plural, one {# տարի առաջ} other {# տարի առաջ}}"
+    },
+    "countdown": {
+      "lapsed": "Ցանկացած պահի",
+      "minute": "{count, plural, one {Մնացել է # րոպե} other {Մնացել է # րոպե}}",
+      "hour": "{count, plural, one {Մնացել է # ժամ} other {Մնացել է # ժամ}}"
     }
   },
   "feed": {
@@ -225,5 +230,55 @@
       "alreadyReviewed": "Արդեն դիտարկված է — հեռացվել է հերթից",
       "dismiss": "Փակել"
     }
+  },
+  "itemClaims": {
+    "itemStatus": {
+      "draft": "Սևագիր",
+      "active": "Ակտիվ",
+      "reserved": "Ամրագրված",
+      "given": "Հանձնված",
+      "expired": "Ժամկետանց",
+      "removed": "Հեռացված",
+      "pending_review": "Սպասում է հաստատման",
+      "rejected": "Մերժված"
+    },
+    "empty": "Սպասող հայտեր չկան",
+    "askedAgo": "Ուղարկվել է {time}",
+    "reliability": {
+      "completed": "{count} ավարտված",
+      "noShows": "{count, plural, one {# չեկած} other {# չեկած}}"
+    },
+    "approve": {
+      "open": "Հաստատել",
+      "confirmTitle": "Հաստատել {name}-ին",
+      "confirmDescription": "Երկուստեք հեռախոսահամարները կդառնան տեսանելի, և այս իրի մյուս բոլոր հայտերը կմերժվեն։ Հնարավոր չէ հետարկել։",
+      "cancel": "Չեղարկել",
+      "submit": "Այո, հաստատել"
+    },
+    "reject": "Մերժել",
+    "history": {
+      "title": "Այլ հայտեր",
+      "status": {
+        "rejected": "Մերժված",
+        "withdrawn": "Հետկանչված",
+        "no_show": "Չեկած",
+        "completed": "Ավարտված"
+      }
+    },
+    "handover": {
+      "title": "Հաստատված է",
+      "description": "Համաձայնեցրեք վերցնելու մանրամասները ուղղակիորեն։",
+      "yourNumber": "Ձեր համարը",
+      "theirNumber": "Նրա համարը",
+      "deadline": "Վերցնելու ժամկետը",
+      "complete": "Նշել որպես հանձնված",
+      "noShow": "Չեկավ"
+    },
+    "given": {
+      "title": "Հանձնված է",
+      "description": "Հանձնվել է {name}-ին"
+    },
+    "refreshed": "Սա փոխվել է․ ցուցադրվում է ընթացիկ վիճակը",
+    "dismiss": "Փակել"
   }
 }

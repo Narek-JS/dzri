@@ -175,6 +175,11 @@
       "week": "{count, plural, one {# неделю назад} few {# недели назад} many {# недель назад} other {# недели назад}}",
       "month": "{count, plural, one {# месяц назад} few {# месяца назад} many {# месяцев назад} other {# месяца назад}}",
       "year": "{count, plural, one {# год назад} few {# года назад} many {# лет назад} other {# года назад}}"
+    },
+    "countdown": {
+      "lapsed": "С минуты на минуту",
+      "minute": "{count, plural, one {Осталась # минута} few {Осталось # минуты} many {Осталось # минут} other {Осталось # минуты}}",
+      "hour": "{count, plural, one {Остался # час} few {Осталось # часа} many {Осталось # часов} other {Осталось # часа}}"
     }
   },
   "feed": {
@@ -225,5 +230,55 @@
       "alreadyReviewed": "Уже проверено — удалено из очереди",
       "dismiss": "Скрыть"
     }
+  },
+  "itemClaims": {
+    "itemStatus": {
+      "draft": "Черновик",
+      "active": "Активно",
+      "reserved": "Забронировано",
+      "given": "Отдано",
+      "expired": "Истёк срок",
+      "removed": "Удалено",
+      "pending_review": "Ожидает проверки",
+      "rejected": "Отклонено"
+    },
+    "empty": "Нет заявок в ожидании",
+    "askedAgo": "Отправлено {time}",
+    "reliability": {
+      "completed": "{count} завершено",
+      "noShows": "{count, plural, one {# неявка} few {# неявки} many {# неявок} other {# неявки}}"
+    },
+    "approve": {
+      "open": "Одобрить",
+      "confirmTitle": "Одобрить {name}",
+      "confirmDescription": "Оба номера телефона станут видны друг другу, а все остальные заявки на эту вещь будут отклонены. Это нельзя отменить.",
+      "cancel": "Отмена",
+      "submit": "Да, одобрить"
+    },
+    "reject": "Отклонить",
+    "history": {
+      "title": "Остальные заявки",
+      "status": {
+        "rejected": "Отклонена",
+        "withdrawn": "Отозвана",
+        "no_show": "Неявка",
+        "completed": "Завершена"
+      }
+    },
+    "handover": {
+      "title": "Одобрено",
+      "description": "Договоритесь о получении напрямую.",
+      "yourNumber": "Ваш номер",
+      "theirNumber": "Их номер",
+      "deadline": "Срок получения",
+      "complete": "Отметить как отданное",
+      "noShow": "Не пришёл"
+    },
+    "given": {
+      "title": "Отдано",
+      "description": "Отдано {name}"
+    },
+    "refreshed": "Это изменилось — показано текущее состояние",
+    "dismiss": "Скрыть"
   }
 }

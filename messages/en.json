@@ -175,6 +175,11 @@
       "week": "{count, plural, one {# week ago} other {# weeks ago}}",
       "month": "{count, plural, one {# month ago} other {# months ago}}",
       "year": "{count, plural, one {# year ago} other {# years ago}}"
+    },
+    "countdown": {
+      "lapsed": "Any moment now",
+      "minute": "{count, plural, one {# minute left} other {# minutes left}}",
+      "hour": "{count, plural, one {# hour left} other {# hours left}}"
     }
   },
   "feed": {
@@ -225,5 +230,55 @@
       "alreadyReviewed": "Already reviewed — removed from the queue",
       "dismiss": "Dismiss"
     }
+  },
+  "itemClaims": {
+    "itemStatus": {
+      "draft": "Draft",
+      "active": "Active",
+      "reserved": "Reserved",
+      "given": "Given",
+      "expired": "Expired",
+      "removed": "Removed",
+      "pending_review": "Awaiting review",
+      "rejected": "Rejected"
+    },
+    "empty": "No pending claims",
+    "askedAgo": "Asked {time}",
+    "reliability": {
+      "completed": "{count} completed",
+      "noShows": "{count, plural, one {# no-show} other {# no-shows}}"
+    },
+    "approve": {
+      "open": "Approve",
+      "confirmTitle": "Approve {name}",
+      "confirmDescription": "Both phone numbers become visible to each other, and every other claim on this item is turned down. This cannot be undone.",
+      "cancel": "Cancel",
+      "submit": "Yes, approve"
+    },
+    "reject": "Reject",
+    "history": {
+      "title": "Other claims",
+      "status": {
+        "rejected": "Turned down",
+        "withdrawn": "Withdrew",
+        "no_show": "No-show",
+        "completed": "Completed"
+      }
+    },
+    "handover": {
+      "title": "Approved",
+      "description": "Share pickup details directly.",
+      "yourNumber": "Your number",
+      "theirNumber": "Their number",
+      "deadline": "Pickup window",
+      "complete": "Mark as given",
+      "noShow": "Did not show up"
+    },
+    "given": {
+      "title": "Given",
+      "description": "Given to {name}"
+    },
+    "refreshed": "This changed — showing the current state",
+    "dismiss": "Dismiss"
   }
 }
