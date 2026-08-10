@@ -49,4 +49,36 @@ describe('message catalogs', () => {
     expect(tHy('common.pendingClaimCount', { count: 1 })).toBe('1 սպասող հայտ');
     expect(tHy('common.pendingClaimCount', { count: 5 })).toBe('5 սպասող հայտ');
   });
+
+  // src/lib/relativeTime.ts exists because `Intl.RelativeTimeFormat('hy')`
+  // silently falls back to `en-US` in the browser this app ships to — these
+  // keys are what stand in for it, so unlike `Intl.RelativeTimeFormat`
+  // itself, `Intl.PluralRules` (which is what ICU MessageFormat's plural
+  // syntax actually resolves through) has real `hy` and `ru` data
+  // everywhere, confirmed against the same CLDR categories as
+  // `pendingClaimCount` above.
+  it('resolves Russian relativeTime units to the right CLDR plural category', () => {
+    const t = createTranslator({ locale: 'ru', messages: ru });
+
+    expect(t('common.relativeTime.hour', { count: 1 })).toBe('1 час назад');
+    expect(t('common.relativeTime.hour', { count: 2 })).toBe('2 часа назад');
+    expect(t('common.relativeTime.hour', { count: 5 })).toBe('5 часов назад');
+    expect(t('common.relativeTime.hour', { count: 21 })).toBe('21 час назад');
+
+    expect(t('common.relativeTime.day', { count: 1 })).toBe('1 день назад');
+    expect(t('common.relativeTime.day', { count: 3 })).toBe('3 дня назад');
+    expect(t('common.relativeTime.day', { count: 11 })).toBe('11 дней назад');
+  });
+
+  it('resolves English and Armenian relativeTime units for singular and plural', () => {
+    const tEn = createTranslator({ locale: 'en', messages: en });
+    expect(tEn('common.relativeTime.now')).toBe('just now');
+    expect(tEn('common.relativeTime.day', { count: 1 })).toBe('1 day ago');
+    expect(tEn('common.relativeTime.day', { count: 6 })).toBe('6 days ago');
+
+    const tHy = createTranslator({ locale: 'hy', messages: hy });
+    expect(tHy('common.relativeTime.now')).toBe('հենց նոր');
+    expect(tHy('common.relativeTime.day', { count: 1 })).toBe('1 օր առաջ');
+    expect(tHy('common.relativeTime.day', { count: 6 })).toBe('6 օր առաջ');
+  });
 });

@@ -166,7 +166,16 @@
     }
   },
   "common": {
-    "pendingClaimCount": "{count, plural, one {# սպասող հայտ} other {# սպասող հայտ}}"
+    "pendingClaimCount": "{count, plural, one {# սպասող հայտ} other {# սպասող հայտ}}",
+    "relativeTime": {
+      "now": "հենց նոր",
+      "minute": "{count, plural, one {# րոպե առաջ} other {# րոպե առաջ}}",
+      "hour": "{count, plural, one {# ժամ առաջ} other {# ժամ առաջ}}",
+      "day": "{count, plural, one {# օր առաջ} other {# օր առաջ}}",
+      "week": "{count, plural, one {# շաբաթ առաջ} other {# շաբաթ առաջ}}",
+      "month": "{count, plural, one {# ամիս առաջ} other {# ամիս առաջ}}",
+      "year": "{count, plural, one {# տարի առաջ} other {# տարի առաջ}}"
+    }
   },
   "feed": {
     "filters": {

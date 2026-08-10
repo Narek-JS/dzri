@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { useFormatter, useLocale, useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { ApiClientError, api, apiErrorMessageKey, type FeedItem } from '@/lib/api/client';
+import { relativeTimeMessage } from '@/lib/relativeTime';
 
 import { ItemCard } from './ItemCard';
 
@@ -38,6 +39,15 @@ type Props = {
   /** Already rendered by the server (`[locale]/page.tsx`) — never refetched here. */
   initialItems: FeedItem[];
   initialNextCursor: string | null;
+  /**
+   * ISO timestamp, computed once by `page.tsx` at request time. Every
+   * card's "posted ago" — first page and every page `loadMore` appends —
+   * is measured against this same instant. See relativeTime.ts for why a
+   * card can't just ask `Intl.RelativeTimeFormat`/`useFormatter` for this,
+   * and this component's `now` state below for why it can't call
+   * `new Date()` per render either.
+   */
+  initialNow: string;
   district?: string;
   category?: string;
   condition?: ItemCondition;
@@ -59,13 +69,20 @@ type Props = {
 export function FeedList({
   initialItems,
   initialNextCursor,
+  initialNow,
   district,
   category,
   condition,
 }: Props) {
   const t = useTranslations();
   const locale = useLocale();
-  const format = useFormatter();
+
+  // Lazy-initialized once from the server-sent `initialNow` and never
+  // updated afterward — the SSR pass and the hydration pass both start
+  // from this same serialized value, so there's no server/client clock
+  // drift for a card's bucket to disagree about, and no drift between
+  // cards on this page and cards `loadMore` appends later either.
+  const [now] = useState(() => new Date(initialNow));
 
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialNextCursor);
@@ -117,16 +134,20 @@ export function FeedList({
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {items.map((item) => (
-          <ItemCard
-            key={item.id}
-            item={item}
-            thumbnailAlt={t('itemDetail.gallery.photoAlt', { title: item.title })}
-            conditionLabel={t(CONDITION_LABEL_KEYS[item.condition] as Parameters<typeof t>[0])}
-            districtName={localizedName(item.district, locale)}
-            postedAgo={format.relativeTime(new Date(item.createdAt), new Date())}
-          />
-        ))}
+        {items.map((item) => {
+          const postedAgo = relativeTimeMessage(new Date(item.createdAt), now);
+
+          return (
+            <ItemCard
+              key={item.id}
+              item={item}
+              thumbnailAlt={t('itemDetail.gallery.photoAlt', { title: item.title })}
+              conditionLabel={t(CONDITION_LABEL_KEYS[item.condition] as Parameters<typeof t>[0])}
+              districtName={localizedName(item.district, locale)}
+              postedAgo={t(postedAgo.key as Parameters<typeof t>[0], postedAgo.values)}
+            />
+          );
+        })}
       </div>
 
       {cursor !== null && (

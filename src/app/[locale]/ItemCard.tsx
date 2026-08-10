@@ -20,13 +20,13 @@ const CARD_IMAGE_SIZES = '(min-width: 1024px) 264px, (min-width: 640px) 31vw, 46
 
 /**
  * One feed card: thumbnail, title, condition, district, posted-ago. No
- * `'use client'` — it renders identically from the server-rendered first
- * page (`[locale]/page.tsx`) and from `FeedList`'s client-fetched pages, so
- * every display string (`thumbnailAlt`, `conditionLabel`, `districtName`,
- * `postedAgo`) arrives pre-formatted from whichever caller has the right
- * translator (`getTranslations`/`getFormatter` on the server,
- * `useTranslations`/`useFormatter` on the client) rather than this
- * component picking one itself.
+ * `'use client'` — `FeedList` (a Client Component) renders it for both the
+ * server-rendered first page and its own client-fetched pages, so every
+ * display string (`thumbnailAlt`, `conditionLabel`, `districtName`,
+ * `postedAgo`) arrives pre-formatted from `FeedList`'s `useTranslations()`
+ * rather than this component picking a translator itself. `postedAgo`
+ * specifically goes through `src/lib/relativeTime.ts`, not
+ * `useFormatter().relativeTime` — see that file for why.
  *
  * The feed response carries no `width`, `height` or `blurhash` for its
  * images (API.md — kept out to keep 24-item pages light), unlike the item

@@ -15,6 +15,12 @@ type Props = {
   /** Already rendered by the server (`page.tsx`) — never refetched here. */
   initialItems: PendingItem[];
   initialNextCursor: string | null;
+  /**
+   * ISO timestamp, computed once by `page.tsx` at request time. Every card's
+   * "submitted ago" is measured against this same instant rather than each
+   * card calling `new Date()` on its own — see the `now` state below for why.
+   */
+  initialNow: string;
 };
 
 /** One item leaving the queue because someone else already reviewed it. */
@@ -33,8 +39,19 @@ type AlreadyReviewedNotice = { key: string; title: string };
  * decides an `INVALID_STATUS_TRANSITION` means someone else already
  * reviewed it rather than a normal error.
  */
-export function ModerationQueue({ initialItems, initialNextCursor }: Props) {
+export function ModerationQueue({ initialItems, initialNextCursor, initialNow }: Props) {
   const t = useTranslations();
+
+  // Lazy-initialized once and never updated: the server's SSR pass and the
+  // browser's hydration pass both start from the exact same serialized
+  // `initialNow` prop, so there is no server/client clock drift left to
+  // disagree about (relativeTime.ts's doc comment covers the locale half of
+  // this bug; this is the separate "which instant is `now`" half). Every
+  // row — including ones appended later by `loadMore`, which has no server
+  // render to match against at all — reads against this one frozen instant
+  // rather than a fresh `new Date()` per render, so two cards for items
+  // created a second apart don't flip to different buckets mid-session.
+  const [now] = useState(() => new Date(initialNow));
 
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialNextCursor);
@@ -159,6 +176,7 @@ export function ModerationQueue({ initialItems, initialNextCursor }: Props) {
             <PendingItemCard
               key={item.id}
               item={item}
+              now={now}
               busy={busyIds.has(item.id)}
               errorCode={itemErrors[item.id] ?? null}
               onApprove={() => void review(item, 'approve')}

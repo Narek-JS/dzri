@@ -40,21 +40,3 @@ Enough context per item to pick it up cold.
   claimed earlier, left, and comes back to the item sees an enabled
   button again until they press it once. Acceptable for now, but worth
   revisiting if it turns out to be a common path once there's usage data.
-
-- **`useFormatter().relativeTime` hydration-mismatches on a non-English
-  locale.** Found while verifying the admin queue by hand on `/hy/admin`:
-  the "submitted 6 days ago"-style string
-  (`src/app/[locale]/admin/PendingItemCard.tsx`) rendered in English on
-  the server and Armenian on the client, and React discarded and
-  regenerated the whole subtree. Confirmed this is not new — `/hy` (the
-  public feed) reproduces the identical warning via
-  `src/app/[locale]/FeedList.tsx`'s `postedAgo`, which calls the same
-  client-side `useFormatter().relativeTime` for items already present on
-  first paint. Both call sites are otherwise correct (the surrounding
-  `useTranslations()` copy renders in the right locale on both sides;
-  only the relative-time value itself disagrees), so the fix is probably
-  in how the locale reaches `next-intl`'s formatter for a Client
-  Component's *server* render specifically — not investigated further.
-  Cosmetic today (the DOM just gets thrown away and rebuilt once,
-  visible only as a console warning), but worth root-causing before more
-  pages lean on client-side relative time.

@@ -71,6 +71,15 @@ export default async function FeedPage({
   const conditionParam = firstParam(sp.condition);
   const condition = isItemCondition(conditionParam) ? conditionParam : undefined;
 
+  // Computed once and threaded down to `FeedList` (serialized) so every
+  // card's "posted ago" — this page's own and every page `loadMore` appends
+  // later — reads against one frozen instant instead of each render's own
+  // `new Date()`. This page has no static/ISR caching (the layout sets
+  // `dynamic = 'force-dynamic'` for the whole `[locale]` segment), so this
+  // is a fresh value on every real request, not a value baked into a
+  // shared cached response.
+  const now = new Date();
+
   const [feed, { districts, categories }, t] = await Promise.all([
     getFeed({ district, category, condition }),
     getReferenceData(),
@@ -135,6 +144,7 @@ export default async function FeedPage({
           key={`${district ?? ''}|${category ?? ''}|${condition ?? ''}`}
           initialItems={items}
           initialNextCursor={feed.nextCursor}
+          initialNow={now.toISOString()}
           district={district}
           category={category}
           condition={condition}

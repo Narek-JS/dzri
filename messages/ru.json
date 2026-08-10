@@ -166,7 +166,16 @@
     }
   },
   "common": {
-    "pendingClaimCount": "{count, plural, one {# заявка в ожидании} few {# заявки в ожидании} many {# заявок в ожидании} other {# заявки в ожидании}}"
+    "pendingClaimCount": "{count, plural, one {# заявка в ожидании} few {# заявки в ожидании} many {# заявок в ожидании} other {# заявки в ожидании}}",
+    "relativeTime": {
+      "now": "только что",
+      "minute": "{count, plural, one {# минуту назад} few {# минуты назад} many {# минут назад} other {# минуты назад}}",
+      "hour": "{count, plural, one {# час назад} few {# часа назад} many {# часов назад} other {# часа назад}}",
+      "day": "{count, plural, one {# день назад} few {# дня назад} many {# дней назад} other {# дня назад}}",
+      "week": "{count, plural, one {# неделю назад} few {# недели назад} many {# недель назад} other {# недели назад}}",
+      "month": "{count, plural, one {# месяц назад} few {# месяца назад} many {# месяцев назад} other {# месяца назад}}",
+      "year": "{count, plural, one {# год назад} few {# года назад} many {# лет назад} other {# года назад}}"
+    }
   },
   "feed": {
     "filters": {

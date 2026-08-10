@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 
-import { useFormatter, useLocale, useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 
 import { apiErrorMessageKey } from '@/lib/api/client';
+import { relativeTimeMessage } from '@/lib/relativeTime';
 
 import type { PendingItem } from '@/lib/api/client';
 import type { ApiErrorCode } from '@/lib/http';
@@ -32,6 +33,12 @@ function localizedName(ref: LocalizedRef, locale: string): string {
 
 type Props = {
   item: PendingItem;
+  /**
+   * The reference instant "submitted ago" is measured against. Passed down
+   * from `ModerationQueue` rather than read here via `new Date()` — see
+   * that component's doc comment for why a shared, stable value matters.
+   */
+  now: Date;
   /** True while this item's own approve/reject request is in flight. */
   busy: boolean;
   errorCode: ApiErrorCode | null;
@@ -64,10 +71,9 @@ type Props = {
  * reviewer who thinks they're leaving an internal note will write the
  * wrong thing.
  */
-export function PendingItemCard({ item, busy, errorCode, onApprove, onReject }: Props) {
+export function PendingItemCard({ item, now, busy, errorCode, onApprove, onReject }: Props) {
   const t = useTranslations();
   const locale = useLocale();
-  const format = useFormatter();
 
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
@@ -89,6 +95,8 @@ export function PendingItemCard({ item, busy, errorCode, onApprove, onReject }: 
     if (!reasonValid) return;
     onReject(reason.trim());
   }
+
+  const submittedAgo = relativeTimeMessage(new Date(item.createdAt), now);
 
   return (
     <li className="flex flex-col gap-3 rounded border border-neutral-300 p-4">
@@ -146,7 +154,7 @@ export function PendingItemCard({ item, busy, errorCode, onApprove, onReject }: 
         </div>
         <span className="text-neutral-500">
           {t('admin.queue.submittedAgo', {
-            time: format.relativeTime(new Date(item.createdAt), new Date()),
+            time: t(submittedAgo.key as Parameters<typeof t>[0], submittedAgo.values),
           })}
         </span>
       </div>

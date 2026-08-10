@@ -166,7 +166,16 @@
     }
   },
   "common": {
-    "pendingClaimCount": "{count, plural, one {# pending claim} other {# pending claims}}"
+    "pendingClaimCount": "{count, plural, one {# pending claim} other {# pending claims}}",
+    "relativeTime": {
+      "now": "just now",
+      "minute": "{count, plural, one {# minute ago} other {# minutes ago}}",
+      "hour": "{count, plural, one {# hour ago} other {# hours ago}}",
+      "day": "{count, plural, one {# day ago} other {# days ago}}",
+      "week": "{count, plural, one {# week ago} other {# weeks ago}}",
+      "month": "{count, plural, one {# month ago} other {# months ago}}",
+      "year": "{count, plural, one {# year ago} other {# years ago}}"
+    }
   },
   "feed": {
     "filters": {

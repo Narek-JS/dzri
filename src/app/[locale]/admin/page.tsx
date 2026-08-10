@@ -1,11 +1,12 @@
 import { notFound } from 'next/navigation';
 
-import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { requireAdmin } from '@/lib/auth/session';
 import { getAdminStats } from '@/lib/items/adminStats';
 import { getPendingQueue } from '@/lib/items/pendingQueue';
+import { relativeTimeMessage } from '@/lib/relativeTime';
 
 import { ModerationQueue } from './ModerationQueue';
 
@@ -34,14 +35,23 @@ export default async function AdminPage({ params }: { params: Promise<LocalePara
     notFound();
   }
 
-  const [stats, queue, t, format] = await Promise.all([
+  // One instant, computed once, threaded down to the stats card below and
+  // (serialized) to `ModerationQueue` — see relativeTime.ts and
+  // ModerationQueue's `now` state for why every "ago" on this page reads
+  // against the same frozen timestamp rather than each call site's own
+  // `new Date()`.
+  const now = new Date();
+
+  const [stats, queue, t] = await Promise.all([
     getAdminStats(),
     getPendingQueue(null),
     getTranslations(),
-    getFormatter(),
   ]);
 
   const items = queue.items.map((item) => ({ ...item, createdAt: item.createdAt.toISOString() }));
+  const oldestPending = stats.oldestPendingAt
+    ? relativeTimeMessage(stats.oldestPendingAt, now)
+    : null;
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-8">
@@ -59,14 +69,18 @@ export default async function AdminPage({ params }: { params: Promise<LocalePara
         <div className="rounded border border-neutral-300 p-4">
           <p className="text-sm text-neutral-600">{t('admin.stats.oldestPending')}</p>
           <p className="text-2xl font-semibold text-neutral-900">
-            {stats.oldestPendingAt
-              ? format.relativeTime(stats.oldestPendingAt, new Date())
+            {oldestPending
+              ? t(oldestPending.key as Parameters<typeof t>[0], oldestPending.values)
               : t('admin.stats.oldestPendingNone')}
           </p>
         </div>
       </div>
 
-      <ModerationQueue initialItems={items} initialNextCursor={queue.nextCursor} />
+      <ModerationQueue
+        initialItems={items}
+        initialNextCursor={queue.nextCursor}
+        initialNow={now.toISOString()}
+      />
     </main>
   );
 }
