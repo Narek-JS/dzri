@@ -5,6 +5,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { requireUser } from '@/lib/auth/session';
 import { getClaimsForOwner } from '@/lib/claims/forOwner';
+import { getOwnerPhone } from '@/lib/claims/ownerPhone';
 
 import { ClaimsBoard } from './ClaimsBoard';
 
@@ -59,9 +60,14 @@ export default async function ItemClaimsPage({
 
   // Frozen once, threaded down (serialized) to `ClaimsBoard` — see
   // src/lib/relativeTime.ts and ModerationQueue's `now` state (the admin
-  // queue) for why every "ago" on this page reads against one instant
-  // instead of each render's own `new Date()`.
+  // queue) for why every "ago"/"left" on this page reads against one
+  // instant instead of each render's own `new Date()`.
   const now = new Date();
+
+  // Only ever read when there is an approved claim to show it for — see
+  // ownerPhone.ts for why this is not a fourth phone-bearing endpoint.
+  const hasApprovedClaim = claims.some((claim) => claim.status === 'approved');
+  const giverPhone = hasApprovedClaim ? await getOwnerPhone(user.id) : null;
 
   const t = await getTranslations();
 
@@ -85,6 +91,8 @@ export default async function ItemClaimsPage({
         itemId={item.id}
         initialClaims={serializedClaims}
         initialNow={now.toISOString()}
+        initialGiverPhone={giverPhone}
+        initialReservedUntil={item.reservedUntil ? item.reservedUntil.toISOString() : null}
       />
     </main>
   );

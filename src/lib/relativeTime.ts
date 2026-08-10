@@ -76,3 +76,37 @@ export function relativeTimeMessage(date: Date, now: Date): RelativeTimeMessage 
   }
   return { key: 'common.relativeTime.year', values: { count: Math.floor(seconds / YEAR) } };
 }
+
+export type CountdownUnit = 'lapsed' | 'minute' | 'hour';
+
+/** The message-catalog key (under `common.countdown`) for a future deadline. */
+export type CountdownMessage = {
+  key: `common.countdown.${CountdownUnit}`;
+  values?: { count: number };
+};
+
+/**
+ * "N hours left"-style formatting for a future deadline (the 48-hour
+ * reservation window) — the forward-looking counterpart to
+ * `relativeTimeMessage` above, built the same way and for the same reason:
+ * no `Intl.RelativeTimeFormat`, just this app's own message catalog.
+ *
+ * Only two live buckets, because the one deadline this app ever shows a
+ * countdown for is `RESERVATION_HOURS` (48) — there is no caller that needs
+ * day-or-larger granularity here, unlike `relativeTimeMessage`, which has to
+ * cover an item posted months ago. `lapsed` covers the window between the
+ * deadline actually passing and the hourly sweep releasing it, rather than
+ * counting into negative numbers.
+ */
+export function countdownMessage(deadline: Date, now: Date): CountdownMessage {
+  const secondsLeft = (deadline.getTime() - now.getTime()) / 1000;
+
+  if (secondsLeft <= 0) return { key: 'common.countdown.lapsed' };
+  if (secondsLeft < HOUR) {
+    return {
+      key: 'common.countdown.minute',
+      values: { count: Math.max(1, Math.floor(secondsLeft / MINUTE)) },
+    };
+  }
+  return { key: 'common.countdown.hour', values: { count: Math.floor(secondsLeft / HOUR) } };
+}
