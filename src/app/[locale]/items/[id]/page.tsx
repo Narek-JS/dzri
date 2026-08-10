@@ -6,7 +6,7 @@ import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { getSession } from '@/lib/auth/session';
 import { getItemForViewer } from '@/lib/items/visibility';
 
-import type { ItemCondition } from '@/db/schema';
+import type { ItemCondition, ItemStatus } from '@/db/schema';
 
 import { ClaimButton } from './ClaimButton';
 import { ItemGallery } from './ItemGallery';
@@ -15,6 +15,39 @@ const CONDITION_LABEL_KEYS: Record<ItemCondition, string> = {
   working: 'createItem.condition.working',
   needs_repair: 'createItem.condition.needsRepair',
   for_parts: 'createItem.condition.forParts',
+};
+
+/**
+ * The owner's route to `/items/[id]/claims` — the only place either phone
+ * number is ever shown, so it must be reachable from every status that
+ * could actually carry a claim. A claim can only ever be *created* while
+ * `status = 'active'` (`createClaim`'s own guard), so `draft`,
+ * `pending_review` and `rejected` are excluded on purpose: an item that has
+ * never been active cannot have a claim on it, and a link to a page that is
+ * guaranteed empty is clutter, not a safety net. `active`, `reserved`,
+ * `given`, `expired` and `removed` can all have been active at some point,
+ * so all five are covered — including the terminal ones, since claim
+ * history (who was auto-rejected, who no-showed) doesn't stop being real
+ * just because the listing itself is done.
+ *
+ * The wording changes with what's actually true on the other side of the
+ * link: `active` still says "View claims" (a live decision queue);
+ * `reserved` says "View pickup details" — a claim is already approved and
+ * that link is the *only* route to the live handover (both phone numbers,
+ * the 48-hour countdown), which is exactly the bug this fixes; everything
+ * terminal (`given`, `expired`, `removed`) says "View claim history",
+ * since there is nothing left to decide, only a record of what happened.
+ * `reserved` alone gets the brand-tint treatment `ClaimsBoard`'s own
+ * handover view uses, so the one status with a time-sensitive action
+ * waiting reads as more urgent than a plain look-back — text and color
+ * together, never color alone.
+ */
+const CLAIMS_LINK_BY_STATUS: Partial<Record<ItemStatus, { key: string; highlight: boolean }>> = {
+  active: { key: 'itemDetail.banner.claimsLink.active', highlight: false },
+  reserved: { key: 'itemDetail.banner.claimsLink.reserved', highlight: true },
+  given: { key: 'itemDetail.banner.claimsLink.history', highlight: false },
+  expired: { key: 'itemDetail.banner.claimsLink.history', highlight: false },
+  removed: { key: 'itemDetail.banner.claimsLink.history', highlight: false },
 };
 
 type LocalizedRef = { nameHy: string; nameRu: string; nameEn: string };
@@ -114,6 +147,7 @@ export default async function ItemDetailPage({
   }
 
   const { item, isOwner, isEntitledClaimant, isPrivateView } = view;
+  const claimsLink = isOwner ? CLAIMS_LINK_BY_STATUS[item.status] : undefined;
 
   const [t, format] = await Promise.all([getTranslations(), getFormatter()]);
 
@@ -145,13 +179,19 @@ export default async function ItemDetailPage({
         </div>
       )}
 
-      {isOwner && item.status === 'active' && (
+      {claimsLink && (
         <Link
           href={`/items/${item.id}/claims`}
-          className="flex items-center gap-3 rounded border border-neutral-300 bg-neutral-50 p-4 text-neutral-700 hover:border-brand-strong hover:text-brand-strong"
+          className={
+            claimsLink.highlight
+              ? 'flex items-center gap-3 rounded border border-brand-strong bg-brand-tint p-4 text-brand-strong hover:opacity-90'
+              : 'flex items-center gap-3 rounded border border-neutral-300 bg-neutral-50 p-4 text-neutral-700 hover:border-brand-strong hover:text-brand-strong'
+          }
         >
           <ListIcon />
-          <span className="text-sm font-medium">{t('itemDetail.banner.active.viewClaims')}</span>
+          <span className="text-sm font-medium">
+            {t(claimsLink.key as Parameters<typeof t>[0])}
+          </span>
         </Link>
       )}
 

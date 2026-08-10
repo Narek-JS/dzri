@@ -139,8 +139,10 @@
       "rejected": {
         "title": "Listing rejected"
       },
-      "active": {
-        "viewClaims": "View claims"
+      "claimsLink": {
+        "active": "View claims",
+        "reserved": "View pickup details",
+        "history": "View claim history"
       },
       "reservedForYou": {
         "title": "Reserved for you",

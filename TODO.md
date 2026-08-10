@@ -40,15 +40,3 @@ Enough context per item to pick it up cold.
   claimed earlier, left, and comes back to the item sees an enabled
   button again until they press it once. Acceptable for now, but worth
   revisiting if it turns out to be a common path once there's usage data.
-
-- **No way back to `/items/[id]/claims` once the item leaves `active`.**
-  `src/app/[locale]/items/[id]/page.tsx`'s "View claims" banner is gated on
-  `isOwner && item.status === 'active'`, so it disappears the moment a
-  giver approves a claim (item → `reserved`) — exactly the point they most
-  need to get back to that page to mark it given or no-show, on a return
-  visit rather than the same browser tab. Found while building the claims
-  page; out of scope for that task (it only consumes the existing link, an
-  explicit given fact in the brief), but the claims page itself works
-  correctly on a direct/bookmarked/reloaded URL regardless — this is a
-  discoverability gap, not a functional one. Fix is presumably widening
-  that banner's status check to include `reserved` and `given`.

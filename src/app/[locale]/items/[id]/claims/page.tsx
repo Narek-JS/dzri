@@ -9,19 +9,6 @@ import { getOwnerPhone } from '@/lib/claims/ownerPhone';
 
 import { ClaimsBoard } from './ClaimsBoard';
 
-import type { ItemStatus } from '@/db/schema';
-
-const ITEM_STATUS_KEYS: Record<ItemStatus, string> = {
-  draft: 'itemClaims.itemStatus.draft',
-  active: 'itemClaims.itemStatus.active',
-  reserved: 'itemClaims.itemStatus.reserved',
-  given: 'itemClaims.itemStatus.given',
-  expired: 'itemClaims.itemStatus.expired',
-  removed: 'itemClaims.itemStatus.removed',
-  pending_review: 'itemClaims.itemStatus.pending_review',
-  rejected: 'itemClaims.itemStatus.rejected',
-};
-
 /**
  * The giver's decision list for one item.
  *
@@ -36,6 +23,12 @@ const ITEM_STATUS_KEYS: Record<ItemStatus, string> = {
  * `GET /api/items/[id]/claims` runs, called directly rather than over HTTP —
  * the same split `getFeed` and `getPendingQueue` already established for the
  * feed and admin pages.
+ *
+ * The item's title and status render inside `ClaimsBoard`, not here — the
+ * status specifically has to be client state kept in sync with approve/
+ * complete/no-show (see that component's doc comment), and splitting it
+ * from the title it visually sits beside would mean threading layout back
+ * across a server/client boundary for no reason.
  */
 export default async function ItemClaimsPage({
   params,
@@ -80,15 +73,10 @@ export default async function ItemClaimsPage({
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-8">
       <h1 className="sr-only">{t('pages.itemClaims')}</h1>
 
-      <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-semibold text-neutral-900">{item.title}</h2>
-        <p className="text-sm text-neutral-600">
-          {t(ITEM_STATUS_KEYS[item.status] as Parameters<typeof t>[0])}
-        </p>
-      </div>
-
       <ClaimsBoard
         itemId={item.id}
+        itemTitle={item.title}
+        initialItemStatus={item.status}
         initialClaims={serializedClaims}
         initialNow={now.toISOString()}
         initialGiverPhone={giverPhone}
