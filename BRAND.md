@@ -57,6 +57,24 @@ Contrast, measured against white:
 - Every icon change must survive two tests: legible at 32×32, and
   legible cropped to a circle.
 
+## Social handles
+
+| Platform  | Handle      | URL                                     |
+|-----------|-------------|------------------------------------------|
+| Facebook  | (unclaimed) | https://facebook.com/profile.php?id=61592916969587 |
+| Instagram | @dzri.am    | https://instagram.com/dzri.am            |
+| Telegram  | dzri_am     | https://t.me/dzri_am                     |
+
+The Facebook Page exists and is named `dzri`, but its vanity
+username has not been claimed yet. The URL above is a numeric
+profile link and is provisional — replace it here once the
+username is set; do not treat it as final.
+
+Canonical bio, used verbatim on all three platforms:
+
+> Անվճար իրեր Հայաստանում։ Տեղադրիր այն, ինչ քեզ պետք չէ։ Վերցրու
+> այն, ինչ պետք է։ dzri.am
+
 ## Language
 
 Armenian first, then Russian, then English. Russian matters because

@@ -512,3 +512,23 @@ exists to make impossible.
 Dropping a column from a view means `DROP VIEW` then `CREATE VIEW`,
 which drizzle-kit generates as one migration. Views hold no data, so
 there is nothing to preserve across the drop and nothing to backfill.
+
+### 2026-08-10 — Social handles differ per platform, anchored on the domain
+
+The wordmark is `dzri`, but that exact string was not available
+everywhere. Instagram's `dzri` belongs to an existing account, and
+Telegram refuses public `t.me` links under five characters, so a
+four-letter handle is structurally impossible there regardless of
+who holds it.
+
+Rather than invent a separate brand string to fit around those
+gaps, `dzri.am` — the domain, not the wordmark — is the anchor, and
+each platform gets the closest variant it allows: `dzri.am` where a
+dot is permitted (Instagram), `dzri_am` where it is not (Telegram).
+The Facebook Page kept the plain `dzri` display name; only its
+username is still outstanding, and its URL is provisional until
+that is claimed.
+
+Consequence: never hardcode a social URL from memory in code, copy,
+or a future footer. Read it from `BRAND.md`, because the handles
+deliberately differ from the wordmark and from each other.
