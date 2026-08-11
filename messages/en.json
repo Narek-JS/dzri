@@ -282,5 +282,15 @@
     },
     "refreshed": "This changed — showing the current state",
     "dismiss": "Dismiss"
+  },
+  "myClaims": {
+    "askedAgo": "Asked {time}",
+    "empty": {
+      "title": "Nothing asked for yet",
+      "description": "Everything you ask for shows up here, along with where it stands.",
+      "cta": "Browse items"
+    },
+    "loadMore": "Load more",
+    "loadingMore": "Loading…"
   }
 }
