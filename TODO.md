@@ -47,6 +47,36 @@ Enough context per item to pick it up cold.
   pointed at a Neon *branch* and two accounts with claims in at least
   pending, approved and rejected.
 
+- **The my-items page has never been run against a real database.** Same
+  blocker as my-claims above, same checkout: there is no `.env.local`, so
+  `npm run test:integration` skipped all 122 tests rather than passing
+  them, `npm run build` cannot get past collecting page data (it needs
+  `DATABASE_URL` at module load), and nothing was opened in a browser.
+  `[locale]/my/items` (page, `MyItemsList`, `MyItemRow`,
+  `itemStatusKeys.ts`) and the `getMyItems` extraction it shares with
+  `GET /api/items/mine` are unverified by hand, in order of how much it
+  would matter if wrong: that deleting an item with a pending claim
+  actually rejects that claim, checked from the *claimant's* my-claims
+  page afterwards, not just from the giver's row; that delete is not
+  offered on a `reserved` item and the explanation shows instead; that a
+  409 mid-delete refetches and says so; that the rejection reason renders
+  verbatim on a rejected item; that the pending-claim badge matches the
+  claims page it links to; that the thumbnails on the wire are the 400px
+  variant and not the original; that a signed-out visitor is bounced to
+  login and lands back here. Needs a `DATABASE_URL` pointed at a Neon
+  *branch* and two accounts, the giver holding items in at least
+  `pending_review`, `active` with a pending claim, `rejected` and
+  `reserved`. One `.env.local` unblocks this and the my-claims entry
+  above together.
+
+- **The my-items page is unchecked at a narrow viewport.** Same missing
+  `.env.local`: the page cannot render without a database, so the row
+  layout was reasoned about rather than looked at. The places it would
+  break first are the pending-claims call to action (a count and a button
+  side by side in a `flex-wrap`), the delete confirmation's two buttons,
+  and a long single-word title or admin rejection reason — all three are
+  written to wrap, none has been seen wrapping.
+
 - **A my-claims item link can still dead-end for about an hour.**
   `canOpenItem` (`src/app/[locale]/my/claims/claimStatusKeys.ts`) decides
   whether to link a row's title by predicting what `GET /api/items/[id]`
