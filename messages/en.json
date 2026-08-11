@@ -331,5 +331,15 @@
     },
     "loadMore": "Load more",
     "loadingMore": "Loading…"
+  },
+  "myItems": {
+    "postedAgo": "Posted {time}",
+    "empty": {
+      "title": "Nothing posted yet",
+      "description": "Everything you give away shows up here, with where it stands and who has asked for it.",
+      "cta": "Post an item"
+    },
+    "loadMore": "Load more",
+    "loadingMore": "Loading…"
   }
 }
