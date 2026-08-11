@@ -789,6 +789,10 @@ Everything the caller has asked for, newest first. Requires auth.
 20 per page. `giver.phone` appears **only** when `status` is `approved`.
 Absent otherwise.
 
+`thumbnailUrl` is `coalesce(thumb_url, url)` on the item's first image —
+the 400px variant, falling back to the original only for rows written
+before the two-variant pipeline. Never the original otherwise.
+
 `Cache-Control: no-store, private`.
 
 **Errors:** `UNAUTHORIZED` 401, `INVALID_BODY` 400.
@@ -1009,6 +1013,3 @@ Things the UI will need that don't exist yet:
 - **Orphan image cleanup.** Presigned uploads that never get attached to
   an item stay in R2 forever — and since every photo is now two objects,
   an abandoned form leaves twice as many.
-- **`GET /api/claims/mine` still serves originals.** Its `thumbnailUrl`
-  reads `item_images.url`, not the variant, so the claimant's list is the
-  one list view that has not been moved onto thumbnails.

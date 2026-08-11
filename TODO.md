@@ -32,6 +32,32 @@ Enough context per item to pick it up cold.
   was actually meant to be the hero image itself at a bigger display
   size (not a distinct click-to-open view), this needs rebuilding.
 
+- **The my-claims page has never been run against a real database.**
+  `[locale]/my/claims` (page, `MyClaimsList`, `MyClaimRow`) and the
+  `getMyClaims` extraction it shares with `GET /api/claims/mine` were
+  built on a checkout with no `.env.local`, so `npm run test:integration`
+  skipped all 122 tests rather than passing them and nothing was opened
+  in a browser. Unverified by hand, in order of how much it would matter
+  if wrong: that a pending or rejected row carries no phone anywhere in
+  the rendered HTML; that the approved row shows the giver's number and
+  still does after a full reload; that withdrawing from approved releases
+  the item and takes the number off the page; that the thumbnails on the
+  wire are the 400px variant and not the original; that a signed-out
+  visitor is bounced to login and lands back here. Needs a `DATABASE_URL`
+  pointed at a Neon *branch* and two accounts with claims in at least
+  pending, approved and rejected.
+
+- **A my-claims item link can still dead-end for about an hour.**
+  `canOpenItem` (`src/app/[locale]/my/claims/claimStatusKeys.ts`) decides
+  whether to link a row's title by predicting what `GET /api/items/[id]`
+  will answer: entitled for an `approved`/`completed` claimant, otherwise
+  only while the item is `active`. An item whose `expiresAt` has passed
+  but which the hourly sweep has not yet flipped to `expired` still reads
+  `active`, so a pending or rejected claimant gets a link into a 404. The
+  response carries no `expiresAt` to check against; adding one to
+  `GET /api/claims/mine` would close it, at the cost of a field on the
+  documented shape for a window that closes itself.
+
 - **No pre-check for "already claimed."** The claim button
   (`src/app/[locale]/items/[id]/ClaimButton.tsx`) finds out a viewer
   already claimed an item only when `POST /api/items/[id]/claims`
