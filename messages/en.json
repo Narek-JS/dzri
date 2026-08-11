@@ -334,8 +334,50 @@
   },
   "myItems": {
     "postedAgo": "Posted {time}",
+    "status": {
+      "draft": {
+        "title": "Not posted yet",
+        "description": "This listing was never submitted."
+      },
+      "pending_review": {
+        "title": "Waiting for review",
+        "description": "Every new listing is checked before it goes on the feed. Nobody else can see it yet."
+      },
+      "active": {
+        "title": "On the feed",
+        "description": "Anyone can see it and ask for it."
+      },
+      "rejected": {
+        "title": "Not published",
+        "description": "A reviewer turned this listing down, so it never went on the feed."
+      },
+      "reserved": {
+        "title": "Held for the person you picked",
+        "description": "Nobody else can see it. Mark it given once they collect it, or report a no-show if they do not turn up."
+      },
+      "given": {
+        "title": "Handed over",
+        "description": "You gave this to the person you picked. Nothing left to do."
+      },
+      "expired": {
+        "title": "Its 30 days ran out",
+        "description": "It came off the feed on its own. Post it again if you still have it."
+      },
+      "removed": {
+        "title": "You took this down",
+        "description": "It is off the feed and out of everyone else's view. It stays here as your history."
+      }
+    },
+    "rejectionReason": {
+      "label": "What the reviewer said"
+    },
+    "claims": {
+      "decide": "Pick who gets it",
+      "history": "{count, plural, one {See the claim} other {See all # claims}}",
+      "none": "Nobody has asked for this yet"
+    },
     "empty": {
-      "title": "Nothing posted yet",
+      "title": "You have not posted anything yet",
       "description": "Everything you give away shows up here, with where it stands and who has asked for it.",
       "cta": "Post an item"
     },
