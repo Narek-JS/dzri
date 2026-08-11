@@ -314,6 +314,16 @@
     "giverPhone": {
       "label": "Call the giver"
     },
+    "withdraw": {
+      "open": "Withdraw",
+      "confirmTitle": "Withdraw this claim",
+      "confirmPending": "Your claim disappears from {name}'s list, and you cannot ask for this item again.",
+      "confirmApproved": "The item goes back to the feed for everyone, {name}'s number disappears from this page, and you cannot ask for this item again.",
+      "cancel": "Keep it",
+      "submit": "Yes, withdraw"
+    },
+    "refreshed": "This changed — showing the current state",
+    "dismiss": "Dismiss",
     "empty": {
       "title": "Nothing asked for yet",
       "description": "Everything you ask for shows up here, along with where it stands.",

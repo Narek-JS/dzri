@@ -28,19 +28,45 @@ type Props = {
 };
 
 /**
+ * What a withdrawn claim looks like, applied locally rather than refetched.
+ *
+ * The phone is DROPPED, not kept and hidden: `withdrawClaim` moves the claim
+ * out of `approved`, and the server would stop sending the key at all from
+ * the next request onward (API.md Rule 1). Rebuilding `giver` from its
+ * display name alone is what makes that true in this tab too — the number
+ * has to leave the page the moment the claim stops being approved, not on
+ * the next reload.
+ *
+ * An approved claim also releases its item: `withdrawClaim` puts a
+ * `reserved` item straight back to `active` in the same transaction, guarded
+ * on the reservation being this claimant's. Mirroring that here keeps the
+ * item link honest — the row stays openable, because the item is public
+ * again.
+ */
+function asWithdrawn(claim: MyClaim): MyClaim {
+  const releasesItem = claim.status === 'approved' && claim.item.status === 'reserved';
+
+  return {
+    ...claim,
+    status: 'withdrawn',
+    item: releasesItem ? { ...claim.item, status: 'active' } : claim.item,
+    giver: { displayName: claim.giver.displayName },
+  };
+}
+
+/**
  * The claimant's list, client-side: one list, newest first, every status
  * mixed together, extended a page at a time from `GET /api/claims/mine`.
  *
  * A single flat list on purpose — this is a history, not a work queue. A
- * withdrawn or rejected claim keeps its place in it rather than being
- * filtered out or shunted into a separate section, so "what did I ask for
- * and what came of it" is answerable by reading top to bottom.
+ * withdrawn claim keeps its place in it with its new status rather than
+ * vanishing, so "what did I ask for and what came of it" stays answerable
+ * by reading top to bottom.
  *
  * Pagination is the feed's, in miniature: a cursor, one page of 20 at a
  * time, and a plain button rather than the feed's `IntersectionObserver`.
  * This list is short (a person's own claims, not a public feed) and always
- * reachable by keyboard, so there is nothing for a scroll sentinel to buy
- * here.
+ * reachable by keyboard, so there is nothing a scroll sentinel buys here.
  */
 export function MyClaimsList({ initialClaims, initialNextCursor, initialNow }: Props) {
   const t = useTranslations();
@@ -55,6 +81,10 @@ export function MyClaimsList({ initialClaims, initialNextCursor, initialNow }: P
   const [cursor, setCursor] = useState(initialNextCursor);
   const [status, setStatus] = useState<Status>('idle');
   const [errorCode, setErrorCode] = useState<ApiErrorCode | null>(null);
+
+  const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(new Set());
+  const [rowErrors, setRowErrors] = useState<Readonly<Record<string, ApiErrorCode>>>({});
+  const [refreshedNotice, setRefreshedNotice] = useState(false);
 
   const loadMore = useCallback(async () => {
     if (cursor === null || status === 'loading') return;
@@ -72,11 +102,94 @@ export function MyClaimsList({ initialClaims, initialNextCursor, initialNow }: P
     }
   }, [cursor, status]);
 
+  const setBusy = useCallback((id: string, busy: boolean) => {
+    setBusyIds((previous) => {
+      const next = new Set(previous);
+      if (busy) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  /**
+   * INVALID_STATUS_TRANSITION means the state moved under us — the giver
+   * rejected the claim, the sweep released a lapsed reservation (which also
+   * flips the claim to `no_show`), or another tab already withdrew it. Not
+   * an error to show: the answer is the current state, so this replaces the
+   * list with the server's, exactly as `ClaimsBoard` does.
+   *
+   * The refetch is page 1 with no cursor, so a list the claimant had paged
+   * further into collapses back to the newest 20 with the "Load more" button
+   * restored. Better than merging a fresh first page into stale later ones
+   * whose contents may have shifted rows across the page boundary in the
+   * meantime — the notice says the list changed, and it has.
+   */
+  const refreshFromServer = useCallback(async () => {
+    try {
+      const response = await api.claims.mine();
+      setClaims(response.claims);
+      setCursor(response.nextCursor);
+      setRefreshedNotice(true);
+    } catch {
+      // The list on screen is still whatever it was; nothing better to show.
+    }
+  }, []);
+
+  const handleWithdraw = useCallback(
+    async (claim: MyClaim) => {
+      setRowErrors((previous) => {
+        if (!(claim.id in previous)) return previous;
+        const next = { ...previous };
+        delete next[claim.id];
+        return next;
+      });
+      setBusy(claim.id, true);
+      try {
+        await api.claims.withdraw(claim.id);
+        setClaims((previous) => previous.map((c) => (c.id === claim.id ? asWithdrawn(c) : c)));
+      } catch (error) {
+        const code = error instanceof ApiClientError ? error.code : 'INTERNAL';
+        if (code === 'INVALID_STATUS_TRANSITION') {
+          await refreshFromServer();
+        } else {
+          setRowErrors((previous) => ({ ...previous, [claim.id]: code }));
+        }
+      } finally {
+        setBusy(claim.id, false);
+      }
+    },
+    [refreshFromServer, setBusy],
+  );
+
   return (
     <div className="flex flex-col gap-4">
+      {refreshedNotice && (
+        <div
+          role="status"
+          className="flex items-center justify-between gap-3 rounded border border-neutral-300 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
+        >
+          <span>{t('myClaims.refreshed')}</span>
+          <button
+            type="button"
+            onClick={() => setRefreshedNotice(false)}
+            aria-label={t('myClaims.dismiss')}
+            className="text-neutral-500 hover:text-neutral-800"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <ul className="flex flex-col gap-3">
         {claims.map((claim) => (
-          <MyClaimRow key={claim.id} claim={claim} now={now} />
+          <MyClaimRow
+            key={claim.id}
+            claim={claim}
+            now={now}
+            busy={busyIds.has(claim.id)}
+            errorCode={rowErrors[claim.id] ?? null}
+            onWithdraw={() => void handleWithdraw(claim)}
+          />
         ))}
       </ul>
 

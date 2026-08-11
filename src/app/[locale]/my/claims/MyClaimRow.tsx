@@ -1,15 +1,19 @@
 'use client';
 
+import { useState } from 'react';
+
 import Image from 'next/image';
 
 import { useTranslations } from 'next-intl';
 
 import { Link } from '@/i18n/navigation';
+import { apiErrorMessageKey } from '@/lib/api/client';
 import { relativeTimeMessage } from '@/lib/relativeTime';
 
-import { canOpenItem, MY_CLAIM_STATUS_KEYS } from './claimStatusKeys';
+import { canOpenItem, isWithdrawable, MY_CLAIM_STATUS_KEYS } from './claimStatusKeys';
 
 import type { MyClaim } from '@/lib/api/client';
+import type { ApiErrorCode } from '@/lib/http';
 
 /**
  * The thumbnail's real rendered width, not the viewport: a fixed 64px square
@@ -36,13 +40,34 @@ const THUMBNAIL_SIZES = '(min-width: 640px) 80px, 64px';
  * (API.md Rule 1). It is read once, into a local, and rendered only where
  * that local is truthy; nothing on this page assumes the key exists.
  *
+ * Withdraw is offered on a `pending` or `approved` claim and nowhere else
+ * (API.md), behind an inline confirmation — the same shape `PendingClaimRow`
+ * uses for approve, and for the same reason. From an approved claim it is
+ * the consequential one on this page: the item goes back to the feed
+ * immediately, the number above disappears, and the unique constraint on
+ * (item, claimant) means there is no asking again. The confirm copy says all
+ * three.
+ *
  * `askedAgo` goes through `src/lib/relativeTime.ts`, not
  * `useFormatter().relativeTime` — see that file for why. `now` is frozen by
  * `MyClaimsList` and passed down, so every row on the page (and every row
  * appended by a later page) measures against the same instant.
  */
-export function MyClaimRow({ claim, now }: { claim: MyClaim; now: Date }) {
+export function MyClaimRow({
+  claim,
+  now,
+  busy,
+  errorCode,
+  onWithdraw,
+}: {
+  claim: MyClaim;
+  now: Date;
+  busy: boolean;
+  errorCode: ApiErrorCode | null;
+  onWithdraw: () => void;
+}) {
   const t = useTranslations();
+  const [confirming, setConfirming] = useState(false);
 
   const askedAgo = relativeTimeMessage(new Date(claim.createdAt), now);
   const statusKeys = MY_CLAIM_STATUS_KEYS[claim.status];
@@ -113,6 +138,56 @@ export function MyClaimRow({ claim, now }: { claim: MyClaim; now: Date }) {
           </a>
         </div>
       )}
+
+      {errorCode && (
+        <p className="text-sm text-red-700" role="alert">
+          {t(apiErrorMessageKey(errorCode) as Parameters<typeof t>[0])}
+        </p>
+      )}
+
+      {isWithdrawable(claim) &&
+        (confirming ? (
+          <div className="flex flex-col gap-2 rounded border border-neutral-400 bg-white p-3">
+            <p className="text-sm font-medium text-neutral-900">
+              {t('myClaims.withdraw.confirmTitle')}
+            </p>
+            <p className="text-sm text-neutral-700">
+              {isApproved
+                ? t('myClaims.withdraw.confirmApproved', { name: claim.giver.displayName })
+                : t('myClaims.withdraw.confirmPending', { name: claim.giver.displayName })}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                disabled={busy}
+                className="rounded border border-neutral-300 px-3 py-2 text-sm font-medium disabled:opacity-50"
+              >
+                {t('myClaims.withdraw.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={onWithdraw}
+                disabled={busy}
+                aria-busy={busy}
+                className="rounded border border-red-300 px-3 py-2 text-sm font-medium text-red-700 disabled:opacity-50"
+              >
+                {t('myClaims.withdraw.submit')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex">
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              disabled={busy}
+              className="rounded border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-800 disabled:opacity-50"
+            >
+              {t('myClaims.withdraw.open')}
+            </button>
+          </div>
+        ))}
     </li>
   );
 }

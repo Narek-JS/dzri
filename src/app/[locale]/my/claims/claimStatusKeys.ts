@@ -78,3 +78,19 @@ const ENTITLING_CLAIM_STATUSES: readonly ClaimStatus[] = ['approved', 'completed
 export function canOpenItem(claim: MyClaim): boolean {
   return ENTITLING_CLAIM_STATUSES.includes(claim.status) || claim.item.status === 'active';
 }
+
+/**
+ * `pending` and `approved` only — the two statuses
+ * `POST /api/claims/[id]/withdraw` accepts (API.md). Everything else is
+ * already settled and the server answers INVALID_STATUS_TRANSITION, so the
+ * button is not offered rather than offered and refused.
+ *
+ * This is the client's copy of the server's rule, not the rule itself: the
+ * state can move under an open tab, which is what the 409 handling in
+ * `MyClaimsList` is for.
+ */
+const WITHDRAWABLE_CLAIM_STATUSES: readonly ClaimStatus[] = ['pending', 'approved'];
+
+export function isWithdrawable(claim: MyClaim): boolean {
+  return WITHDRAWABLE_CLAIM_STATUSES.includes(claim.status);
+}
