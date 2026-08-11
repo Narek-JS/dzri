@@ -285,6 +285,35 @@
   },
   "myClaims": {
     "askedAgo": "Asked {time}",
+    "status": {
+      "pending": {
+        "title": "Waiting for a decision",
+        "description": "{name} has not picked anyone yet."
+      },
+      "approved": {
+        "title": "You were picked",
+        "description": "Call {name} and agree when to collect it."
+      },
+      "rejected": {
+        "title": "Given to someone else",
+        "description": "{name} picked another person for this one."
+      },
+      "withdrawn": {
+        "title": "You withdrew this claim",
+        "description": "You backed out, and {name} is free to give it to someone else."
+      },
+      "completed": {
+        "title": "Collected",
+        "description": "You picked this up from {name}."
+      },
+      "no_show": {
+        "title": "Not collected in time",
+        "description": "The hold ran out before you collected it, and the item went back to the feed."
+      }
+    },
+    "giverPhone": {
+      "label": "Call the giver"
+    },
     "empty": {
       "title": "Nothing asked for yet",
       "description": "Everything you ask for shows up here, along with where it stands.",
