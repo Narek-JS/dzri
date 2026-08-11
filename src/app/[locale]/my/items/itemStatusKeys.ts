@@ -79,3 +79,23 @@ export const MY_ITEM_STATUS_KEYS: Record<ItemStatus, { title: string; descriptio
 export function hasClaimsToShow(item: MyItem): boolean {
   return item.claimCount > 0;
 }
+
+/**
+ * `draft | pending_review | active | rejected` — the four statuses
+ * `DELETE /api/items/[id]` accepts (API.md). Everything else is refused with
+ * INVALID_STATUS_TRANSITION, so the button is not offered rather than offered
+ * and refused: `reserved` because somebody was picked and may be on their way,
+ * `given` and `expired` because they are terminal and there is nothing left to
+ * take down, `removed` because it already happened.
+ *
+ * This is the client's copy of `REMOVABLE_STATUSES` in
+ * src/lib/items/remove.ts, not the rule itself — that module reaches for the
+ * database client, and this one is read in a Client Component. The state can
+ * also move under an open tab, which is what the 409 handling in `MyItemsList`
+ * is for.
+ */
+const REMOVABLE_STATUSES: readonly ItemStatus[] = ['draft', 'pending_review', 'active', 'rejected'];
+
+export function isRemovable(item: MyItem): boolean {
+  return REMOVABLE_STATUSES.includes(item.status);
+}

@@ -353,7 +353,7 @@
       },
       "reserved": {
         "title": "Held for the person you picked",
-        "description": "Nobody else can see it. Mark it given once they collect it, or report a no-show if they do not turn up."
+        "description": "Nobody else can see it while the hold lasts."
       },
       "given": {
         "title": "Handed over",
@@ -376,6 +376,17 @@
       "history": "{count, plural, one {See the claim} other {See all # claims}}",
       "none": "Nobody has asked for this yet"
     },
+    "delete": {
+      "open": "Delete",
+      "confirmTitle": "Delete this listing",
+      "confirmDescription": "It comes off the feed and out of every stranger's view. It stays on this page, marked as taken down.",
+      "confirmClaims": "{count, plural, one {The person waiting for it is turned down.} other {All # people waiting for it are turned down.}}",
+      "cancel": "Keep it",
+      "submit": "Yes, delete",
+      "reserved": "This cannot be deleted: somebody was picked and may be on their way. Mark it given once they collect it, or report a no-show if they do not."
+    },
+    "refreshed": "This changed — showing the current state",
+    "dismiss": "Dismiss",
     "empty": {
       "title": "You have not posted anything yet",
       "description": "Everything you give away shows up here, with where it stands and who has asked for it.",

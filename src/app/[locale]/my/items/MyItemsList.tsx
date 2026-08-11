@@ -28,6 +28,25 @@ type Props = {
 };
 
 /**
+ * What a deleted listing looks like, applied locally rather than refetched.
+ *
+ * Three things move, all of them mirroring what `removeItem` does in the same
+ * transaction (src/lib/items/remove.ts): the status becomes `removed`, every
+ * pending claim on the item is rejected — so `pendingClaimCount` drops to zero
+ * and the row stops asking for a decision that can no longer be made — and
+ * `rejection_reason` is cleared, because the `rejection_reason_matches_status`
+ * check constraint forbids a non-rejected item from carrying one.
+ *
+ * `claimCount` is deliberately untouched. It counts every claim ever, whatever
+ * became of it, and rejecting those people does not unmake the fact that they
+ * asked: the claims page still has their history on it, and the row still
+ * links there.
+ */
+function asRemoved(item: MyItem): MyItem {
+  return { ...item, status: 'removed', rejectionReason: null, pendingClaimCount: 0 };
+}
+
+/**
  * The giver's list, client-side: one list, newest first, every status mixed
  * together, extended a page at a time from `GET /api/items/mine`.
  *
@@ -55,6 +74,10 @@ export function MyItemsList({ initialItems, initialNextCursor, initialNow }: Pro
   const [status, setStatus] = useState<Status>('idle');
   const [errorCode, setErrorCode] = useState<ApiErrorCode | null>(null);
 
+  const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(new Set());
+  const [rowErrors, setRowErrors] = useState<Readonly<Record<string, ApiErrorCode>>>({});
+  const [refreshedNotice, setRefreshedNotice] = useState(false);
+
   const loadMore = useCallback(async () => {
     if (cursor === null || status === 'loading') return;
 
@@ -71,11 +94,96 @@ export function MyItemsList({ initialItems, initialNextCursor, initialNow }: Pro
     }
   }, [cursor, status]);
 
+  const setBusy = useCallback((id: string, busy: boolean) => {
+    setBusyIds((previous) => {
+      const next = new Set(previous);
+      if (busy) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  /**
+   * INVALID_STATUS_TRANSITION means the state moved under us — a claim was
+   * approved and the item is now `reserved`, the sweep expired it, or another
+   * tab already deleted it. Not an error to show: the answer is the current
+   * state, so this replaces the list with the server's, exactly as
+   * `ClaimsBoard` and `MyClaimsList` do.
+   *
+   * The refetch is page 1 with no cursor, so a list the giver had paged
+   * further into collapses back to the newest 20 with the "Load more" button
+   * restored. Better than merging a fresh first page into stale later ones
+   * whose contents may have shifted rows across the page boundary in the
+   * meantime — the notice says the list changed, and it has.
+   */
+  const refreshFromServer = useCallback(async () => {
+    try {
+      const response = await api.items.mine();
+      setItems(response.items);
+      setCursor(response.nextCursor);
+      setRefreshedNotice(true);
+    } catch {
+      // The list on screen is still whatever it was; nothing better to show.
+    }
+  }, []);
+
+  const handleDelete = useCallback(
+    async (item: MyItem) => {
+      setRowErrors((previous) => {
+        if (!(item.id in previous)) return previous;
+        const next = { ...previous };
+        delete next[item.id];
+        return next;
+      });
+      setBusy(item.id, true);
+      try {
+        await api.items.remove(item.id);
+        // The row STAYS, carrying its new status — this page is a history, and
+        // a listing that vanished on delete would leave a hole in it.
+        setItems((previous) => previous.map((i) => (i.id === item.id ? asRemoved(i) : i)));
+      } catch (error) {
+        const code = error instanceof ApiClientError ? error.code : 'INTERNAL';
+        if (code === 'INVALID_STATUS_TRANSITION') {
+          await refreshFromServer();
+        } else {
+          setRowErrors((previous) => ({ ...previous, [item.id]: code }));
+        }
+      } finally {
+        setBusy(item.id, false);
+      }
+    },
+    [refreshFromServer, setBusy],
+  );
+
   return (
     <div className="flex flex-col gap-4">
+      {refreshedNotice && (
+        <div
+          role="status"
+          className="flex items-center justify-between gap-3 rounded border border-neutral-300 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
+        >
+          <span>{t('myItems.refreshed')}</span>
+          <button
+            type="button"
+            onClick={() => setRefreshedNotice(false)}
+            aria-label={t('myItems.dismiss')}
+            className="text-neutral-500 hover:text-neutral-800"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <ul className="flex flex-col gap-3">
         {items.map((item) => (
-          <MyItemRow key={item.id} item={item} now={now} />
+          <MyItemRow
+            key={item.id}
+            item={item}
+            now={now}
+            busy={busyIds.has(item.id)}
+            errorCode={rowErrors[item.id] ?? null}
+            onDelete={() => void handleDelete(item)}
+          />
         ))}
       </ul>
 

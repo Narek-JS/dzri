@@ -1,15 +1,19 @@
 'use client';
 
+import { useState } from 'react';
+
 import Image from 'next/image';
 
 import { useTranslations } from 'next-intl';
 
 import { Link } from '@/i18n/navigation';
+import { apiErrorMessageKey } from '@/lib/api/client';
 import { relativeTimeMessage } from '@/lib/relativeTime';
 
-import { hasClaimsToShow, MY_ITEM_STATUS_KEYS } from './itemStatusKeys';
+import { hasClaimsToShow, isRemovable, MY_ITEM_STATUS_KEYS } from './itemStatusKeys';
 
 import type { MyItem } from '@/lib/api/client';
+import type { ApiErrorCode } from '@/lib/http';
 
 /**
  * The thumbnail's real rendered width, not the viewport: a fixed 64px square
@@ -43,13 +47,35 @@ const THUMBNAIL_SIZES = '(min-width: 640px) 80px, 64px';
  * owner in every status, including the ones nobody else can see. The claims
  * page is linked only when there is something on it — see `hasClaimsToShow`.
  *
+ * Delete is offered from the four statuses the API accepts and nowhere else
+ * (`isRemovable`), behind an inline confirmation — the same shape
+ * `MyClaimRow` and `PendingClaimRow` use, and for the same reason. The confirm
+ * copy says what actually happens, including the part that costs other people
+ * something: every pending claim on the listing is rejected. On a `reserved`
+ * item there is no button and a line saying why instead — somebody was picked
+ * and may be on their way, so the way out is a handover or a no-show, not a
+ * deletion.
+ *
  * `postedAgo` goes through `src/lib/relativeTime.ts`, not
  * `useFormatter().relativeTime` — see that file for why. `now` is frozen by
  * `MyItemsList` and passed down, so every row on the page (and every row
  * appended by a later page) measures against the same instant.
  */
-export function MyItemRow({ item, now }: { item: MyItem; now: Date }) {
+export function MyItemRow({
+  item,
+  now,
+  busy,
+  errorCode,
+  onDelete,
+}: {
+  item: MyItem;
+  now: Date;
+  busy: boolean;
+  errorCode: ApiErrorCode | null;
+  onDelete: () => void;
+}) {
   const t = useTranslations();
+  const [confirming, setConfirming] = useState(false);
 
   const postedAgo = relativeTimeMessage(new Date(item.createdAt), now);
   const statusKeys = MY_ITEM_STATUS_KEYS[item.status];
@@ -137,6 +163,63 @@ export function MyItemRow({ item, now }: { item: MyItem; now: Date }) {
           <p className="text-sm text-neutral-600">{t('myItems.claims.none')}</p>
         )
       )}
+
+      {errorCode && (
+        <p className="text-sm text-red-700" role="alert">
+          {t(apiErrorMessageKey(errorCode) as Parameters<typeof t>[0])}
+        </p>
+      )}
+
+      {item.status === 'reserved' && (
+        <p className="text-sm text-neutral-600">{t('myItems.delete.reserved')}</p>
+      )}
+
+      {isRemovable(item) &&
+        (confirming ? (
+          <div className="flex flex-col gap-2 rounded border border-neutral-400 bg-white p-3">
+            <p className="text-sm font-medium text-neutral-900">
+              {t('myItems.delete.confirmTitle')}
+            </p>
+            <p className="text-sm text-neutral-700">{t('myItems.delete.confirmDescription')}</p>
+            {/* Said plainly and separately, because it is the part that costs
+                somebody other than the giver something. */}
+            {item.pendingClaimCount > 0 && (
+              <p className="text-sm text-neutral-700">
+                {t('myItems.delete.confirmClaims', { count: item.pendingClaimCount })}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                disabled={busy}
+                className="rounded border border-neutral-300 px-3 py-2 text-sm font-medium disabled:opacity-50"
+              >
+                {t('myItems.delete.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={busy}
+                aria-busy={busy}
+                className="rounded border border-red-300 px-3 py-2 text-sm font-medium text-red-700 disabled:opacity-50"
+              >
+                {t('myItems.delete.submit')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex">
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              disabled={busy}
+              className="rounded border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-800 disabled:opacity-50"
+            >
+              {t('myItems.delete.open')}
+            </button>
+          </div>
+        ))}
     </li>
   );
 }
