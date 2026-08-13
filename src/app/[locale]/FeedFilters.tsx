@@ -5,6 +5,7 @@ import { useId, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 
+import { Select } from '@/components/ui/Select';
 import { usePathname, useRouter } from '@/i18n/navigation';
 
 import type { Category, District } from '@/lib/api/client';
@@ -83,33 +84,48 @@ export function FeedFilters({
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex w-fit items-center gap-2 rounded border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-800"
+        className="flex w-full items-center justify-between rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-left hover:bg-neutral-100"
       >
-        {t('feed.filters.toggle')}
-        {!open && activeCount > 0 && (
-          <span
-            aria-hidden="true"
-            className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-tint px-1.5 text-xs font-semibold text-brand-strong"
-          >
-            {activeCount}
+        <span className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
+          {t('feed.filters.toggle')}
+          {!open && activeCount > 0 && (
+            <span
+              aria-hidden="true"
+              className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-tint px-1.5 text-xs font-semibold text-brand-strong"
+            >
+              {activeCount}
+            </span>
+          )}
+          <span className="sr-only">
+            {activeCount > 0 ? t('feed.filters.toggleActive', { count: activeCount }) : ''}
           </span>
-        )}
-        <span className="sr-only">
-          {activeCount > 0 ? t('feed.filters.toggleActive', { count: activeCount }) : ''}
         </span>
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 20 20"
+          fill="none"
+          className={`h-4 w-4 text-neutral-500 transition-transform ${open ? 'rotate-180' : ''}`}
+        >
+          <path
+            d="M5 7.5L10 12.5L15 7.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </button>
 
       {open && (
-        <div id={panelId} className="flex flex-col gap-4 rounded border border-neutral-200 p-4">
+        <div id={panelId} className="flex flex-col gap-4 rounded-md border border-neutral-200 p-4">
           <div className="flex flex-col gap-1">
-            <label htmlFor="feed-filter-district" className="text-sm font-medium">
+            <label htmlFor="feed-filter-district" className="text-sm font-medium text-neutral-800">
               {t('feed.filters.district.label')}
             </label>
-            <select
+            <Select
               id="feed-filter-district"
               value={district}
               onChange={(event) => setParam('district', event.target.value)}
-              className="rounded border border-neutral-300 bg-white px-3 py-2 text-sm"
             >
               <option value="">{t('feed.filters.district.all')}</option>
               {districts.map((option) => (
@@ -117,18 +133,17 @@ export function FeedFilters({
                   {localizedName(option, locale)}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="feed-filter-category" className="text-sm font-medium">
+            <label htmlFor="feed-filter-category" className="text-sm font-medium text-neutral-800">
               {t('feed.filters.category.label')}
             </label>
-            <select
+            <Select
               id="feed-filter-category"
               value={category}
               onChange={(event) => setParam('category', event.target.value)}
-              className="rounded border border-neutral-300 bg-white px-3 py-2 text-sm"
             >
               <option value="">{t('feed.filters.category.all')}</option>
               {categories.map((option) => (
@@ -136,18 +151,17 @@ export function FeedFilters({
                   {localizedName(option, locale)}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="feed-filter-condition" className="text-sm font-medium">
+            <label htmlFor="feed-filter-condition" className="text-sm font-medium text-neutral-800">
               {t('feed.filters.condition.label')}
             </label>
-            <select
+            <Select
               id="feed-filter-condition"
               value={condition}
               onChange={(event) => setParam('condition', event.target.value)}
-              className="rounded border border-neutral-300 bg-white px-3 py-2 text-sm"
             >
               <option value="">{t('feed.filters.condition.all')}</option>
               {CONDITIONS.map((value) => (
@@ -155,7 +169,7 @@ export function FeedFilters({
                   {t(CONDITION_LABEL_KEYS[value] as Parameters<typeof t>[0])}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {activeCount > 0 && (

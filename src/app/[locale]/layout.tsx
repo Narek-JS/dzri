@@ -10,7 +10,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { routing } from '@/i18n/routing';
-import { getSession } from '@/lib/auth/session';
+import { getSession, requireAdmin } from '@/lib/auth/session';
 import { SessionProvider } from '@/lib/auth/sessionContext';
 import { manrope, notoSans, notoSansArmenian } from '@/lib/fonts';
 
@@ -86,6 +86,15 @@ export default async function LocaleLayout({
   // every page for the header, unlike requireUser()'s database round trip.
   const session = await getSession();
 
+  // Whether to render the Admin nav link. Only checked for a signed-in
+  // visitor, since `requireAdmin()` is a database round trip and every
+  // anonymous request is trivially not an admin. Deliberately re-read
+  // from the database on every render rather than trusting a claim
+  // embedded in the JWT — see the note on `ClientSession` — so revoking
+  // is_admin takes effect on the very next page load, not in up to 90
+  // days.
+  const isAdmin = session ? (await requireAdmin()) !== null : false;
+
   return (
     <html
       lang={locale}
@@ -93,7 +102,7 @@ export default async function LocaleLayout({
     >
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider locale={locale}>
-          <SessionProvider session={session}>
+          <SessionProvider session={session ? { ...session, isAdmin } : null}>
             <Header />
             <div className="flex flex-1 flex-col">{children}</div>
             <Footer />

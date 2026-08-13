@@ -5,6 +5,10 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 import { useRouter } from '@/i18n/navigation';
 import { ApiClientError, api, apiErrorMessageKey } from '@/lib/api/client';
 import { MAX_PHONE_INPUT_LENGTH } from '@/lib/phone';
@@ -219,8 +223,8 @@ export default function LoginPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm">
-        <h1 className="mb-6 text-2xl font-semibold">{t('pages.login')}</h1>
+      <Card className="w-full max-w-sm">
+        <h1 className="mb-6 text-2xl font-semibold text-neutral-900">{t('pages.login')}</h1>
 
         {formError && (
           <p className="mb-4 text-sm text-red-700" role="alert">
@@ -230,10 +234,8 @@ export default function LoginPage() {
 
         {step === 'phone' && (
           <form onSubmit={handlePhoneSubmit} className="flex flex-col gap-3" noValidate>
-            <label htmlFor="phone" className="text-sm font-medium">
-              {t('login.phone.label')}
-            </label>
-            <input
+            <Label htmlFor="phone">{t('login.phone.label')}</Label>
+            <Input
               id="phone"
               type="tel"
               inputMode="tel"
@@ -242,27 +244,24 @@ export default function LoginPage() {
               placeholder={t('login.phone.placeholder')}
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              className="rounded border border-neutral-300 px-3 py-2 text-sm"
               required
             />
             {phoneError && <p className="text-sm text-red-700">{errorText(phoneError)}</p>}
-            <button
+            <Button
               type="submit"
+              className="w-full"
               disabled={submitting || phone.trim().length === 0}
-              className="rounded bg-brand px-3 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
             >
               {t('login.phone.submit')}
-            </button>
+            </Button>
           </form>
         )}
 
         {step === 'code' && (
           <form onSubmit={handleCodeSubmit} className="flex flex-col gap-3" noValidate>
             <p className="text-sm text-neutral-600">{t('login.code.description', { phone })}</p>
-            <label htmlFor="code" className="text-sm font-medium">
-              {t('login.code.label')}
-            </label>
-            <input
+            <Label htmlFor="code">{t('login.code.label')}</Label>
+            <Input
               id="code"
               type="text"
               inputMode="numeric"
@@ -270,35 +269,31 @@ export default function LoginPage() {
               maxLength={CODE_LENGTH}
               value={code}
               onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
-              className="rounded border border-neutral-300 px-3 py-2 text-sm tracking-widest"
+              className="tracking-widest"
               required
             />
             {codeError && <p className="text-sm text-red-700">{errorText(codeError)}</p>}
-            <button
+            <Button
               type="submit"
+              className="w-full"
               disabled={submitting || code.length !== CODE_LENGTH}
-              className="rounded bg-brand px-3 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
             >
               {t('login.code.submit')}
-            </button>
+            </Button>
             <div className="flex items-center justify-between text-sm">
-              <button
-                type="button"
-                onClick={handleBackToPhone}
-                className="text-brand-strong hover:underline"
-              >
+              <Button type="button" variant="ghost" onClick={handleBackToPhone}>
                 {t('login.code.back')}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={handleResend}
                 disabled={submitting || cooldownSeconds > 0}
-                className="text-brand-strong hover:underline disabled:text-neutral-400 disabled:no-underline"
               >
                 {cooldownSeconds > 0
                   ? t('login.code.resendIn', { seconds: cooldownSeconds })
                   : t('login.code.resend')}
-              </button>
+              </Button>
             </div>
           </form>
         )}
@@ -306,10 +301,8 @@ export default function LoginPage() {
         {step === 'name' && (
           <form onSubmit={handleNameSubmit} className="flex flex-col gap-3" noValidate>
             <p className="text-sm text-neutral-600">{t('login.name.description')}</p>
-            <label htmlFor="displayName" className="text-sm font-medium">
-              {t('login.name.label')}
-            </label>
-            <input
+            <Label htmlFor="displayName">{t('login.name.label')}</Label>
+            <Input
               id="displayName"
               type="text"
               autoComplete="name"
@@ -317,20 +310,19 @@ export default function LoginPage() {
               maxLength={NAME_MAX_LENGTH}
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
-              className="rounded border border-neutral-300 px-3 py-2 text-sm"
               required
             />
             {nameError && <p className="text-sm text-red-700">{errorText(nameError)}</p>}
-            <button
+            <Button
               type="submit"
+              className="w-full"
               disabled={submitting || displayName.trim().length < NAME_MIN_LENGTH}
-              className="rounded bg-brand px-3 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
             >
               {t('login.name.submit')}
-            </button>
+            </Button>
           </form>
         )}
-      </div>
+      </Card>
     </main>
   );
 }

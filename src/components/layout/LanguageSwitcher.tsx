@@ -25,7 +25,11 @@ export function LanguageSwitcher() {
   }
 
   return (
-    <div aria-label={t('label')} className="flex items-center gap-1 text-sm">
+    <div
+      role="group"
+      aria-label={t('label')}
+      className="flex items-center gap-0.5 rounded-md border border-neutral-200 bg-neutral-50 p-0.5 text-sm"
+    >
       {locales.map((code) => (
         <button
           key={code}
@@ -34,8 +38,8 @@ export function LanguageSwitcher() {
           aria-current={code === locale ? 'true' : undefined}
           className={
             code === locale
-              ? 'rounded bg-brand-tint px-2 py-1 text-brand-strong'
-              : 'rounded px-2 py-1 text-neutral-600 hover:text-neutral-900'
+              ? 'rounded bg-brand-tint px-2 py-1 font-medium text-brand-strong'
+              : 'rounded px-2 py-1 text-neutral-500 hover:text-neutral-900'
           }
         >
           {t(code)}
