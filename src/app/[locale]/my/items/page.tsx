@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
+import { containerClassName } from '@/components/ui/Container';
 import { Link, redirect } from '@/i18n/navigation';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { requireUser } from '@/lib/auth/session';
@@ -76,7 +77,9 @@ export default async function MyItemsPage({ params }: { params: Promise<LocalePa
   }));
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-8">
+    <main
+      className={containerClassName({ size: 'sm', className: 'flex flex-1 flex-col gap-6 py-8' })}
+    >
       <h1 className="text-2xl font-semibold text-neutral-900">{t('pages.myItems')}</h1>
 
       {items.length === 0 ? (

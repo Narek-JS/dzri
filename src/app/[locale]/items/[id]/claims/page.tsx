@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
+import { containerClassName } from '@/components/ui/Container';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { requireUser } from '@/lib/auth/session';
 import { getClaimsForOwner } from '@/lib/claims/forOwner';
@@ -70,7 +71,9 @@ export default async function ItemClaimsPage({
   }));
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-8">
+    <main
+      className={containerClassName({ size: 'sm', className: 'flex flex-1 flex-col gap-6 py-8' })}
+    >
       <h1 className="sr-only">{t('pages.itemClaims')}</h1>
 
       <ClaimsBoard

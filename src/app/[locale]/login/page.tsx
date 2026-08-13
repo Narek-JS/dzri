@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { containerClassName } from '@/components/ui/Container';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { useRouter } from '@/i18n/navigation';
@@ -222,7 +223,12 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-16">
+    <main
+      className={containerClassName({
+        size: 'sm',
+        className: 'flex flex-1 items-center justify-center py-16',
+      })}
+    >
       <Card className="w-full max-w-sm">
         <h1 className="mb-6 text-2xl font-semibold text-neutral-900">{t('pages.login')}</h1>
 

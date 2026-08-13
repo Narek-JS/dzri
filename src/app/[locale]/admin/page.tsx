@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
+import { containerClassName } from '@/components/ui/Container';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { requireAdmin } from '@/lib/auth/session';
 import { getAdminStats } from '@/lib/items/adminStats';
@@ -54,7 +55,9 @@ export default async function AdminPage({ params }: { params: Promise<LocalePara
     : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-8">
+    <main
+      className={containerClassName({ size: 'md', className: 'flex flex-1 flex-col gap-6 py-8' })}
+    >
       <h1 className="text-2xl font-semibold">{t('pages.admin')}</h1>
 
       {/* The pending count and the age of the oldest pending item are what

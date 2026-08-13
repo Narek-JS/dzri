@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
+import { containerClassName } from '@/components/ui/Container';
 import { redirect } from '@/i18n/navigation';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { getSession } from '@/lib/auth/session';
@@ -40,7 +41,7 @@ export default async function CreateItemPage({ params }: { params: Promise<Local
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
+    <main className={containerClassName({ size: 'sm', className: 'flex-1 py-10' })}>
       <h1 className="mb-6 text-2xl font-semibold">{t('create')}</h1>
       <CreateItemForm districts={districts} categories={categories} />
     </main>

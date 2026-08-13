@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
+import { containerClassName } from '@/components/ui/Container';
 import { Link } from '@/i18n/navigation';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { type FeedItem } from '@/lib/api/client';
@@ -108,7 +109,9 @@ export default async function FeedPage({
   }));
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-8">
+    <main
+      className={containerClassName({ size: 'lg', className: 'flex flex-1 flex-col gap-6 py-8' })}
+    >
       {/* The nav already reads "Items" for this page; a second visible
           heading saying the same thing adds nothing but still belongs in
           the document outline for accessibility. */}

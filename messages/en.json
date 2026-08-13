@@ -191,7 +191,9 @@
       "district": { "label": "District", "all": "All districts" },
       "category": { "label": "Category", "all": "All categories" },
       "condition": { "label": "Condition", "all": "Any condition" },
-      "clearAll": "Clear all"
+      "clearAll": "Clear all",
+      "apply": "Apply filters",
+      "close": "Close"
     },
     "empty": {
       "noItems": {

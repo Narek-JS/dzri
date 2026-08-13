@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { buttonClassName } from '@/components/ui/Button';
+import { containerClassName } from '@/components/ui/Container';
 import { Link, useRouter } from '@/i18n/navigation';
 import { api } from '@/lib/api/client';
 import { useSession } from '@/lib/auth/sessionContext';
@@ -42,8 +43,12 @@ export function Header() {
   }
 
   return (
-    <header className="border-b border-neutral-200 px-4 py-4 sm:px-6">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 sm:gap-x-10">
+    <header className="border-b border-neutral-200 py-4">
+      <div
+        className={containerClassName({
+          className: 'flex flex-wrap items-center justify-between gap-x-4 gap-y-3 sm:gap-x-10',
+        })}
+      >
         {/* Primary navigation cluster: wordmark plus the content links. */}
         <div className="flex items-center gap-4 sm:gap-10">
           <Link href="/" className="font-wordmark text-xl text-brand-strong lowercase">
