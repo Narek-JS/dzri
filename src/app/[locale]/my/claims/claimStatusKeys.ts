@@ -1,5 +1,7 @@
-import type { ClaimStatus } from '@/db/schema';
+import type { ClaimRejectedReason, ClaimStatus } from '@/db/schema';
 import type { MyClaim } from '@/lib/api/client';
+
+type StatusCopy = { title: string; description: string };
 
 /**
  * What each claim status means to the CLAIMANT, in their own words.
@@ -19,7 +21,7 @@ import type { MyClaim } from '@/lib/api/client';
  * Both strings are the only carrier of meaning here — nothing on this page
  * distinguishes a status by colour alone.
  */
-export const MY_CLAIM_STATUS_KEYS: Record<ClaimStatus, { title: string; description: string }> = {
+const MY_CLAIM_STATUS_KEYS: Record<ClaimStatus, StatusCopy> = {
   pending: {
     title: 'myClaims.status.pending.title',
     description: 'myClaims.status.pending.description',
@@ -45,6 +47,60 @@ export const MY_CLAIM_STATUS_KEYS: Record<ClaimStatus, { title: string; descript
     description: 'myClaims.status.no_show.description',
   },
 };
+
+/**
+ * `rejected` is three different events wearing one status, and they are not
+ * interchangeable news for the person reading this screen:
+ *
+ *  - `declined` — the giver read this request and said no to it. Nobody was
+ *    picked; the listing is still there and may still go to somebody else.
+ *  - `lost_to_other_claimant` — the giver picked another person, which
+ *    auto-rejected this claim (the cascade in `approveClaim`).
+ *  - `item_removed` — the giver took the listing down, which rejected every
+ *    pending claim on it (the cascade in `removeItem`). Nobody was picked and
+ *    there is nothing left to ask for.
+ *
+ * This used to be inferred from `claim.item.status === 'removed'`, which could
+ * only ever see the third case and got even that wrong on ordering — a giver
+ * who deleted a listing weeks after rejecting somebody rewrote that old
+ * rejection into "listing taken down". The claim row now records which route
+ * it took (`claims.rejected_reason`, set in the same statement as the status),
+ * so the copy is read off the event instead of reconstructed from the item's
+ * present state. Item status is no longer consulted here at all.
+ */
+const MY_CLAIM_REJECTED_KEYS: Record<ClaimRejectedReason, StatusCopy> = {
+  declined: {
+    title: 'myClaims.status.rejected_declined.title',
+    description: 'myClaims.status.rejected_declined.description',
+  },
+  lost_to_other_claimant: {
+    title: 'myClaims.status.rejected_lost.title',
+    description: 'myClaims.status.rejected_lost.description',
+  },
+  item_removed: {
+    title: 'myClaims.status.rejected_removed.title',
+    description: 'myClaims.status.rejected_removed.description',
+  },
+};
+
+/**
+ * The copy for one claim, which for a rejection depends on `rejectedReason`.
+ *
+ * `claim_rejected_reason_matches_status` makes a rejected claim without a
+ * reason unrepresentable, so the fallback is for one case only: a tab left
+ * open across a deploy that added a fourth reason this bundle has never heard
+ * of. It falls back to `myClaims.status.rejected.*`, which is deliberately
+ * written to be true of any rejection — the specific claim that somebody else
+ * was picked lives in `rejected_lost` now, and is never the guess.
+ */
+export function myClaimStatusKeys(claim: MyClaim): StatusCopy {
+  if (claim.status === 'rejected') {
+    const reason = claim.rejectedReason;
+    return (reason && MY_CLAIM_REJECTED_KEYS[reason]) ?? MY_CLAIM_STATUS_KEYS.rejected;
+  }
+
+  return MY_CLAIM_STATUS_KEYS[claim.status];
+}
 
 /**
  * The claim statuses that keep the item page readable for their holder in

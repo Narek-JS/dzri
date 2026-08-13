@@ -3,7 +3,7 @@ import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { claims, itemImages, items, users } from '@/db/schema';
 
-import type { ClaimStatus, ItemStatus } from '@/db/schema';
+import type { ClaimRejectedReason, ClaimStatus, ItemStatus } from '@/db/schema';
 
 /** One screen of claims. The caller asks for the next page with `nextCursor`. */
 export const MY_CLAIMS_PAGE_SIZE = 20;
@@ -11,6 +11,15 @@ export const MY_CLAIMS_PAGE_SIZE = 20;
 export type MyClaimRow = {
   id: string;
   status: ClaimStatus;
+  /**
+   * Which of the three routes to `rejected` this claim took. Present only when
+   * `status === 'rejected'` — absent otherwise, never `null`, the same shape as
+   * `giver.phone` and for the same reason (DECISIONS.md, 2026-08-07).
+   *
+   * The column is null for every non-rejected claim by check constraint, not by
+   * convention, so this key cannot appear on one.
+   */
+  rejectedReason?: ClaimRejectedReason;
   message: string | null;
   createdAt: Date;
   item: {
@@ -75,6 +84,7 @@ export async function getMyClaims(userId: string, cursor: Date | null): Promise<
     .select({
       id: claims.id,
       status: claims.status,
+      rejectedReason: claims.rejectedReason,
       message: claims.message,
       createdAt: claims.createdAt,
       itemId: items.id,
@@ -100,6 +110,7 @@ export async function getMyClaims(userId: string, cursor: Date | null): Promise<
   const claimList: MyClaimRow[] = page.map((row) => ({
     id: row.id,
     status: row.status,
+    ...(row.rejectedReason ? { rejectedReason: row.rejectedReason } : {}),
     message: row.message,
     createdAt: row.createdAt,
     item: {

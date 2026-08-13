@@ -107,6 +107,14 @@ async function readPhonePair(
  * So a second click finds the item no longer `active`, (1) and (2) both touch
  * zero rows, nobody gets rejected a second time, and the caller gets
  * INVALID_STATUS_TRANSITION.
+ *
+ * (3) stamps `rejected_reason = 'lost_to_other_claimant'` in the same `set` as
+ * the status. It is one statement rather than a follow-up write for the reason
+ * the batch exists at all: a second UPDATE could not be chained on this one's
+ * result, so it would either land in a different transaction or not at all,
+ * and a losing claimant would be told "the giver chose not to accept this" —
+ * the copy for a direct decline — for as long as the gap lasted. The check
+ * constraint makes that gap unrepresentable anyway.
  */
 export async function approveClaim(claimId: string, actorId: string): Promise<ApproveClaimResult> {
   const claim = await loadClaim(claimId);
@@ -162,7 +170,11 @@ export async function approveClaim(claimId: string, actorId: string): Promise<Ap
 
     db
       .update(claims)
-      .set({ status: 'rejected', respondedAt: sql`now()` })
+      .set({
+        status: 'rejected',
+        rejectedReason: 'lost_to_other_claimant',
+        respondedAt: sql`now()`,
+      })
       .where(
         and(
           eq(claims.itemId, claim.itemId),
@@ -191,8 +203,13 @@ export async function approveClaim(claimId: string, actorId: string): Promise<Ap
  * `pending → rejected`. The item is untouched: rejecting one hopeful does not
  * change the listing, which stays active for everybody else.
  *
- * No reason is recorded. Turning somebody down for a free chair is not a
- * moderation action and does not need justification.
+ * No *justification* is recorded — turning somebody down for a free chair is
+ * not a moderation action, and unlike an admin rejecting a listing there is no
+ * free-text reason. What is recorded is which of the three routes to
+ * `rejected` this was: `declined`, set in the same statement as the status so
+ * there is no instant where the row is rejected without saying why. The
+ * claimant is told the giver decided against their request, and specifically
+ * not that somebody else was picked, because nobody was.
  */
 export async function rejectClaim(claimId: string, actorId: string): Promise<ClaimActionResult> {
   const claim = await loadClaim(claimId);
@@ -206,7 +223,7 @@ export async function rejectClaim(claimId: string, actorId: string): Promise<Cla
 
   const updated = await db
     .update(claims)
-    .set({ status: 'rejected', respondedAt: sql`now()` })
+    .set({ status: 'rejected', rejectedReason: 'declined', respondedAt: sql`now()` })
     .where(and(eq(claims.id, claimId), eq(claims.status, 'pending')))
     .returning({ id: claims.id });
 

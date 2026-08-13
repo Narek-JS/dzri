@@ -295,8 +295,20 @@
         "description": "Позвоните {name} и договоритесь, когда забрать."
       },
       "rejected": {
+        "title": "Заявка отклонена",
+        "description": "{name} не принял вашу заявку."
+      },
+      "rejected_declined": {
+        "title": "Заявка отклонена",
+        "description": "{name} решил не принимать вашу заявку."
+      },
+      "rejected_lost": {
         "title": "Отдано другому",
         "description": "{name} выбрал другого человека."
+      },
+      "rejected_removed": {
+        "title": "Объявление снято",
+        "description": "{name} снял это объявление, и вещь никому не досталась."
       },
       "withdrawn": {
         "title": "Вы отозвали заявку",

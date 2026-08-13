@@ -57,6 +57,7 @@ type ApproveResponse = {
 type MineClaim = {
   id: string;
   status: string;
+  rejectedReason?: string;
   message: string | null;
   createdAt: string;
   item: { id: string; title: string; status: string; thumbnailUrl: string | null };
@@ -187,6 +188,10 @@ describe.skipIf(!hasDatabase)('claims API', () => {
 
   function post(path: string, body: unknown, cookie?: string): Promise<ApiResponse> {
     return api(path, { method: 'POST', body: JSON.stringify(body), cookie });
+  }
+
+  function del(path: string, cookie?: string): Promise<ApiResponse> {
+    return api(path, { method: 'DELETE', cookie });
   }
 
   /** No phone, in any form, anywhere in the response body. */
@@ -649,6 +654,158 @@ describe.skipIf(!hasDatabase)('claims API', () => {
       const entry = parse<MineResponse>(response.text).claims.find((row) => row.id === claimId);
       expect(entry?.status).toBe('approved');
       expect(entry?.giver.phone).toBe(giver.phone);
+    });
+
+    it("tags a direct decline as 'declined'", async () => {
+      const giver = await signIn();
+      const claimant = await signIn();
+      const itemId = await seedItem(giver.userId);
+      const claimId = await claimOk(itemId, claimant.cookie);
+
+      expect((await post(`/api/claims/${claimId}/reject`, {}, giver.cookie)).status).toBe(200);
+
+      const response = await api('/api/claims/mine', { cookie: claimant.cookie });
+      expect(response.status, response.text).toBe(200);
+
+      const entry = parse<MineResponse>(response.text).claims.find((row) => row.id === claimId);
+      expect(entry?.status).toBe('rejected');
+      expect(entry?.rejectedReason).toBe('declined');
+    });
+
+    it("tags the losing side of an approval cascade as 'lost_to_other_claimant'", async () => {
+      const giver = await signIn();
+      const chosen = await signIn();
+      const passedOver = await signIn();
+      const itemId = await seedItem(giver.userId);
+
+      const chosenClaim = await claimOk(itemId, chosen.cookie);
+      const otherClaim = await claimOk(itemId, passedOver.cookie);
+
+      expect((await post(`/api/claims/${chosenClaim}/approve`, {}, giver.cookie)).status).toBe(200);
+
+      const response = await api('/api/claims/mine', { cookie: passedOver.cookie });
+      expect(response.status, response.text).toBe(200);
+
+      const entry = parse<MineResponse>(response.text).claims.find((row) => row.id === otherClaim);
+      expect(entry?.status).toBe('rejected');
+      expect(entry?.rejectedReason).toBe('lost_to_other_claimant');
+    });
+
+    it("never includes rejectedReason on a claim that is not rejected", async () => {
+      const giver = await signIn();
+      const claimant = await signIn();
+      const itemId = await seedItem(giver.userId);
+      await claimOk(itemId, claimant.cookie);
+
+      const response = await api('/api/claims/mine', { cookie: claimant.cookie });
+      expect(response.status, response.text).toBe(200);
+
+      const entry = parse<MineResponse>(response.text).claims[0];
+      expect(entry.status).toBe('pending');
+      expect(entry.rejectedReason).toBeUndefined();
+      expect(response.text).not.toContain('rejectedReason');
+    });
+  });
+
+  /**
+   * The actual substitute for opening a browser. `myClaimStatusKeys()` and
+   * the `rejectedReason` plumbing through `GET /api/claims/mine` are unit-
+   * and route-tested above, but neither of those proves the my-claims
+   * *page* — src/app/[locale]/my/claims/page.tsx — actually puts the right
+   * sentence on screen for a real signed-in visitor. This fetches that page
+   * over real HTTP, exactly as a browser would, and reads the rendered HTML.
+   *
+   * `MyClaimsPage` is an `async` Server Component that calls `getMyClaims`
+   * directly (no HTTP round trip to itself) and passes the first page into
+   * `MyClaimsList` — a `'use client'` component. That directive controls
+   * hydration, not whether Next server-renders it: React still renders
+   * `MyClaimsList` (and `MyClaimRow` beneath it) to HTML on the very first
+   * response, the same as any other component in the tree, and
+   * `NextIntlClientProvider` in `[locale]/layout.tsx` supplies `useTranslations`
+   * with the full message catalog during that SSR pass without an explicit
+   * `messages` prop (next-intl reads it from the request config). So the
+   * translated title is present in the initial HTML, before any client-side
+   * JavaScript runs — there is no hydration-only text to miss here.
+   *
+   * The URL has no locale prefix: `src/i18n/routing.ts` sets `hy` as
+   * `defaultLocale` with `localePrefix: 'as-needed'`, which gives hy the bare
+   * path and only `ru`/`en` a prefix. `src/proxy.ts` (next-intl's middleware,
+   * renamed per Next 16.2) rewrites `/my/claims` to locale `hy` when neither
+   * the URL, the `NEXT_LOCALE` cookie, nor `Accept-Language` says otherwise —
+   * none of which this fetch sets — so `hy.json` is the catalog these
+   * assertions check against.
+   *
+   * `rendersStatusTitle` below exists because a naive `response.text.includes(title)`
+   * is not a real check here: the same `NextIntlClientProvider` that lets
+   * `MyClaimRow` translate server-side also serializes the *entire* message
+   * catalog into a hydration payload later in the same document, so every
+   * `myClaims.status.*` string — used on this page or not — is present in
+   * the raw response regardless of which one actually rendered. Confirmed by
+   * hand: fetching this page for a `declined` claim before `page.tsx` passed
+   * `rejectedReason` through to `MyClaimsList` showed the generic
+   * `myClaims.status.rejected.*` title in the rendered `<p>`, while the
+   * *specific* `rejected_declined` string was still findable elsewhere in the
+   * same document, inside that catalog blob — a plain `.toContain()` would
+   * have passed on a page showing the wrong copy. Anchoring on `>title</p>`
+   * matches the literal DOM MyClaimRow renders and nothing else: the
+   * catalog blob is JSON, so every string in it is wrapped in escaped quotes,
+   * never a bare `>` immediately before it.
+   */
+  function rendersStatusTitle(html: string, title: string): boolean {
+    return html.includes(`>${title}</p>`);
+  }
+
+  describe('my-claims page render', () => {
+    it("renders the 'declined' title after a direct reject", async () => {
+      const giver = await signIn();
+      const claimant = await signIn();
+      const itemId = await seedItem(giver.userId);
+      const claimId = await claimOk(itemId, claimant.cookie);
+
+      expect((await post(`/api/claims/${claimId}/reject`, {}, giver.cookie)).status).toBe(200);
+
+      const response = await api('/my/claims', { cookie: claimant.cookie });
+      expect(response.status, response.text).toBe(200);
+      expect(response.text).toContain('Իմ հայտերը'); // pages.myClaims — confirms this is the right page
+      // myClaims.status.rejected_declined.title
+      expect(rendersStatusTitle(response.text, 'Հայտը մերժվել է'), response.text).toBe(true);
+    });
+
+    it("renders the 'lost to another claimant' title for the losing side of an approval", async () => {
+      const giver = await signIn();
+      const chosen = await signIn();
+      const passedOver = await signIn();
+      const itemId = await seedItem(giver.userId);
+
+      const chosenClaim = await claimOk(itemId, chosen.cookie);
+      await claimOk(itemId, passedOver.cookie);
+
+      expect((await post(`/api/claims/${chosenClaim}/approve`, {}, giver.cookie)).status).toBe(
+        200,
+      );
+
+      const response = await api('/my/claims', { cookie: passedOver.cookie });
+      expect(response.status, response.text).toBe(200);
+      expect(response.text).toContain('Իմ հայտերը');
+      // myClaims.status.rejected_lost.title
+      expect(rendersStatusTitle(response.text, 'Տրվել է ուրիշին'), response.text).toBe(true);
+    });
+
+    it("renders the 'listing taken down' title when the item is deleted with a pending claim", async () => {
+      const giver = await signIn();
+      const claimant = await signIn();
+      const itemId = await seedItem(giver.userId);
+      await claimOk(itemId, claimant.cookie);
+
+      expect((await del(`/api/items/${itemId}`, giver.cookie)).status).toBe(200);
+
+      const response = await api('/my/claims', { cookie: claimant.cookie });
+      expect(response.status, response.text).toBe(200);
+      expect(response.text).toContain('Իմ հայտերը');
+      // myClaims.status.rejected_removed.title
+      expect(rendersStatusTitle(response.text, 'Հայտարարությունը հանվել է'), response.text).toBe(
+        true,
+      );
     });
   });
 

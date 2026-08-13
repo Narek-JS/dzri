@@ -532,3 +532,71 @@ that is claimed.
 Consequence: never hardcode a social URL from memory in code, copy,
 or a future footer. Read it from `BRAND.md`, because the handles
 deliberately differ from the wordmark and from each other.
+
+### 2026-08-13 — `claims.rejected_reason` distinguishes the three routes to `rejected`
+
+The my-claims screen showed "picked another person" for every rejected
+claim, which is false whenever nobody was picked — a giver who declines a
+request directly, or deletes the listing outright, has done something
+different to a claimant than a giver who chose somebody else. `rejected`
+carried no information about which of those happened, only that it did.
+
+`claims.rejected_reason` is a nullable enum — `declined`,
+`lost_to_other_claimant`, `item_removed` — mirroring
+`items.rejection_reason` and the `rejection_reason_matches_status` check
+this project already has (2026-07-31 entry): `claim_rejected_reason_matches_status`
+makes a rejected claim with no reason, or a non-rejected claim with one,
+unrepresentable rather than merely a bug somebody has to remember not to
+write.
+
+Three writers, one value each, set in the same statement as the status
+change, never as a follow-up write:
+
+- `rejectClaim` — `declined`. A single-row `UPDATE`, so this one was never
+  at risk of a window between status and reason.
+- `approveClaim`'s losing-claims statement — `lost_to_other_claimant`, in
+  the same `set` as `status: 'rejected'`. This one mattered: the 2026-08-07
+  entry on chained `db.batch` guards explains why a second statement here
+  was never an option — neon-http has no interactive transaction, so a
+  follow-up write would either land outside the approval's transaction or
+  not at all, and a losing claimant would read "declined" copy for however
+  long the gap lasted. Stamping it inside the existing statement costs
+  nothing extra: the row is already being written.
+- `removeItem`'s claim-rejection statement — `item_removed`. This route
+  existed before this change (2026-08-08 entry, "a soft delete to
+  `removed`") and was not named in the original three-state design; adding
+  the enum value surfaced that a real third writer of `rejected` was
+  already shipping with no reason recorded, which the check constraint
+  would otherwise have made a hard failure on `DELETE /api/items/[id]`
+  rather than a silent gap.
+
+An earlier version of the my-claims copy split worked around the missing
+column by inferring the deletion case from `item.status === 'removed'` —
+which could only ever detect that one route, and even then read a claim's
+rejection as caused by a deletion if the giver removed the listing weeks
+after rejecting it, because `removed` says nothing about order. A real
+column set at the moment of rejection has no such gap: it records what
+happened, not what can be reconstructed from where things ended up.
+
+One migration-tooling finding worth recording separately from the schema
+change itself. `drizzle-kit migrate`'s CLI silently exits 1 with **no error
+text** on this project's setup, on any failure — its own catch block does
+`console.error` then `process.exit(1)` back to back, and Node truncates
+unflushed async stdout/stderr writes on `process.exit()` when the stream is
+a pipe or file rather than a TTY, which a spawned or redirected CLI always
+is. The underlying `drizzle-orm/neon-http/migrator` `migrate()` function has
+no such swallowing and threw the real Postgres error immediately when called
+directly. Below that: applying this migration to this dev branch failed
+once on the `ADD CONSTRAINT` step because two pre-existing `rejected` claims
+predated the column, and because neon-http executes each migration
+statement as its own HTTP request with no wrapping transaction, that partial
+failure left `CREATE TYPE` and `ADD COLUMN` committed while the constraint
+was not — a second attempt then failed differently, on `CREATE TYPE`
+already existing. Recovery was to backfill the two rows to `declined` (the
+migration now does this itself, see the migration file), finish the
+remaining two statements by hand, and insert the matching row into
+`drizzle.__drizzle_migrations` so the tracked state matches what
+`drizzle-kit` itself would have written. Anyone who hits a silent `exit 1`
+from `db:migrate` again should go straight to calling `migrate()` from
+`drizzle-orm/neon-http/migrator` directly rather than re-running the CLI
+blind — the CLI will keep saying nothing.

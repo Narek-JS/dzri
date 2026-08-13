@@ -87,9 +87,15 @@ export async function removeItem(itemId: string, actorId: string): Promise<Remov
     // they asked for is gone. Guarded on the item still being the caller's and
     // still removable, so a race that took it elsewhere cannot reject a
     // stranger's claimants as a side effect.
+    //
+    // `item_removed` is stamped in the same `set` as the status, in the same
+    // statement, in the same transaction as the removal it cascades from —
+    // these people were not turned down and lost to nobody, and the my-claims
+    // screen reads this column to say so. `claim_rejected_reason_matches_status`
+    // rejects the write outright if this is ever dropped.
     db
       .update(claims)
-      .set({ status: 'rejected', respondedAt: sql`now()` })
+      .set({ status: 'rejected', rejectedReason: 'item_removed', respondedAt: sql`now()` })
       .where(
         and(
           eq(claims.itemId, itemId),

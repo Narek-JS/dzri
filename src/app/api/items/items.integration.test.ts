@@ -1055,10 +1055,12 @@ describe.skipIf(!hasDatabase)('items API', () => {
       expect(response.status, response.text).toBe(200);
 
       const rows = await db
-        .select({ status: claims.status })
+        .select({ status: claims.status, rejectedReason: claims.rejectedReason })
         .from(claims)
         .where(eq(claims.itemId, id));
       expect(rows.map((row) => row.status)).toEqual(['rejected']);
+      // Nobody was picked over them — the listing itself came down.
+      expect(rows.map((row) => row.rejectedReason)).toEqual(['item_removed']);
     });
 
     it('refuses a reserved item with 409, so it cannot vanish from under its claimant', async () => {

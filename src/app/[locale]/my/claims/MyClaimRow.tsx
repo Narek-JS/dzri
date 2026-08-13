@@ -10,7 +10,7 @@ import { Link } from '@/i18n/navigation';
 import { apiErrorMessageKey } from '@/lib/api/client';
 import { relativeTimeMessage } from '@/lib/relativeTime';
 
-import { canOpenItem, isWithdrawable, MY_CLAIM_STATUS_KEYS } from './claimStatusKeys';
+import { canOpenItem, isWithdrawable, myClaimStatusKeys } from './claimStatusKeys';
 
 import type { MyClaim } from '@/lib/api/client';
 import type { ApiErrorCode } from '@/lib/http';
@@ -70,7 +70,7 @@ export function MyClaimRow({
   const [confirming, setConfirming] = useState(false);
 
   const askedAgo = relativeTimeMessage(new Date(claim.createdAt), now);
-  const statusKeys = MY_CLAIM_STATUS_KEYS[claim.status];
+  const statusKeys = myClaimStatusKeys(claim);
   const giverPhone = claim.giver.phone;
   const isApproved = claim.status === 'approved';
 

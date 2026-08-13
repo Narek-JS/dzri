@@ -4,7 +4,12 @@ import type { ApiErrorBody, ApiErrorCode } from '@/lib/http';
 // pg-core comes along with these. The status/condition unions are typed
 // straight off the schema so this file cannot drift from what a route
 // handler actually returns.
-import type { ClaimStatus, ItemCondition, ItemStatus } from '@/db/schema';
+import type {
+  ClaimRejectedReason,
+  ClaimStatus,
+  ItemCondition,
+  ItemStatus,
+} from '@/db/schema';
 
 /**
  * A typed wrapper around `fetch` for every endpoint in API.md. One module,
@@ -330,10 +335,14 @@ export type NoShowClaimResponse = { id: string; status: 'no_show' };
 
 export type MyClaimsQuery = { cursor?: string };
 
-/** `giver.phone` — optional, present only when `status === 'approved'`. */
+/**
+ * `giver.phone` — optional, present only when `status === 'approved'`.
+ * `rejectedReason` — optional, present only when `status === 'rejected'`.
+ */
 export type MyClaim = {
   id: string;
   status: ClaimStatus;
+  rejectedReason?: ClaimRejectedReason;
   message: string | null;
   createdAt: string;
   item: { id: string; title: string; status: ItemStatus; thumbnailUrl: string | null };

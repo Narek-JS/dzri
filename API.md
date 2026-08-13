@@ -789,6 +789,19 @@ Everything the caller has asked for, newest first. Requires auth.
 20 per page. `giver.phone` appears **only** when `status` is `approved`.
 Absent otherwise.
 
+`rejectedReason` appears **only** when `status` is `rejected`. Absent
+otherwise — never `null`, same convention as `giver.phone`. One of:
+
+- `"declined"` — the giver turned this claim down directly
+  (`POST /api/claims/[id]/reject`).
+- `"lost_to_other_claimant"` — the giver approved somebody else, which
+  auto-rejected this one (`POST /api/claims/[id]/approve`'s cascade).
+- `"item_removed"` — the giver deleted the listing while this claim was
+  still pending (`DELETE /api/items/[id]`'s cascade). Nobody was picked.
+
+Every rejected claim carries exactly one of these — `claim_rejected_reason_matches_status`
+makes a rejected row with no reason unrepresentable in the database.
+
 `thumbnailUrl` is `coalesce(thumb_url, url)` on the item's first image —
 the 400px variant, falling back to the original only for rows written
 before the two-variant pipeline. Never the original otherwise.

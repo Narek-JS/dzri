@@ -295,8 +295,20 @@
         "description": "Call {name} and agree when to collect it."
       },
       "rejected": {
+        "title": "Claim not accepted",
+        "description": "{name} did not accept this claim."
+      },
+      "rejected_declined": {
+        "title": "Claim declined",
+        "description": "{name} chose not to accept this request."
+      },
+      "rejected_lost": {
         "title": "Given to someone else",
         "description": "{name} picked another person for this one."
+      },
+      "rejected_removed": {
+        "title": "Listing taken down",
+        "description": "{name} took this listing down, and nobody received the item."
       },
       "withdrawn": {
         "title": "You withdrew this claim",

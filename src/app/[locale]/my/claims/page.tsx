@@ -63,12 +63,14 @@ export default async function MyClaimsPage({ params }: { params: Promise<LocaleP
 
   // The route handler's own shape, built here rather than passed through:
   // `MyClaimsList` appends pages fetched from `GET /api/claims/mine`, so
-  // page 1 has to be the same JSON-shaped object as pages 2+. The phone key
-  // is spread conditionally for the same reason the API omits it — a
-  // non-approved claim carries no phone field at all, not a null one.
+  // page 1 has to be the same JSON-shaped object as pages 2+. `rejectedReason`
+  // and the phone key are both spread conditionally for the same reason the
+  // API omits them — a non-rejected claim carries no reason field, and a
+  // non-approved claim carries no phone field, not a null one either way.
   const claims: MyClaim[] = page.claims.map((claim) => ({
     id: claim.id,
     status: claim.status,
+    ...(claim.rejectedReason ? { rejectedReason: claim.rejectedReason } : {}),
     message: claim.message,
     createdAt: claim.createdAt.toISOString(),
     item: claim.item,
