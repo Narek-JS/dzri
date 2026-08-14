@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 
 import { useLocale, useTranslations } from 'next-intl';
 
+import { Select } from '@/components/ui/Select';
 import { Link } from '@/i18n/navigation';
 import {
   ApiClientError,
@@ -350,22 +351,18 @@ export function CreateItemForm({ districts, categories }: Props) {
         <label htmlFor="category" className="text-sm font-medium">
           {t('createItem.category.label')}
         </label>
-        <select
+        <Select
           id="category"
           value={categoryId}
-          onChange={(event) => setCategoryId(event.target.value)}
-          className="rounded border border-neutral-300 bg-white px-3 py-2 text-sm"
-          required
+          onValueChange={setCategoryId}
+          placeholder={t('createItem.category.placeholder')}
         >
-          <option value="" disabled>
-            {t('createItem.category.placeholder')}
-          </option>
           {categories.map((category) => (
-            <option key={category.id} value={category.id}>
+            <Select.Item key={category.id} value={String(category.id)}>
               {localizedName(category, locale)}
-            </option>
+            </Select.Item>
           ))}
-        </select>
+        </Select>
         {categoryError && <p className="text-sm text-red-700">{errorText(categoryError)}</p>}
       </div>
 
@@ -373,22 +370,18 @@ export function CreateItemForm({ districts, categories }: Props) {
         <label htmlFor="district" className="text-sm font-medium">
           {t('createItem.district.label')}
         </label>
-        <select
+        <Select
           id="district"
           value={districtId}
-          onChange={(event) => setDistrictId(event.target.value)}
-          className="rounded border border-neutral-300 bg-white px-3 py-2 text-sm"
-          required
+          onValueChange={setDistrictId}
+          placeholder={t('createItem.district.placeholder')}
         >
-          <option value="" disabled>
-            {t('createItem.district.placeholder')}
-          </option>
           {districts.map((district) => (
-            <option key={district.id} value={district.id}>
+            <Select.Item key={district.id} value={String(district.id)}>
               {localizedName(district, locale)}
-            </option>
+            </Select.Item>
           ))}
-        </select>
+        </Select>
         {districtError && <p className="text-sm text-red-700">{errorText(districtError)}</p>}
       </div>
 

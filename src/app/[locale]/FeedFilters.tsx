@@ -74,13 +74,13 @@ function FilterFields({
         <Select
           id={`${idPrefix}-district`}
           value={values.district}
-          onChange={(event) => onChange('district', event.target.value)}
+          onValueChange={(value) => onChange('district', value)}
         >
-          <option value="">{t('feed.filters.district.all')}</option>
+          <Select.Item value="">{t('feed.filters.district.all')}</Select.Item>
           {districts.map((option) => (
-            <option key={option.id} value={option.slug}>
+            <Select.Item key={option.id} value={option.slug}>
               {localizedName(option, locale)}
-            </option>
+            </Select.Item>
           ))}
         </Select>
       </div>
@@ -92,13 +92,13 @@ function FilterFields({
         <Select
           id={`${idPrefix}-category`}
           value={values.category}
-          onChange={(event) => onChange('category', event.target.value)}
+          onValueChange={(value) => onChange('category', value)}
         >
-          <option value="">{t('feed.filters.category.all')}</option>
+          <Select.Item value="">{t('feed.filters.category.all')}</Select.Item>
           {categories.map((option) => (
-            <option key={option.id} value={option.slug}>
+            <Select.Item key={option.id} value={option.slug}>
               {localizedName(option, locale)}
-            </option>
+            </Select.Item>
           ))}
         </Select>
       </div>
@@ -110,13 +110,13 @@ function FilterFields({
         <Select
           id={`${idPrefix}-condition`}
           value={values.condition}
-          onChange={(event) => onChange('condition', event.target.value)}
+          onValueChange={(value) => onChange('condition', value)}
         >
-          <option value="">{t('feed.filters.condition.all')}</option>
+          <Select.Item value="">{t('feed.filters.condition.all')}</Select.Item>
           {CONDITIONS.map((value) => (
-            <option key={value} value={value}>
+            <Select.Item key={value} value={value}>
               {t(CONDITION_LABEL_KEYS[value] as Parameters<typeof t>[0])}
-            </option>
+            </Select.Item>
           ))}
         </Select>
       </div>
