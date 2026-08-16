@@ -21,6 +21,7 @@ type ReferenceDistrict = {
   nameHy: string;
   nameRu: string;
   nameEn: string;
+  region: string;
 };
 
 type ReferenceCategory = ReferenceDistrict & { icon: string | null; position: number };
@@ -41,6 +42,7 @@ describe.skipIf(!hasDatabase)('GET /api/reference', () => {
   /** Slugs this run owns, in the order the endpoint is expected to return them. */
   let districtSlugs: string[];
   let categorySlugs: string[];
+  let districtRegionA: string;
   let insertedDistrictIds: number[] = [];
   let insertedCategoryIds: number[] = [];
 
@@ -55,6 +57,7 @@ describe.skipIf(!hasDatabase)('GET /api/reference', () => {
     // `region, name_hy` ordering rather than just "some order".
     const regionA = `test-region-a-${suffix}`;
     const regionB = `test-region-b-${suffix}`;
+    districtRegionA = regionA;
     districtSlugs = [
       `test-ref-dist-a1-${suffix}`,
       `test-ref-dist-a2-${suffix}`,
@@ -158,9 +161,18 @@ describe.skipIf(!hasDatabase)('GET /api/reference', () => {
     expect(row, 'the suite district must be in the response').toBeDefined();
     if (!row) return;
 
-    // Exactly these keys — `region` orders the list but is not part of it.
-    expect(Object.keys(row).sort()).toEqual(['id', 'nameEn', 'nameHy', 'nameRu', 'slug']);
+    // Exactly these keys — `region` is returned now too (DECISIONS.md,
+    // 2026-08-17: the District combobox groups its options by it).
+    expect(Object.keys(row).sort()).toEqual([
+      'id',
+      'nameEn',
+      'nameHy',
+      'nameRu',
+      'region',
+      'slug',
+    ]);
     expect(row.nameHy).toBe('Alpha');
+    expect(row.region).toBe(districtRegionA);
     expect(typeof row.id).toBe('number');
   });
 

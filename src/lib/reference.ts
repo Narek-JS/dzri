@@ -17,8 +17,9 @@ export type ReferenceData = { districts: District[]; categories: Category[] };
  * rules out touching any route handler — there is nowhere to extract a
  * shared function to without editing `src/app/api/reference/route.ts`.
  * The ordering must stay in sync by hand: districts by `region` then
- * `nameHy` (groups Yerevan together, marzes after), categories by
- * `position` then `slug` (API.md).
+ * `nameHy`, categories by `position` then `slug` (API.md). `region` is
+ * selected too, same as the route handler — the District combobox groups
+ * by it.
  */
 export async function getReferenceData(): Promise<ReferenceData> {
   const [districtRows, categoryRows] = await Promise.all([
@@ -29,6 +30,7 @@ export async function getReferenceData(): Promise<ReferenceData> {
         nameHy: districts.nameHy,
         nameRu: districts.nameRu,
         nameEn: districts.nameEn,
+        region: districts.region,
       })
       .from(districts)
       .orderBy(asc(districts.region), asc(districts.nameHy)),

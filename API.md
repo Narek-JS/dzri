@@ -58,7 +58,7 @@ categories).
 ```json
 {
   "districts": [
-    { "id": 7, "slug": "kentron", "nameHy": "Կենտրոն", "nameRu": "Кентрон", "nameEn": "Kentron" }
+    { "id": 7, "slug": "kentron", "nameHy": "Կենտրոն", "nameRu": "Кентрон", "nameEn": "Kentron", "region": "yerevan" }
   ],
   "categories": [
     { "id": 1, "slug": "furniture", "nameHy": "Կահույք", "nameRu": "Мебель", "nameEn": "Furniture", "icon": "🪑", "position": 0 }
@@ -66,14 +66,16 @@ categories).
 }
 ```
 
-Districts are ordered by region then `nameHy`, which groups the Yerevan
-districts together and the marzes after them. Categories are ordered by
+Districts are ordered by region then `nameHy`. Categories are ordered by
 `position` then `slug`. Render them in the order you receive them — the
 ordering is server-side so every client agrees, and the tiebreaks exist
 so two rows never swap places between requests.
 
-`region` is not returned. It orders the list; it is not a grouping field
-for the UI.
+`region` is `"yerevan"` for a Yerevan city district, otherwise the parent
+marz's slug — it is returned so the District combobox can group its
+options by it (Yerevan first, then each marz, in the order districts
+already come back in). It used to be withheld as an internal
+ordering-only column; DECISIONS.md records why that changed.
 
 `Cache-Control: public, max-age=300, stale-while-revalidate=86400`. Fetch
 it once per session and keep it.

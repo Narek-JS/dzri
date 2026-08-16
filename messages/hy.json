@@ -193,6 +193,10 @@
     "search": "Փնտրել…",
     "noResults": "Ոչինչ չի գտնվել"
   },
+  "districts": {
+    "yerevan": "Երևան",
+    "allOfMarz": "{marz} (ամբողջը)"
+  },
   "feed": {
     "filters": {
       "toggle": "Զտիչներ",

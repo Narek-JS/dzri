@@ -193,6 +193,10 @@
     "search": "Поиск…",
     "noResults": "Ничего не найдено"
   },
+  "districts": {
+    "yerevan": "Ереван",
+    "allOfMarz": "{marz} (полностью)"
+  },
   "feed": {
     "filters": {
       "toggle": "Фильтры",

@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Combobox } from '@/components/ui/Combobox';
 import { Notice } from '@/components/ui/Notice';
 import { Link } from '@/i18n/navigation';
+import { buildDistrictGroups } from '@/lib/districtGroups';
 import {
   ApiClientError,
   api,
@@ -226,6 +227,14 @@ export function CreateItemForm({ districts, categories }: Props) {
     });
   }
 
+  const { groups: districtGroups, options: districtOptions } = buildDistrictGroups({
+    districts,
+    nameOf: (district) => localizedName(district, locale),
+    valueOf: (district) => String(district.id),
+    yerevanHeading: t('districts.yerevan'),
+    allOfMarzLabel: (marz) => t('districts.allOfMarz', { marz }),
+  });
+
   const trimmedTitle = title.trim();
   const allPhotosDone = photos.length > 0 && photos.every((photo) => photo.status === 'done');
   const anyUploadInFlight = photos.some(
@@ -378,10 +387,8 @@ export function CreateItemForm({ districts, categories }: Props) {
           placeholder={t('createItem.district.placeholder')}
           searchPlaceholder={t('combobox.search')}
           emptyText={t('combobox.noResults')}
-          options={districts.map((district) => ({
-            value: String(district.id),
-            label: localizedName(district, locale),
-          }))}
+          groups={districtGroups}
+          options={districtOptions}
         />
         {districtError && <p className="text-sm text-red-700">{errorText(districtError)}</p>}
       </div>

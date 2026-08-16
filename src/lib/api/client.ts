@@ -150,7 +150,14 @@ async function apiFetch<TResponse>(path: string, init?: RequestInit): Promise<TR
 type DistrictRef = { slug: string; nameHy: string; nameRu: string; nameEn: string };
 type CategoryRef = { slug: string; nameHy: string; nameRu: string; nameEn: string };
 
-export type District = DistrictRef & { id: number };
+/**
+ * `region` lives only here, not on `DistrictRef` — that shared shape also
+ * backs the district embedded on a feed/detail item, which never selects
+ * `region` and shouldn't start leaking it just because this type grew a
+ * field. See DECISIONS.md (region-exposure reversal) for why the full
+ * reference-list row carries it now.
+ */
+export type District = DistrictRef & { id: number; region: string };
 export type Category = CategoryRef & {
   id: number;
   icon: string | null;

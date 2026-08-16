@@ -1,9 +1,16 @@
 'use client';
 
 import * as PopoverPrimitive from '@radix-ui/react-popover';
-import { Command as CommandPrimitive } from 'cmdk';
+import { Command as CommandPrimitive, useCommandState } from 'cmdk';
 
-import { useState, type ReactNode } from 'react';
+import {
+  useId,
+  useState,
+  type ChangeEvent,
+  type FocusEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 
 /**
  * cmdk tracks which item is keyboard/pointer-highlighted with a truthy
@@ -62,19 +69,31 @@ export type ComboboxOption = {
    * against the search box at all, and never hidden by it.
    */
   pinned?: boolean;
+  /** Which `ComboboxGroup.id` this option belongs to. Ignored unless the caller passes `groups`. */
+  group?: string;
 };
+
+export type ComboboxGroup = { id: string; heading: string };
 
 type ComboboxProps = {
   value: string;
   onValueChange: (value: string) => void;
   options: ComboboxOption[];
+  /**
+   * Opt-in grouping (District's region headings). Omit for a flat list
+   * (Category, which has no grouping concept) — rendering is entirely
+   * different depending on whether this is present, not just a cosmetic
+   * heading toggle.
+   */
+  groups?: ComboboxGroup[];
   searchPlaceholder: string;
   emptyText: string;
   /**
-   * Shown in the trigger when `value` matches no option — CreateItemForm's
-   * category/district shape, where there is no pinned "all" choice and
-   * `''` means nothing picked yet. Omit it when every reachable value,
-   * including `''`, is a real option in `options` (FeedFilters' shape).
+   * Native placeholder shown when nothing is selected and the field is
+   * idle — CreateItemForm's category/district shape, where `''` is a
+   * disabled placeholder, not a real option. Omitted when every reachable
+   * value, including `''`, is a real option in `options` (FeedFilters'
+   * shape, where a pinned option is always selected).
    */
   placeholder?: string;
   id?: string;
@@ -124,99 +143,264 @@ function ComboboxItem({
 }
 
 /**
- * Type-to-filter dropdown for District and Category, which outgrew plain
- * Select at 32 and ~10 options respectively — Condition stays a plain
- * Select (3 fixed values, nothing to search). Built on Radix Popover +
- * cmdk's Command rather than Radix Select, which has no text-filtering
- * story of its own.
+ * The trigger IS the editable field (Part 3 of the brief), so it must live
+ * inside `<CommandPrimitive>` to read cmdk's own highlight-tracking state
+ * via `useCommandState` for `aria-activedescendant` — the outer `Combobox`
+ * component can't call that hook itself, since it renders `CommandPrimitive`
+ * rather than being rendered inside it.
+ *
+ * This is a plain `<input>`, not cmdk's own `Command.Input`: that
+ * component hardcodes `aria-expanded="true"` unconditionally (checked
+ * against cmdk's source — the prop is set *after* the spread of passed-in
+ * props, so it cannot be overridden) and its internal search state was
+ * never actually load-bearing here anyway, since filtering already
+ * happens externally (`shouldFilter={false}` above). A controlled native
+ * input wired to this component's own state gives a real, dynamic
+ * `aria-expanded` and full control over the ARIA combobox attributes the
+ * brief asks for.
+ */
+function ComboboxAnchorInput({
+  id,
+  open,
+  displayValue,
+  nativePlaceholder,
+  disabled,
+  listboxId,
+  onFocus,
+  onClick,
+  onChange,
+  onKeyDown,
+}: {
+  id: string | undefined;
+  open: boolean;
+  displayValue: string;
+  nativePlaceholder: string | undefined;
+  disabled: boolean | undefined;
+  listboxId: string;
+  onFocus: (event: FocusEvent<HTMLInputElement>) => void;
+  onClick: (event: MouseEvent<HTMLInputElement>) => void;
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+}) {
+  const activeItemId = useCommandState((state) => state.selectedItemId);
+
+  return (
+    <input
+      id={id}
+      type="text"
+      role="combobox"
+      aria-expanded={open}
+      aria-controls={listboxId}
+      aria-autocomplete="list"
+      aria-activedescendant={activeItemId || undefined}
+      autoComplete="off"
+      autoCorrect="off"
+      spellCheck={false}
+      disabled={disabled}
+      value={displayValue}
+      placeholder={nativePlaceholder}
+      onFocus={onFocus}
+      onClick={onClick}
+      onChange={onChange}
+      onKeyDown={onKeyDown}
+      className="w-full rounded border border-neutral-300 bg-white py-2 pr-8 pl-3 text-sm text-neutral-900 outline-none focus:border-brand-strong focus:ring-1 focus:ring-brand-strong disabled:opacity-50"
+    />
+  );
+}
+
+/**
+ * Type-directly-in-the-trigger dropdown for District and Category, which
+ * outgrew plain Select at 32 (grouped by region) and ~10 options
+ * respectively — Condition stays a plain Select (3 fixed values, nothing
+ * to search). Built on Radix Popover (portal/positioning only — there is
+ * no `Popover.Trigger` here, see below) + cmdk's `Command` for
+ * keyboard-navigable, ARIA-wired list semantics.
  *
  * Styled to match Select.tsx's trigger/content exactly (border, focus
  * ring, brand-strong/brand-tint states) so the two don't read as
  * different dropdown languages.
+ *
+ * The field shows three different things depending on what's happening,
+ * all from one `search: string | null` piece of state — `null` means
+ * "not actively editing":
+ * - Idle (`search === null`): the selected option's label, or the native
+ *   `placeholder` HTML attribute if nothing is selected. This is also
+ *   what it reverts to on Escape, blur, or an outside click with no
+ *   selection made — nothing to "restore", since `search` merely being
+ *   null makes the display fall back to whatever `value` already is.
+ * - Focused, not yet typed (`search === null`, `open === true`): same
+ *   display text as idle, but the browser has just `.select()`-ed it, so
+ *   the very first keystroke replaces it outright rather than requiring
+ *   the user to clear old text by hand.
+ * - Typing (`search` is a real string): shows exactly that string and
+ *   filters the list by it.
  */
 export function Combobox({
   value,
   onValueChange,
   options,
+  groups,
   searchPlaceholder,
   emptyText,
   placeholder,
   id,
   disabled,
 }: ComboboxProps) {
+  const listboxId = useId();
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState<string | null>(null);
 
   const selected = options.find((option) => option.value === value);
-  const isPlaceholder = !selected && placeholder !== undefined;
+  const displayValue = search !== null ? search : (selected?.label ?? '');
+  const nativePlaceholder = search !== null ? searchPlaceholder : (placeholder ?? searchPlaceholder);
 
+  const query = (search ?? '').trim();
   const pinnedOptions = options.filter((option) => option.pinned);
-  const searchableOptions = options.filter((option) => !option.pinned);
-  const filteredOptions = filterOptions(searchableOptions, search);
+  const nonPinnedOptions = options.filter((option) => !option.pinned);
+
+  const groupSections = groups
+    ?.map((group) => ({
+      group,
+      items: filterOptions(
+        nonPinnedOptions.filter((option) => option.group === group.id),
+        query,
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
+
+  const flatItems = groups ? [] : filterOptions(nonPinnedOptions, query);
+  const totalMatches = groups
+    ? (groupSections?.reduce((sum, section) => sum + section.items.length, 0) ?? 0)
+    : flatItems.length;
+  const showEmpty = query.length > 0 && totalMatches === 0;
 
   function handleSelect(nextValue: string) {
     onValueChange(nextValue);
     setOpen(false);
-    setSearch('');
+    setSearch(null);
   }
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
-    if (!nextOpen) setSearch('');
+    if (!nextOpen) setSearch(null);
   }
 
-  const triggerLabel: ReactNode = selected ? selected.label : (placeholder ?? '');
+  /**
+   * Deferred a frame: selecting synchronously on focus gets silently undone
+   * by the browser's own default mouseup behavior, which places the cursor
+   * at the click point *after* focus already fired — a well-known
+   * select-on-focus-via-mouse race. Running after that settles is what
+   * actually leaves the text selected.
+   */
+  function openAndSelectAll(target: HTMLInputElement) {
+    setOpen(true);
+    requestAnimationFrame(() => target.select());
+  }
+
+  function handleFocus(event: FocusEvent<HTMLInputElement>) {
+    openAndSelectAll(event.target);
+  }
+
+  /**
+   * Selecting an option leaves the input focused (cmdk items are never
+   * DOM-focused — see the aria-activedescendant note above), so a second
+   * click afterward fires no new `focus` event at all and would otherwise
+   * do nothing. Only handles the closed case; an already-open field just
+   * lets the click place the cursor normally.
+   */
+  function handleClick(event: MouseEvent<HTMLInputElement>) {
+    if (open) return;
+    openAndSelectAll(event.currentTarget);
+  }
+
+  function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    setSearch(event.target.value);
+    if (!open) setOpen(true);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (!open && (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter')) {
+      setOpen(true);
+    }
+  }
 
   return (
-    <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange}>
-      <PopoverPrimitive.Trigger
-        id={id}
-        type="button"
-        disabled={disabled}
-        className={`flex w-full items-center justify-between gap-2 rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-strong focus:ring-1 focus:ring-brand-strong disabled:opacity-50 ${isPlaceholder ? 'text-neutral-400' : ''}`}
-      >
-        <span className="truncate">{triggerLabel}</span>
-        <ChevronIcon className="h-4 w-4 shrink-0 text-neutral-500" />
-      </PopoverPrimitive.Trigger>
-
-      <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Content
-          sideOffset={4}
-          align="start"
-          className="z-[100] flex max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] flex-col overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg"
-        >
-          <CommandPrimitive shouldFilter={false} className="flex min-h-0 flex-col">
-            <CommandPrimitive.Input
-              autoFocus
-              value={search}
-              onValueChange={setSearch}
-              placeholder={searchPlaceholder}
-              className="border-b border-neutral-200 px-3 py-2 text-sm outline-none placeholder:text-neutral-400"
+    <CommandPrimitive shouldFilter={false} className="contents">
+      <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange}>
+        <PopoverPrimitive.Anchor asChild>
+          <div className="relative">
+            <ComboboxAnchorInput
+              id={id}
+              open={open}
+              displayValue={displayValue}
+              nativePlaceholder={nativePlaceholder}
+              disabled={disabled}
+              listboxId={listboxId}
+              onFocus={handleFocus}
+              onClick={handleClick}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
             />
-            <CommandPrimitive.List className="min-h-0 overflow-y-auto p-1">
-              {pinnedOptions.map((option) => (
-                <ComboboxItem
-                  key={option.value}
-                  option={option}
-                  isSelected={option.value === value}
-                  onSelect={handleSelect}
-                />
-              ))}
-              {filteredOptions.map((option) => (
-                <ComboboxItem
-                  key={option.value}
-                  option={option}
-                  isSelected={option.value === value}
-                  onSelect={handleSelect}
-                />
-              ))}
-              {search.trim() && filteredOptions.length === 0 && (
-                <p className="px-3 py-6 text-center text-sm text-neutral-500">{emptyText}</p>
-              )}
-            </CommandPrimitive.List>
-          </CommandPrimitive>
-        </PopoverPrimitive.Content>
-      </PopoverPrimitive.Portal>
-    </PopoverPrimitive.Root>
+            <ChevronIcon className="pointer-events-none absolute top-1/2 right-2.5 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+          </div>
+        </PopoverPrimitive.Anchor>
+
+        <PopoverPrimitive.Portal>
+          <PopoverPrimitive.Content
+            sideOffset={4}
+            align="start"
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            onCloseAutoFocus={(event) => event.preventDefault()}
+            className="z-[100] flex max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] flex-col overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg"
+          >
+            <div id={listboxId} className="min-h-0 overflow-y-auto p-1">
+              <CommandPrimitive.List>
+                {pinnedOptions.map((option) => (
+                  <ComboboxItem
+                    key={option.value}
+                    option={option}
+                    isSelected={option.value === value}
+                    onSelect={handleSelect}
+                  />
+                ))}
+
+                {groups
+                  ? groupSections?.map(({ group, items }) => (
+                      <CommandPrimitive.Group
+                        key={group.id}
+                        heading={
+                          <span className="block px-3 pt-3 pb-1 text-xs font-semibold text-neutral-500">
+                            {group.heading}
+                          </span>
+                        }
+                      >
+                        {items.map((option) => (
+                          <ComboboxItem
+                            key={option.value}
+                            option={option}
+                            isSelected={option.value === value}
+                            onSelect={handleSelect}
+                          />
+                        ))}
+                      </CommandPrimitive.Group>
+                    ))
+                  : flatItems.map((option) => (
+                      <ComboboxItem
+                        key={option.value}
+                        option={option}
+                        isSelected={option.value === value}
+                        onSelect={handleSelect}
+                      />
+                    ))}
+
+                {showEmpty && (
+                  <p className="px-3 py-6 text-center text-sm text-neutral-500">{emptyText}</p>
+                )}
+              </CommandPrimitive.List>
+            </div>
+          </PopoverPrimitive.Content>
+        </PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
+    </CommandPrimitive>
   );
 }

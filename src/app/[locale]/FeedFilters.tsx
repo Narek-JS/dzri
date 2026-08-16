@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Combobox } from '@/components/ui/Combobox';
 import { Select } from '@/components/ui/Select';
 import { usePathname, useRouter } from '@/i18n/navigation';
+import { buildDistrictGroups } from '@/lib/districtGroups';
 
 import type { Category, District } from '@/lib/api/client';
 import type { ItemCondition } from '@/db/schema';
@@ -66,6 +67,14 @@ function FilterFields({
 }) {
   const t = useTranslations();
 
+  const { groups: districtGroups, options: districtOptions } = buildDistrictGroups({
+    districts,
+    nameOf: (district) => localizedName(district, locale),
+    valueOf: (district) => district.slug,
+    yerevanHeading: t('districts.yerevan'),
+    allOfMarzLabel: (marz) => t('districts.allOfMarz', { marz }),
+  });
+
   return (
     <>
       <div className="flex flex-1 flex-col gap-1">
@@ -78,12 +87,10 @@ function FilterFields({
           onValueChange={(value) => onChange('district', value)}
           searchPlaceholder={t('combobox.search')}
           emptyText={t('combobox.noResults')}
+          groups={districtGroups}
           options={[
             { value: '', label: t('feed.filters.district.all'), pinned: true },
-            ...districts.map((option) => ({
-              value: option.slug,
-              label: localizedName(option, locale),
-            })),
+            ...districtOptions,
           ]}
         />
       </div>

@@ -24,14 +24,12 @@ const CACHE = 'public, max-age=300, stale-while-revalidate=86400';
  * whole thing is one cached payload.
  *
  * Ordering is server-side so every client renders the same list. Districts by
- * `region` then `nameHy`, which groups the Yerevan districts together and the
- * marzes after them, alphabetically within each. Categories by `position` then
- * `slug` — `position` is the editorial order, and the slug tiebreak keeps two
- * categories sharing a position from swapping places between requests.
- *
- * `region` is deliberately not returned. It orders the rows here; a client that
- * needs to group by it should get an explicit grouping field designed for that,
- * not a column whose values are internal slugs.
+ * `region` then `nameHy`. `region` itself is returned now too (see
+ * DECISIONS.md, region-exposure reversal) because the District combobox
+ * groups its options by it — Yerevan, then each marz. Categories by
+ * `position` then `slug` — `position` is the editorial order, and the slug
+ * tiebreak keeps two categories sharing a position from swapping places
+ * between requests.
  *
  * No user data is touched on this path, so there is no phone to leak and no
  * session to read.
@@ -45,6 +43,7 @@ export async function GET(): Promise<NextResponse> {
         nameHy: districts.nameHy,
         nameRu: districts.nameRu,
         nameEn: districts.nameEn,
+        region: districts.region,
       })
       .from(districts)
       .orderBy(asc(districts.region), asc(districts.nameHy)),

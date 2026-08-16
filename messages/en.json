@@ -193,6 +193,10 @@
     "search": "Search…",
     "noResults": "No matches"
   },
+  "districts": {
+    "yerevan": "Yerevan",
+    "allOfMarz": "All of {marz}"
+  },
   "feed": {
     "filters": {
       "toggle": "Filters",

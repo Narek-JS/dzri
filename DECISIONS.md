@@ -619,3 +619,24 @@ Confirmed live on 2026-08-16: `POST /api/v1/send` with a
 200 and actually delivers. `MESSAGGIO_SECRET_KEY` is provisioned and
 read into the environment but unused by this call — kept for a future
 requirement, not wired to anything yet.
+
+### 2026-08-17 — `GET /api/reference` returns `region` again
+
+Districts now carry `region` in the API response. It was deliberately
+withheld before — that reasoning lived in the route handler's own doc
+comment, not a standalone entry here, so there is nothing above to
+correct: it said `region` "orders the list; it is not a grouping field
+for the UI," and a client that needed to group by it should get "an
+explicit grouping field designed for that, not a column whose values
+are internal slugs."
+
+That was correct for what existed then — nothing grouped by it. It is
+superseded, not wrong, now that the District combobox does: it renders
+its options under region headings (Yerevan first, then each marz), and
+`region` already carries exactly the right partition —`'yerevan'` for a
+Yerevan city district, otherwise the parent marz's slug, per
+`src/db/schema/reference.ts`'s own comment on the column. Adding a
+second, parallel field to describe the same partition just to avoid
+returning a column that already is one would be a distinction without a
+difference, and one more shape to keep hand-in-sync with the district
+table.
