@@ -4,6 +4,8 @@ import { useState } from 'react';
 
 import { useTranslations } from 'next-intl';
 
+import { Button } from '@/components/ui/Button';
+import { Notice } from '@/components/ui/Notice';
 import { apiErrorMessageKey } from '@/lib/api/client';
 import { relativeTimeMessage } from '@/lib/relativeTime';
 
@@ -71,50 +73,46 @@ export function PendingClaimRow({ claim, now, busy, errorCode, onApprove, onReje
       )}
 
       {confirmingApprove ? (
-        <div className="flex flex-col gap-2 rounded border border-brand-strong bg-brand-tint p-3">
+        <Notice tone="brand" size="sm" className="flex flex-col gap-2">
           <p className="text-sm font-medium text-neutral-900">
             {t('itemClaims.approve.confirmTitle', { name: claim.claimant.displayName })}
           </p>
           <p className="text-sm text-neutral-700">{t('itemClaims.approve.confirmDescription')}</p>
           <div className="flex flex-wrap gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setConfirmingApprove(false)}
               disabled={busy}
-              className="rounded border border-neutral-300 px-3 py-2 text-sm font-medium disabled:opacity-50"
             >
               {t('itemClaims.approve.cancel')}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
               onClick={onApprove}
               disabled={busy}
               aria-busy={busy}
-              className="rounded bg-brand px-3 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
             >
               {t('itemClaims.approve.submit')}
-            </button>
+            </Button>
           </div>
-        </div>
+        </Notice>
       ) : (
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setConfirmingApprove(true)}
-            disabled={busy}
-            className="rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
-          >
+          <Button type="button" onClick={() => setConfirmingApprove(true)} disabled={busy}>
             {t('itemClaims.approve.open')}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="danger"
             onClick={onReject}
             disabled={busy}
             aria-busy={busy}
-            className="rounded border border-red-300 px-4 py-2 text-sm font-medium text-red-700 disabled:opacity-50"
           >
             {t('itemClaims.reject')}
-          </button>
+          </Button>
         </div>
       )}
     </li>

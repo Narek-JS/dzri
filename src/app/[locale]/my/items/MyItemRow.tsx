@@ -6,6 +6,8 @@ import Image from 'next/image';
 
 import { useTranslations } from 'next-intl';
 
+import { Button, buttonClassName } from '@/components/ui/Button';
+import { Notice, noticeClassName } from '@/components/ui/Notice';
 import { Link } from '@/i18n/navigation';
 import { apiErrorMessageKey } from '@/lib/api/client';
 import { relativeTimeMessage } from '@/lib/relativeTime';
@@ -87,9 +89,11 @@ export function MyItemRow({
 
   return (
     <li
-      className={`flex flex-col gap-3 rounded border p-4 ${
-        waiting ? 'border-brand-strong bg-brand-tint' : 'border-neutral-300'
-      }`}
+      className={
+        waiting
+          ? noticeClassName({ tone: 'brand', className: 'flex flex-col gap-3' })
+          : 'flex flex-col gap-3 rounded border border-neutral-300 p-4'
+      }
     >
       <div className="flex items-start gap-3">
         <div className="relative size-16 shrink-0 overflow-hidden rounded bg-neutral-100 sm:size-20">
@@ -130,12 +134,12 @@ export function MyItemRow({
           preserved because an admin may have written more than one line, and
           `break-words` because nothing constrains what they typed. */}
       {item.status === 'rejected' && item.rejectionReason && (
-        <div className="flex flex-col gap-1 rounded border border-neutral-300 bg-white p-3">
+        <Notice tone="subtle" size="sm" className="flex flex-col gap-1">
           <span className="text-xs text-neutral-600">{t('myItems.rejectionReason.label')}</span>
           <p className="text-sm break-words whitespace-pre-wrap text-neutral-900">
             {item.rejectionReason}
           </p>
-        </div>
+        </Notice>
       )}
 
       {waiting ? (
@@ -143,10 +147,7 @@ export function MyItemRow({
           <span className="text-sm font-medium text-brand-strong">
             {t('common.pendingClaimCount', { count: item.pendingClaimCount })}
           </span>
-          <Link
-            href={claimsHref}
-            className="rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900"
-          >
+          <Link href={claimsHref} className={buttonClassName()}>
             {t('myItems.claims.decide')}
           </Link>
         </div>
@@ -176,7 +177,7 @@ export function MyItemRow({
 
       {isRemovable(item) &&
         (confirming ? (
-          <div className="flex flex-col gap-2 rounded border border-neutral-400 bg-white p-3">
+          <Notice tone="strong" size="sm" className="flex flex-col gap-2">
             <p className="text-sm font-medium text-neutral-900">
               {t('myItems.delete.confirmTitle')}
             </p>
@@ -189,35 +190,37 @@ export function MyItemRow({
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setConfirming(false)}
                 disabled={busy}
-                className="rounded border border-neutral-300 px-3 py-2 text-sm font-medium disabled:opacity-50"
               >
                 {t('myItems.delete.cancel')}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="danger"
+                size="sm"
                 onClick={onDelete}
                 disabled={busy}
                 aria-busy={busy}
-                className="rounded border border-red-300 px-3 py-2 text-sm font-medium text-red-700 disabled:opacity-50"
               >
                 {t('myItems.delete.submit')}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Notice>
         ) : (
           <div className="flex">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setConfirming(true)}
               disabled={busy}
-              className="rounded border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-800 disabled:opacity-50"
             >
               {t('myItems.delete.open')}
-            </button>
+            </Button>
           </div>
         ))}
     </li>

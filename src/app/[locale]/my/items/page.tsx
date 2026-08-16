@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
+import { buttonClassName } from '@/components/ui/Button';
 import { containerClassName } from '@/components/ui/Container';
 import { Link, redirect } from '@/i18n/navigation';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
@@ -89,10 +90,7 @@ export default async function MyItemsPage({ params }: { params: Promise<LocalePa
         <div className="flex flex-col items-center gap-2 py-16 text-center">
           <p className="text-lg font-medium text-neutral-800">{t('myItems.empty.title')}</p>
           <p className="text-sm text-neutral-600">{t('myItems.empty.description')}</p>
-          <Link
-            href="/items/new"
-            className="mt-2 rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900"
-          >
+          <Link href="/items/new" className={buttonClassName({ className: 'mt-2' })}>
             {t('myItems.empty.cta')}
           </Link>
         </div>

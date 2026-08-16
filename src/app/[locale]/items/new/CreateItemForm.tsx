@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 
 import { useLocale, useTranslations } from 'next-intl';
 
+import { Notice } from '@/components/ui/Notice';
 import { Select } from '@/components/ui/Select';
 import { Link } from '@/i18n/navigation';
 import {
@@ -293,7 +294,7 @@ export function CreateItemForm({ districts, categories }: Props) {
 
   if (createdItemId) {
     return (
-      <div className="flex flex-col gap-3 rounded border border-brand-strong bg-brand-tint p-6">
+      <Notice tone="brand" size="lg" className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-brand-strong">{t('createItem.success.title')}</h2>
         <p className="text-sm text-neutral-700">{t('createItem.success.description')}</p>
         <div className="flex gap-4 text-sm">
@@ -304,7 +305,7 @@ export function CreateItemForm({ districts, categories }: Props) {
             {t('createItem.success.viewMyItems')}
           </Link>
         </div>
-      </div>
+      </Notice>
     );
   }
 

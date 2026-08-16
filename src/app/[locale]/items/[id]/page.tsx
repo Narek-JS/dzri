@@ -2,6 +2,7 @@ import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/serve
 import { notFound } from 'next/navigation';
 
 import { containerClassName } from '@/components/ui/Container';
+import { noticeClassName, Notice } from '@/components/ui/Notice';
 import { Link } from '@/i18n/navigation';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { getSession } from '@/lib/auth/session';
@@ -161,7 +162,7 @@ export default async function ItemDetailPage({
       <ItemGallery images={item.images} title={item.title} />
 
       {isOwner && item.status === 'pending_review' && (
-        <div className="flex items-center gap-3 rounded border border-neutral-300 bg-neutral-50 p-4 text-neutral-700">
+        <Notice tone="neutral" className="flex items-center gap-3 text-neutral-700">
           <ClockIcon />
           <div className="flex flex-col">
             <span className="text-sm font-medium">
@@ -169,17 +170,17 @@ export default async function ItemDetailPage({
             </span>
             <span className="text-sm">{t('itemDetail.banner.pendingReview.description')}</span>
           </div>
-        </div>
+        </Notice>
       )}
 
       {isOwner && item.status === 'rejected' && (
-        <div className="flex items-start gap-3 rounded border border-red-300 bg-red-50 p-4 text-red-800">
+        <Notice tone="error" className="flex items-start gap-3 text-red-800">
           <AlertIcon />
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium">{t('itemDetail.banner.rejected.title')}</span>
             <span className="text-sm">{item.rejectionReason}</span>
           </div>
-        </div>
+        </Notice>
       )}
 
       {claimsLink && (
@@ -187,8 +188,15 @@ export default async function ItemDetailPage({
           href={`/items/${item.id}/claims`}
           className={
             claimsLink.highlight
-              ? 'flex items-center gap-3 rounded border border-brand-strong bg-brand-tint p-4 text-brand-strong hover:opacity-90'
-              : 'flex items-center gap-3 rounded border border-neutral-300 bg-neutral-50 p-4 text-neutral-700 hover:border-brand-strong hover:text-brand-strong'
+              ? noticeClassName({
+                  tone: 'brand',
+                  className: 'flex items-center gap-3 text-brand-strong hover:opacity-90',
+                })
+              : noticeClassName({
+                  tone: 'neutral',
+                  className:
+                    'flex items-center gap-3 text-neutral-700 hover:border-brand-strong hover:text-brand-strong',
+                })
           }
         >
           <ListIcon />
@@ -199,7 +207,7 @@ export default async function ItemDetailPage({
       )}
 
       {isEntitledClaimant && (
-        <div className="flex items-center gap-3 rounded border border-brand-strong bg-brand-tint p-4 text-brand-strong">
+        <Notice tone="brand" className="flex items-center gap-3 text-brand-strong">
           <CheckIcon />
           <div className="flex flex-col">
             <span className="text-sm font-medium">
@@ -207,7 +215,7 @@ export default async function ItemDetailPage({
             </span>
             <span className="text-sm">{t('itemDetail.banner.reservedForYou.description')}</span>
           </div>
-        </div>
+        </Notice>
       )}
 
       <div className="flex flex-col gap-2">

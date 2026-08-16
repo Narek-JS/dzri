@@ -2,7 +2,7 @@ import { forwardRef } from 'react';
 
 import type { ButtonHTMLAttributes } from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger';
 export type ButtonSize = 'md' | 'sm';
 
 const BASE = 'inline-flex items-center justify-center font-medium transition-colors';
@@ -11,10 +11,19 @@ const BASE = 'inline-flex items-center justify-center font-medium transition-col
 // near-black text, never white — neutral-900 is a built-in Tailwind
 // token, not a raw hex, so it doesn't trip the no-raw-hex rule. White
 // text is only safe on the darker brand-strong fill.
+//
+// `outline` and `danger` are bordered, unfilled buttons — the shape every
+// cancel/delete/withdraw/reject/no-show/load-more action on the site had
+// been hand-rolling identically instead of sharing. BRAND.md: red means
+// destructive/error, never the brand hue, so `danger` is the only variant
+// that reaches for it.
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'rounded bg-brand text-neutral-900 hover:brightness-95 disabled:opacity-50',
   secondary: 'rounded bg-brand-strong text-white hover:brightness-110 disabled:opacity-50',
   ghost: 'text-brand-strong hover:underline disabled:text-neutral-400 disabled:no-underline',
+  outline:
+    'rounded border border-neutral-300 text-neutral-800 hover:bg-neutral-50 disabled:opacity-50',
+  danger: 'rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {

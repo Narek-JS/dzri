@@ -2,6 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 
+import { Button } from '@/components/ui/Button';
+import { Notice } from '@/components/ui/Notice';
 import { apiErrorMessageKey } from '@/lib/api/client';
 import { countdownMessage } from '@/lib/relativeTime';
 
@@ -56,27 +58,27 @@ export function HandoverView({
   const claimantPhone = claim.claimant.phone;
 
   return (
-    <div className="flex flex-col gap-4 rounded border border-brand-strong bg-brand-tint p-4">
+    <Notice tone="brand" className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <p className="text-sm font-medium text-brand-strong">{t('itemClaims.handover.title')}</p>
         <p className="text-sm text-neutral-700">{t('itemClaims.handover.description')}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1 rounded border border-neutral-300 bg-white p-3">
+        <Notice tone="subtle" size="sm" className="flex flex-col gap-1">
           <span className="text-xs text-neutral-600">{t('itemClaims.handover.yourNumber')}</span>
           <a href={`tel:${giverPhone}`} className="text-lg font-semibold text-neutral-900">
             {giverPhone}
           </a>
-        </div>
-        <div className="flex flex-col gap-1 rounded border border-neutral-300 bg-white p-3">
+        </Notice>
+        <Notice tone="subtle" size="sm" className="flex flex-col gap-1">
           <span className="text-xs text-neutral-600">{t('itemClaims.handover.theirNumber')}</span>
           {claimantPhone && (
             <a href={`tel:${claimantPhone}`} className="text-lg font-semibold text-neutral-900">
               {claimantPhone}
             </a>
           )}
-        </div>
+        </Notice>
       </div>
 
       <div className="flex flex-col gap-0.5">
@@ -98,25 +100,13 @@ export function HandoverView({
       )}
 
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onComplete}
-          disabled={busy}
-          aria-busy={busy}
-          className="rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
-        >
+        <Button type="button" onClick={onComplete} disabled={busy} aria-busy={busy}>
           {t('itemClaims.handover.complete')}
-        </button>
-        <button
-          type="button"
-          onClick={onNoShow}
-          disabled={busy}
-          aria-busy={busy}
-          className="rounded border border-red-300 px-4 py-2 text-sm font-medium text-red-700 disabled:opacity-50"
-        >
+        </Button>
+        <Button type="button" variant="danger" onClick={onNoShow} disabled={busy} aria-busy={busy}>
           {t('itemClaims.handover.noShow')}
-        </button>
+        </Button>
       </div>
-    </div>
+    </Notice>
   );
 }

@@ -4,6 +4,8 @@ import { useCallback, useState } from 'react';
 
 import { useTranslations } from 'next-intl';
 
+import { Button } from '@/components/ui/Button';
+import { Notice } from '@/components/ui/Notice';
 import { ApiClientError, api, apiErrorMessageKey } from '@/lib/api/client';
 
 import { MyItemRow } from './MyItemRow';
@@ -158,9 +160,11 @@ export function MyItemsList({ initialItems, initialNextCursor, initialNow }: Pro
   return (
     <div className="flex flex-col gap-4">
       {refreshedNotice && (
-        <div
+        <Notice
+          tone="neutral"
+          size="compact"
           role="status"
-          className="flex items-center justify-between gap-3 rounded border border-neutral-300 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
+          className="flex items-center justify-between gap-3 text-sm text-neutral-700"
         >
           <span>{t('myItems.refreshed')}</span>
           <button
@@ -171,7 +175,7 @@ export function MyItemsList({ initialItems, initialNextCursor, initialNow }: Pro
           >
             ×
           </button>
-        </div>
+        </Notice>
       )}
 
       <ul className="flex flex-col gap-3">
@@ -194,19 +198,19 @@ export function MyItemsList({ initialItems, initialNextCursor, initialNow }: Pro
               {t(apiErrorMessageKey(errorCode ?? 'INTERNAL') as Parameters<typeof t>[0])}
             </p>
           )}
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => void loadMore()}
             disabled={status === 'loading'}
             aria-busy={status === 'loading'}
-            className="rounded border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
             {status === 'loading'
               ? t('myItems.loadingMore')
               : status === 'error'
                 ? t('error.retry')
                 : t('myItems.loadMore')}
-          </button>
+          </Button>
         </div>
       )}
     </div>

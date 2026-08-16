@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 
 import { useTranslations } from 'next-intl';
 
+import { Notice } from '@/components/ui/Notice';
 import { ApiClientError, api } from '@/lib/api/client';
 
 import { GivenView } from './GivenView';
@@ -272,9 +273,11 @@ export function ClaimsBoard({
 
       <div className="flex flex-col gap-4">
         {refreshedNotice && (
-          <div
+          <Notice
+            tone="neutral"
+            size="compact"
             role="status"
-            className="flex items-center justify-between gap-3 rounded border border-neutral-300 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
+            className="flex items-center justify-between gap-3 text-sm text-neutral-700"
           >
             <span>{t('itemClaims.refreshed')}</span>
             <button
@@ -285,7 +288,7 @@ export function ClaimsBoard({
             >
               ×
             </button>
-          </div>
+          </Notice>
         )}
 
         {approvedClaim && giverPhone && reservedUntil ? (

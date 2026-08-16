@@ -4,6 +4,8 @@ import { useState, type FormEvent } from 'react';
 
 import { useTranslations } from 'next-intl';
 
+import { buttonClassName } from '@/components/ui/Button';
+import { Notice } from '@/components/ui/Notice';
 import { Link } from '@/i18n/navigation';
 import { ApiClientError, api, apiErrorMessageKey } from '@/lib/api/client';
 import { useSession } from '@/lib/auth/sessionContext';
@@ -42,7 +44,7 @@ export function ClaimButton({ itemId }: { itemId: string }) {
     return (
       <Link
         href={{ pathname: '/login', query: { next: `/items/${itemId}` } }}
-        className="inline-block w-fit rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900"
+        className={buttonClassName({ className: 'w-fit' })}
       >
         {t('itemDetail.claim.submit')}
       </Link>
@@ -51,7 +53,7 @@ export function ClaimButton({ itemId }: { itemId: string }) {
 
   if (status === 'sent' || status === 'alreadyClaimed') {
     return (
-      <div className="flex flex-col gap-1 rounded border border-brand-strong bg-brand-tint p-4">
+      <Notice tone="brand" className="flex flex-col gap-1">
         <p className="text-sm font-medium text-brand-strong">
           {status === 'sent'
             ? t('itemDetail.claim.success.title')
@@ -62,7 +64,7 @@ export function ClaimButton({ itemId }: { itemId: string }) {
             ? t('itemDetail.claim.success.description')
             : t('itemDetail.claim.alreadyClaimed.description')}
         </p>
-      </div>
+      </Notice>
     );
   }
 
@@ -108,7 +110,7 @@ export function ClaimButton({ itemId }: { itemId: string }) {
       <button
         type="submit"
         disabled={status === 'submitting'}
-        className="w-fit rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
+        className={buttonClassName({ className: 'w-fit' })}
       >
         {t('itemDetail.claim.submit')}
       </button>

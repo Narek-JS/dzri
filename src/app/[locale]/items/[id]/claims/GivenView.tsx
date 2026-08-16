@@ -2,6 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 
+import { Notice } from '@/components/ui/Notice';
+
 import type { ClaimForOwner } from '@/lib/api/client';
 
 /**
@@ -14,11 +16,11 @@ export function GivenView({ claim }: { claim: ClaimForOwner }) {
   const t = useTranslations();
 
   return (
-    <div className="flex flex-col gap-1 rounded border border-neutral-300 bg-neutral-50 p-4">
+    <Notice tone="neutral" className="flex flex-col gap-1">
       <p className="text-sm font-medium text-neutral-900">{t('itemClaims.given.title')}</p>
       <p className="text-sm text-neutral-700">
         {t('itemClaims.given.description', { name: claim.claimant.displayName })}
       </p>
-    </div>
+    </Notice>
   );
 }

@@ -6,6 +6,8 @@ import Image from 'next/image';
 
 import { useTranslations } from 'next-intl';
 
+import { Button } from '@/components/ui/Button';
+import { Notice, noticeClassName } from '@/components/ui/Notice';
 import { Link } from '@/i18n/navigation';
 import { apiErrorMessageKey } from '@/lib/api/client';
 import { relativeTimeMessage } from '@/lib/relativeTime';
@@ -78,9 +80,11 @@ export function MyClaimRow({
 
   return (
     <li
-      className={`flex flex-col gap-3 rounded border p-4 ${
-        isApproved ? 'border-brand-strong bg-brand-tint' : 'border-neutral-300'
-      }`}
+      className={
+        isApproved
+          ? noticeClassName({ tone: 'brand', className: 'flex flex-col gap-3' })
+          : 'flex flex-col gap-3 rounded border border-neutral-300 p-4'
+      }
     >
       <div className="flex items-start gap-3">
         <div className="relative size-16 shrink-0 overflow-hidden rounded bg-neutral-100 sm:size-20">
@@ -130,13 +134,13 @@ export function MyClaimRow({
       </div>
 
       {giverPhone && (
-        <div className="flex flex-col gap-0.5 rounded border border-neutral-300 bg-white p-3">
+        <Notice tone="subtle" size="sm" className="flex flex-col gap-0.5">
           <span className="text-xs text-neutral-600">{t('myClaims.giverPhone.label')}</span>
           <span className="text-sm text-neutral-900">{claim.giver.displayName}</span>
           <a href={`tel:${giverPhone}`} className="text-lg font-semibold text-neutral-900">
             {giverPhone}
           </a>
-        </div>
+        </Notice>
       )}
 
       {errorCode && (
@@ -147,7 +151,7 @@ export function MyClaimRow({
 
       {isWithdrawable(claim) &&
         (confirming ? (
-          <div className="flex flex-col gap-2 rounded border border-neutral-400 bg-white p-3">
+          <Notice tone="strong" size="sm" className="flex flex-col gap-2">
             <p className="text-sm font-medium text-neutral-900">
               {t('myClaims.withdraw.confirmTitle')}
             </p>
@@ -157,35 +161,37 @@ export function MyClaimRow({
                 : t('myClaims.withdraw.confirmPending', { name: claim.giver.displayName })}
             </p>
             <div className="flex flex-wrap gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setConfirming(false)}
                 disabled={busy}
-                className="rounded border border-neutral-300 px-3 py-2 text-sm font-medium disabled:opacity-50"
               >
                 {t('myClaims.withdraw.cancel')}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="danger"
+                size="sm"
                 onClick={onWithdraw}
                 disabled={busy}
                 aria-busy={busy}
-                className="rounded border border-red-300 px-3 py-2 text-sm font-medium text-red-700 disabled:opacity-50"
               >
                 {t('myClaims.withdraw.submit')}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Notice>
         ) : (
           <div className="flex">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setConfirming(true)}
               disabled={busy}
-              className="rounded border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-800 disabled:opacity-50"
             >
               {t('myClaims.withdraw.open')}
-            </button>
+            </Button>
           </div>
         ))}
     </li>
