@@ -54,6 +54,27 @@ function CheckIcon() {
   );
 }
 
+type SelectVariant = 'field' | 'compact';
+
+/**
+ * 'field' (default) is the form-control shape: the trigger fills its
+ * container and the dropdown is pinned to the trigger's own width via
+ * Radix's `--radix-select-trigger-width` var — District/Category/
+ * Condition/CreateItemForm all want this. 'compact' is for a small
+ * icon-plus-label trigger (LanguageSwitcher) that must NOT stretch to
+ * fill a flex row, and whose dropdown needs its own sane minimum rather
+ * than being squeezed to the trigger's deliberately narrow width.
+ */
+const TRIGGER_WIDTH_CLASSES: Record<SelectVariant, string> = {
+  field: 'w-full',
+  compact: 'w-auto',
+};
+
+const CONTENT_WIDTH_CLASSES: Record<SelectVariant, string> = {
+  field: 'w-[var(--radix-select-trigger-width)]',
+  compact: 'min-w-40',
+};
+
 type SelectProps = {
   value: string;
   onValueChange: (value: string) => void;
@@ -72,6 +93,18 @@ type SelectProps = {
   id?: string;
   disabled?: boolean;
   'aria-label'?: string;
+  variant?: SelectVariant;
+  /** Rendered before the value inside the trigger, e.g. an icon. */
+  triggerIcon?: ReactNode;
+  /**
+   * Overrides what the trigger shows for the current value. Without it,
+   * the trigger auto-displays the selected `Select.Item`'s own children
+   * (Radix teleports that item's text into the trigger). Pass this when
+   * the trigger needs to show something other than the matching item's
+   * label — LanguageSwitcher shows a short code in the trigger but the
+   * full native name in the open list.
+   */
+  triggerLabel?: ReactNode;
 };
 
 function SelectRoot({
@@ -81,6 +114,9 @@ function SelectRoot({
   placeholder,
   id,
   disabled,
+  variant = 'field',
+  triggerIcon,
+  triggerLabel,
   ...triggerProps
 }: SelectProps) {
   const hasPlaceholder = placeholder !== undefined;
@@ -94,10 +130,13 @@ function SelectRoot({
     <SelectPrimitive.Root value={radixValue} onValueChange={handleValueChange} disabled={disabled}>
       <SelectPrimitive.Trigger
         id={id}
-        className="flex w-full items-center justify-between gap-2 rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-strong focus:ring-1 focus:ring-brand-strong disabled:opacity-50 data-[placeholder]:text-neutral-400"
+        className={`flex items-center justify-between gap-2 rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-strong focus:ring-1 focus:ring-brand-strong disabled:opacity-50 data-[placeholder]:text-neutral-400 ${TRIGGER_WIDTH_CLASSES[variant]}`}
         {...triggerProps}
       >
-        <SelectPrimitive.Value placeholder={placeholder} />
+        <span className="flex items-center gap-1.5">
+          {triggerIcon}
+          <SelectPrimitive.Value placeholder={placeholder}>{triggerLabel}</SelectPrimitive.Value>
+        </span>
         <SelectPrimitive.Icon>
           <ChevronIcon className="h-4 w-4 shrink-0 text-neutral-500" />
         </SelectPrimitive.Icon>
@@ -107,7 +146,7 @@ function SelectRoot({
         <SelectPrimitive.Content
           position="popper"
           sideOffset={4}
-          className="z-[100] w-[var(--radix-select-trigger-width)] max-h-[var(--radix-select-content-available-height)] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg"
+          className={`z-[100] max-h-[var(--radix-select-content-available-height)] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg ${CONTENT_WIDTH_CLASSES[variant]}`}
         >
           <SelectPrimitive.ScrollUpButton className="flex items-center justify-center py-1 text-neutral-500">
             <ChevronIcon className="h-4 w-4 rotate-180" />

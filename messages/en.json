@@ -10,7 +10,12 @@
     "label": "Language",
     "hy": "Armenian",
     "ru": "Russian",
-    "en": "English"
+    "en": "English",
+    "short": {
+      "hy": "ՀԱՅ",
+      "ru": "РУС",
+      "en": "EN"
+    }
   },
   "nav": {
     "feed": "Items",
