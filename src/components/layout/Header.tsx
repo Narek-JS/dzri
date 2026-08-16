@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 
 import { buttonClassName } from '@/components/ui/Button';
 import { containerClassName } from '@/components/ui/Container';
@@ -51,8 +52,19 @@ export function Header() {
       >
         {/* Primary navigation cluster: wordmark plus the content links. */}
         <div className="flex items-center gap-4 sm:gap-10">
-          <Link href="/" className="font-wordmark text-xl text-brand-strong lowercase">
-            {t('shell.wordmark')}
+          <Link href="/" className="flex items-center">
+            {/* SVG source is a real vector lockup (icon + wordmark) — not
+                optimized through the raster pipeline since it doesn't need
+                resizing/format conversion, only CSS-driven scaling. */}
+            <Image
+              src="/dzri-icon.svg"
+              alt={t('shell.wordmark')}
+              width={1280}
+              height={427}
+              unoptimized
+              priority
+              className="h-8 w-auto sm:h-9"
+            />
           </Link>
           <Nav />
         </div>

@@ -41,6 +41,13 @@ import { manrope, notoSans, notoSansArmenian } from '@/lib/fonts';
  */
 export const dynamic = 'force-dynamic';
 
+/** OG locale tags (`language_TERRITORY`) for the three routing.locales. */
+const OG_LOCALES: Record<(typeof routing.locales)[number], string> = {
+  hy: 'hy_AM',
+  ru: 'ru_RU',
+  en: 'en_US',
+};
+
 export async function generateMetadata({
   params,
 }: {
@@ -49,9 +56,31 @@ export async function generateMetadata({
   const locale = resolveLocale((await params).locale);
   const t = await getTranslations({ locale, namespace: 'shell' });
 
+  const wordmark = t('wordmark');
+  const bio = t('bio');
+  // `localePrefix: 'as-needed'` (src/i18n/routing.ts) — hy is the bare root,
+  // ru/en get a path prefix.
+  const path = locale === routing.defaultLocale ? '/' : `/${locale}`;
+  const otherLocales = routing.locales.filter((candidate) => candidate !== locale);
+
   return {
-    title: t('wordmark'),
+    metadataBase: new URL('https://dzri.am'),
+    title: wordmark,
     description: t('footer.tagline'),
+    openGraph: {
+      title: wordmark,
+      description: bio,
+      url: path,
+      siteName: wordmark,
+      locale: OG_LOCALES[locale],
+      alternateLocale: otherLocales.map((candidate) => OG_LOCALES[candidate]),
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: wordmark,
+      description: bio,
+    },
   };
 }
 

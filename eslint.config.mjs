@@ -46,6 +46,18 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // next/og's ImageResponse renders through Satori, which paints from
+    // inline style objects only — no Tailwind classes, no CSS custom
+    // properties, so the brand tokens literally cannot be referenced here.
+    // The hex values are either hand-copied from globals.css's token
+    // definitions or, for the logo mark itself, copied from the source
+    // SVG asset — see the comment above LOCKUP_PATH in that file.
+    files: ['src/app/**/opengraph-image.tsx'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
 ]);
 
 export default eslintConfig;
