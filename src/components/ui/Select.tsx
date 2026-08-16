@@ -107,7 +107,7 @@ function SelectRoot({
         <SelectPrimitive.Content
           position="popper"
           sideOffset={4}
-          className="z-[100] max-h-[var(--radix-select-content-available-height)] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg"
+          className="z-[100] w-[var(--radix-select-trigger-width)] max-h-[var(--radix-select-content-available-height)] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg"
         >
           <SelectPrimitive.ScrollUpButton className="flex items-center justify-center py-1 text-neutral-500">
             <ChevronIcon className="h-4 w-4 rotate-180" />

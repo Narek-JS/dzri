@@ -20,7 +20,7 @@
   },
   "session": {
     "login": "Войти",
-    "signedInAs": "Вы вошли как {name}",
+    "signedInAs": "Вы вошли как <chip>{name}</chip>",
     "logout": "Выйти"
   },
   "login": {
