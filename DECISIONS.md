@@ -94,7 +94,6 @@ OTP verify, and image upload.
 
 ## Open questions
 
-- SMS gateway vendor and per-message price — not yet answered.
 - Revenue model. The platform has none by design. The likely wedge
   is paid haul-away for people who want the item gone regardless of
   whether anyone claims it. Not built, not decided.
@@ -600,3 +599,23 @@ remaining two statements by hand, and insert the matching row into
 from `db:migrate` again should go straight to calling `migrate()` from
 `drizzle-orm/neon-http/migrator` directly rather than re-running the CLI
 blind — the CLI will keep saying nothing.
+
+### 2026-08-16 — SMS gateway vendor chosen: Messaggio
+
+Answers the open question recorded on 2026-07-31. SMS.to rejected the
+application because the applicant is an individual, not a registered
+company. Twilio and Plivo both price +374 delivery at roughly
+$0.25–0.30 per SMS regardless of vendor — high enough, per the original
+entry, to change the auth design. Messaggio accepted the application
+and offers per-operator pricing instead of a single blended rate:
+Beeline ~€0.085, Karabakh Telecom ~€0.115, MTS ~€0.145, Ucom ~€0.312.
+
+OTP sends use a generic, non-branded sender ID, which does not require
+a registered legal entity or supporting documents — the same reason
+this vendor was reachable at all as a solo applicant.
+
+Confirmed live on 2026-08-16: `POST /api/v1/send` with a
+`Messaggio-Login` header and no signature or secret-key header returns
+200 and actually delivers. `MESSAGGIO_SECRET_KEY` is provisioned and
+read into the environment but unused by this call — kept for a future
+requirement, not wired to anything yet.

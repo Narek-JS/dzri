@@ -1,7 +1,7 @@
 /**
- * The seam the gateway vendor plugs into. DECISIONS.md still lists the
- * Armenian gateway as an open question, so nothing above this interface
- * may know which vendor sends the message.
+ * The seam the gateway vendor plugs into. DECISIONS.md records the vendor
+ * choice (Messaggio), but nothing above this interface should need to know
+ * which vendor sends the message.
  */
 export interface SmsProvider {
   /** Human-readable, for logs. */
