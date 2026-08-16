@@ -20,7 +20,6 @@
   },
   "session": {
     "login": "Log in",
-    "signedInAs": "Signed in as <chip>{name}</chip>",
     "logout": "Log out"
   },
   "login": {

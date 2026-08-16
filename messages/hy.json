@@ -20,7 +20,6 @@
   },
   "session": {
     "login": "Մուտք",
-    "signedInAs": "Դուք մուտք եք գործել որպես <chip>{name}</chip>",
     "logout": "Ելք"
   },
   "login": {

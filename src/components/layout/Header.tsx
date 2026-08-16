@@ -66,14 +66,9 @@ export function Header() {
 
           {session ? (
             <span className="flex items-center gap-3 text-sm text-neutral-600">
-              {t.rich('session.signedInAs', {
-                name: session.displayName,
-                chip: (chunks) => (
-                  <span className="rounded bg-brand-tint px-2 py-0.5 font-medium text-brand-strong">
-                    {chunks}
-                  </span>
-                ),
-              })}
+              <span className="rounded bg-brand-tint px-2 py-0.5 font-medium text-brand-strong">
+                {session.displayName}
+              </span>
               <button
                 type="button"
                 onClick={handleLogout}
