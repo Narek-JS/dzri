@@ -50,7 +50,8 @@ Every district and every category, in one response. No auth.
 
 The create-item form needs both as dropdowns and the feed needs them as
 filters. There is no pagination and no filtering — both tables are small
-and fixed (22 districts, 12 Yerevan + 10 marzes; 10 categories).
+and fixed (32 districts, 12 Yerevan + 10 marzes + 10 marz capitals; 10
+categories).
 
 **200**
 

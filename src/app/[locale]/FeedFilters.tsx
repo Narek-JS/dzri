@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui/Button';
+import { Combobox } from '@/components/ui/Combobox';
 import { Select } from '@/components/ui/Select';
 import { usePathname, useRouter } from '@/i18n/navigation';
 
@@ -71,36 +72,40 @@ function FilterFields({
         <label htmlFor={`${idPrefix}-district`} className="text-sm font-medium text-neutral-800">
           {t('feed.filters.district.label')}
         </label>
-        <Select
+        <Combobox
           id={`${idPrefix}-district`}
           value={values.district}
           onValueChange={(value) => onChange('district', value)}
-        >
-          <Select.Item value="">{t('feed.filters.district.all')}</Select.Item>
-          {districts.map((option) => (
-            <Select.Item key={option.id} value={option.slug}>
-              {localizedName(option, locale)}
-            </Select.Item>
-          ))}
-        </Select>
+          searchPlaceholder={t('combobox.search')}
+          emptyText={t('combobox.noResults')}
+          options={[
+            { value: '', label: t('feed.filters.district.all'), pinned: true },
+            ...districts.map((option) => ({
+              value: option.slug,
+              label: localizedName(option, locale),
+            })),
+          ]}
+        />
       </div>
 
       <div className="flex flex-1 flex-col gap-1">
         <label htmlFor={`${idPrefix}-category`} className="text-sm font-medium text-neutral-800">
           {t('feed.filters.category.label')}
         </label>
-        <Select
+        <Combobox
           id={`${idPrefix}-category`}
           value={values.category}
           onValueChange={(value) => onChange('category', value)}
-        >
-          <Select.Item value="">{t('feed.filters.category.all')}</Select.Item>
-          {categories.map((option) => (
-            <Select.Item key={option.id} value={option.slug}>
-              {localizedName(option, locale)}
-            </Select.Item>
-          ))}
-        </Select>
+          searchPlaceholder={t('combobox.search')}
+          emptyText={t('combobox.noResults')}
+          options={[
+            { value: '', label: t('feed.filters.category.all'), pinned: true },
+            ...categories.map((option) => ({
+              value: option.slug,
+              label: localizedName(option, locale),
+            })),
+          ]}
+        />
       </div>
 
       <div className="flex flex-1 flex-col gap-1">

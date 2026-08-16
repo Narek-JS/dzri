@@ -189,6 +189,10 @@
       "hour": "{count, plural, one {Մնացել է # ժամ} other {Մնացել է # ժամ}}"
     }
   },
+  "combobox": {
+    "search": "Փնտրել…",
+    "noResults": "Ոչինչ չի գտնվել"
+  },
   "feed": {
     "filters": {
       "toggle": "Զտիչներ",

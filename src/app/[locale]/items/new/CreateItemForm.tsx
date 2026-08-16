@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 
 import { useLocale, useTranslations } from 'next-intl';
 
+import { Combobox } from '@/components/ui/Combobox';
 import { Notice } from '@/components/ui/Notice';
-import { Select } from '@/components/ui/Select';
 import { Link } from '@/i18n/navigation';
 import {
   ApiClientError,
@@ -352,18 +352,18 @@ export function CreateItemForm({ districts, categories }: Props) {
         <label htmlFor="category" className="text-sm font-medium">
           {t('createItem.category.label')}
         </label>
-        <Select
+        <Combobox
           id="category"
           value={categoryId}
           onValueChange={setCategoryId}
           placeholder={t('createItem.category.placeholder')}
-        >
-          {categories.map((category) => (
-            <Select.Item key={category.id} value={String(category.id)}>
-              {localizedName(category, locale)}
-            </Select.Item>
-          ))}
-        </Select>
+          searchPlaceholder={t('combobox.search')}
+          emptyText={t('combobox.noResults')}
+          options={categories.map((category) => ({
+            value: String(category.id),
+            label: localizedName(category, locale),
+          }))}
+        />
         {categoryError && <p className="text-sm text-red-700">{errorText(categoryError)}</p>}
       </div>
 
@@ -371,18 +371,18 @@ export function CreateItemForm({ districts, categories }: Props) {
         <label htmlFor="district" className="text-sm font-medium">
           {t('createItem.district.label')}
         </label>
-        <Select
+        <Combobox
           id="district"
           value={districtId}
           onValueChange={setDistrictId}
           placeholder={t('createItem.district.placeholder')}
-        >
-          {districts.map((district) => (
-            <Select.Item key={district.id} value={String(district.id)}>
-              {localizedName(district, locale)}
-            </Select.Item>
-          ))}
-        </Select>
+          searchPlaceholder={t('combobox.search')}
+          emptyText={t('combobox.noResults')}
+          options={districts.map((district) => ({
+            value: String(district.id),
+            label: localizedName(district, locale),
+          }))}
+        />
         {districtError && <p className="text-sm text-red-700">{errorText(districtError)}</p>}
       </div>
 

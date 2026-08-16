@@ -43,6 +43,52 @@ const marzes: NewDistrict[] = [
   { slug: 'vayots-dzor', nameHy: 'Վայոց ձոր', nameRu: 'Вайоц Дзор', nameEn: 'Vayots Dzor' },
 ].map((m) => ({ ...m, region: m.slug }));
 
+/**
+ * One district row per marz capital — the city itself, not "anywhere in
+ * the marz", so each carries its marz's `region` value (the comment on
+ * `region` above still holds: a capital groups with its own marz, it
+ * doesn't get one of its own).
+ *
+ * Sourced from Wikipedia/Mappr, not official government data. The
+ * Armenian names are solid; the Russian transliterations should be
+ * eyeballed by a native speaker before this ships.
+ *
+ * Armavir marz's capital is also named Armavir — identical to the
+ * marz-wide entry seeded above. "(city)" / "(քաղաք)" / "(город)"
+ * disambiguates it in all three locales without touching that existing
+ * row or its slug.
+ */
+const marzCapitals: NewDistrict[] = [
+  {
+    slug: 'ashtarak',
+    nameHy: 'Աշտարակ',
+    nameRu: 'Аштарак',
+    nameEn: 'Ashtarak',
+    region: 'aragatsotn',
+  },
+  { slug: 'artashat', nameHy: 'Արտաշատ', nameRu: 'Арташат', nameEn: 'Artashat', region: 'ararat' },
+  {
+    slug: 'armavir-city',
+    nameHy: 'Արմավիր (քաղաք)',
+    nameRu: 'Армавир (город)',
+    nameEn: 'Armavir (city)',
+    region: 'armavir',
+  },
+  { slug: 'gavar', nameHy: 'Գավառ', nameRu: 'Гавар', nameEn: 'Gavar', region: 'gegharkunik' },
+  { slug: 'hrazdan', nameHy: 'Հրազդան', nameRu: 'Раздан', nameEn: 'Hrazdan', region: 'kotayk' },
+  { slug: 'vanadzor', nameHy: 'Վանաձոր', nameRu: 'Ванадзор', nameEn: 'Vanadzor', region: 'lori' },
+  { slug: 'gyumri', nameHy: 'Գյումրի', nameRu: 'Гюмри', nameEn: 'Gyumri', region: 'shirak' },
+  { slug: 'kapan', nameHy: 'Կապան', nameRu: 'Капан', nameEn: 'Kapan', region: 'syunik' },
+  { slug: 'ijevan', nameHy: 'Իջևան', nameRu: 'Иджеван', nameEn: 'Ijevan', region: 'tavush' },
+  {
+    slug: 'yeghegnadzor',
+    nameHy: 'Եղեգնաձոր',
+    nameRu: 'Ехегнадзор',
+    nameEn: 'Yeghegnadzor',
+    region: 'vayots-dzor',
+  },
+];
+
 const categoryRows: NewCategory[] = [
   { slug: 'furniture', nameHy: 'Կահույք', nameRu: 'Мебель', nameEn: 'Furniture' },
   {
@@ -77,7 +123,7 @@ const categoryRows: NewCategory[] = [
  * re-seeding actually applies it.
  */
 async function seed(): Promise<void> {
-  const districtRows = [...yerevanDistricts, ...marzes];
+  const districtRows = [...yerevanDistricts, ...marzes, ...marzCapitals];
 
   await db
     .insert(districts)

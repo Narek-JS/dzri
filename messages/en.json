@@ -189,6 +189,10 @@
       "hour": "{count, plural, one {# hour left} other {# hours left}}"
     }
   },
+  "combobox": {
+    "search": "Search…",
+    "noResults": "No matches"
+  },
   "feed": {
     "filters": {
       "toggle": "Filters",

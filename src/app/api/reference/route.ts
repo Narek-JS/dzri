@@ -19,7 +19,7 @@ const CACHE = 'public, max-age=300, stale-while-revalidate=86400';
  *
  * PUBLIC. The create-item form needs both as dropdowns and the feed needs them
  * as filters, and a client that had to fetch them separately would either make
- * two round trips or render half a form. Both tables are small and fixed (22
+ * two round trips or render half a form. Both tables are small and fixed (32
  * districts, 10 categories), so there is no pagination and no filtering: the
  * whole thing is one cached payload.
  *

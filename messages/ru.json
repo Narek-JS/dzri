@@ -189,6 +189,10 @@
       "hour": "{count, plural, one {Остался # час} few {Осталось # часа} many {Осталось # часов} other {Осталось # часа}}"
     }
   },
+  "combobox": {
+    "search": "Поиск…",
+    "noResults": "Ничего не найдено"
+  },
   "feed": {
     "filters": {
       "toggle": "Фильтры",
