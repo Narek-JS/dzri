@@ -349,6 +349,21 @@ export function Combobox({
           <PopoverPrimitive.Content
             sideOffset={4}
             align="start"
+            // @radix-ui/react-popper (the primitive both this and Select sit
+            // on) defaults `collisionPadding` to 0 — confirmed in
+            // node_modules/@radix-ui/react-popper for the installed version.
+            // Select never hits that default because @radix-ui/react-select's
+            // own popper-position wrapper substitutes 10 first; Popover has
+            // no such wrapper, so without this the computed
+            // `--radix-popover-content-available-height` runs the content
+            // flush to the viewport edge — on a grouped list long enough to
+            // need the flip-to-top fallback (Category, at 41 rows), that
+            // reads as the dropdown overlapping the page header with no
+            // margin, not as a cleanly capped, scrollable box. Matches
+            // Select's own effective value for the same "should behave
+            // consistently" reason CLAUDE.md's one-pattern convention
+            // already gives for reusing Combobox at all.
+            collisionPadding={10}
             onOpenAutoFocus={(event) => event.preventDefault()}
             onCloseAutoFocus={(event) => event.preventDefault()}
             className="z-[100] flex max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] flex-col overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg"

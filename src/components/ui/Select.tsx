@@ -156,13 +156,35 @@ function SelectRoot({
         <SelectPrimitive.Content
           position="popper"
           sideOffset={4}
-          className={`z-[100] max-h-[var(--radix-select-content-available-height)] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg ${CONTENT_WIDTH_CLASSES[variant]}`}
+          // Explicit rather than relying on @radix-ui/react-select's own
+          // internal default (confirmed in node_modules for the installed
+          // version: SelectPopperPosition defaults collisionPadding to this
+          // same value, 10, before it ever reaches react-popper's own
+          // zero default) — written out so it doesn't silently drift from
+          // Combobox's matching value if either library's default ever
+          // changes, per this project's "same behavior, not an accident of
+          // two libraries' defaults happening to agree" convention.
+          collisionPadding={10}
+          className={`z-[100] flex max-h-[var(--radix-select-content-available-height)] flex-col overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg ${CONTENT_WIDTH_CLASSES[variant]}`}
         >
           <SelectPrimitive.ScrollUpButton className="flex items-center justify-center py-1 text-neutral-500">
             <ChevronIcon className="h-4 w-4 rotate-180" />
           </SelectPrimitive.ScrollUpButton>
 
-          <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
+          {/*
+            `min-h-0` overrides the flex item's default `min-height: auto`
+            (= its content's intrinsic height), which otherwise stops it
+            shrinking below that no matter how little room `Content`'s
+            `flex-col` + `max-height` actually leaves. Viewport already
+            sets `flex: 1` and `overflow: hidden auto` itself (Radix's own
+            inline style, confirmed in node_modules) — without `min-h-0` on
+            top, that overflow rule never gets a chance to engage, and a
+            list taller than the available height is silently clipped by
+            Content's `overflow-hidden` instead of becoming scrollable. Not
+            reachable through today's short lists (condition, language),
+            per the brief — this is for the next Select that grows one.
+          */}
+          <SelectPrimitive.Viewport className="min-h-0 p-1">{children}</SelectPrimitive.Viewport>
 
           <SelectPrimitive.ScrollDownButton className="flex items-center justify-center py-1 text-neutral-500">
             <ChevronIcon className="h-4 w-4" />
