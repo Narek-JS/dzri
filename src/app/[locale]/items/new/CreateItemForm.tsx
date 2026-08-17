@@ -15,6 +15,7 @@ import {
   type Category,
   type CreateItemImage,
   type District,
+  type ItemLocale,
 } from '@/lib/api/client';
 import {
   ImagePrepareError,
@@ -41,6 +42,10 @@ const TITLE_MIN_LENGTH = 3;
 const TITLE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 2000;
 const PICKUP_NOTES_MAX_LENGTH = 300;
+
+const ITEM_LOCALES: readonly ItemLocale[] = ['hy', 'ru', 'en'];
+
+const EMPTY_LOCALIZED_TEXT: Record<ItemLocale, string> = { hy: '', ru: '', en: '' };
 
 type Condition = 'working' | 'needs_repair' | 'for_parts';
 const CONDITIONS: readonly Condition[] = ['working', 'needs_repair', 'for_parts'];
@@ -101,7 +106,7 @@ type Props = { districts: District[]; categories: Category[] };
  */
 export function CreateItemForm({ districts, categories }: Props) {
   const t = useTranslations();
-  const locale = useLocale();
+  const locale = useLocale() as ItemLocale;
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -110,6 +115,21 @@ export function CreateItemForm({ districts, categories }: Props) {
   const [condition, setCondition] = useState<Condition | ''>('');
   const [pickupNotes, setPickupNotes] = useState('');
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+
+  // Checked (the default): the single title/description below go to
+  // titleHy/titleRu/titleEn's or descriptionHy/... equivalent for the
+  // current locale only, and needsTranslation=true asks an admin to fill
+  // the other two in during moderation (PART 2). Unchecked: `multiTitles`/
+  // `multiDescriptions` hold all three locales directly and nothing is
+  // left for an admin to do.
+  const [needsTranslation, setNeedsTranslation] = useState(true);
+  const [multiTitles, setMultiTitles] = useState<Record<ItemLocale, string>>({
+    ...EMPTY_LOCALIZED_TEXT,
+  });
+  const [multiDescriptions, setMultiDescriptions] = useState<Record<ItemLocale, string>>({
+    ...EMPTY_LOCALIZED_TEXT,
+  });
+  const [activeTab, setActiveTab] = useState<ItemLocale>(locale);
 
   const [submitting, setSubmitting] = useState(false);
   const [createdItemId, setCreatedItemId] = useState<string | null>(null);
@@ -236,6 +256,26 @@ export function CreateItemForm({ districts, categories }: Props) {
   });
 
   const trimmedTitle = title.trim();
+  const singleLocaleTextValid =
+    trimmedTitle.length >= TITLE_MIN_LENGTH && trimmedTitle.length <= TITLE_MAX_LENGTH;
+
+  // Every locale's title is required, length-checked the same as the single
+  // input above. Description is optional, but per-locale, all-or-nothing —
+  // matching item_translations_complete_when_active exactly (PART 1) means
+  // a submission that passes this can never come back TRANSLATIONS_REQUIRED
+  // or fail the DB constraint.
+  const multiTitlesValid = ITEM_LOCALES.every((loc) => {
+    const length = multiTitles[loc].trim().length;
+    return length >= TITLE_MIN_LENGTH && length <= TITLE_MAX_LENGTH;
+  });
+  const multiDescriptionLengths = ITEM_LOCALES.map((loc) => multiDescriptions[loc].trim().length);
+  const multiDescriptionsValid =
+    multiDescriptionLengths.every((length) => length === 0) ||
+    multiDescriptionLengths.every((length) => length > 0 && length <= DESCRIPTION_MAX_LENGTH);
+  const multiLocaleTextValid = multiTitlesValid && multiDescriptionsValid;
+
+  const textValid = needsTranslation ? singleLocaleTextValid : multiLocaleTextValid;
+
   const allPhotosDone = photos.length > 0 && photos.every((photo) => photo.status === 'done');
   const anyUploadInFlight = photos.some(
     (photo) => photo.status === 'preparing' || photo.status === 'uploading',
@@ -246,8 +286,7 @@ export function CreateItemForm({ districts, categories }: Props) {
     allPhotosDone &&
     photos.length >= MIN_PHOTOS &&
     photos.length <= MAX_PHOTOS &&
-    trimmedTitle.length >= TITLE_MIN_LENGTH &&
-    trimmedTitle.length <= TITLE_MAX_LENGTH &&
+    textValid &&
     categoryId !== '' &&
     districtId !== '' &&
     condition !== '';
@@ -274,9 +313,31 @@ export function CreateItemForm({ districts, categories }: Props) {
         };
       });
 
+      // Explicit per-locale keys rather than a computed `title${Locale}`
+      // lookup — there are only three, and this keeps every field visible
+      // and type-checked instead of built through a dynamic property name.
+      const textFields = needsTranslation
+        ? {
+            titleHy: locale === 'hy' ? trimmedTitle : undefined,
+            titleRu: locale === 'ru' ? trimmedTitle : undefined,
+            titleEn: locale === 'en' ? trimmedTitle : undefined,
+            descriptionHy: locale === 'hy' ? description.trim() || undefined : undefined,
+            descriptionRu: locale === 'ru' ? description.trim() || undefined : undefined,
+            descriptionEn: locale === 'en' ? description.trim() || undefined : undefined,
+          }
+        : {
+            titleHy: multiTitles.hy.trim(),
+            titleRu: multiTitles.ru.trim(),
+            titleEn: multiTitles.en.trim(),
+            descriptionHy: multiDescriptions.hy.trim() || undefined,
+            descriptionRu: multiDescriptions.ru.trim() || undefined,
+            descriptionEn: multiDescriptions.en.trim() || undefined,
+          };
+
       const result = await api.items.create({
-        title: trimmedTitle,
-        description: description.trim() || undefined,
+        ...textFields,
+        needsTranslation,
+        sourceLocale: locale,
         categoryId: Number(categoryId),
         districtId: Number(districtId),
         condition: condition as Condition,
@@ -326,36 +387,118 @@ export function CreateItemForm({ districts, categories }: Props) {
         </p>
       )}
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="title" className="text-sm font-medium">
-          {t('createItem.title.label')}
-        </label>
+      <label className="flex items-start gap-2 text-sm text-neutral-800">
         <input
-          id="title"
-          type="text"
-          minLength={TITLE_MIN_LENGTH}
-          maxLength={TITLE_MAX_LENGTH}
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          className="rounded border border-neutral-300 px-3 py-2 text-sm"
-          required
+          type="checkbox"
+          checked={needsTranslation}
+          onChange={(event) => setNeedsTranslation(event.target.checked)}
+          className="mt-0.5"
         />
-        {bodyError && <p className="text-sm text-red-700">{errorText(bodyError)}</p>}
-      </div>
+        {t('createItem.translation.checkboxLabel')}
+      </label>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="description" className="text-sm font-medium">
-          {t('createItem.description.label')}
-        </label>
-        <textarea
-          id="description"
-          rows={4}
-          maxLength={DESCRIPTION_MAX_LENGTH}
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          className="rounded border border-neutral-300 px-3 py-2 text-sm"
-        />
-      </div>
+      {needsTranslation ? (
+        <>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="title" className="text-sm font-medium">
+              {t('createItem.title.label')}
+            </label>
+            <input
+              id="title"
+              type="text"
+              minLength={TITLE_MIN_LENGTH}
+              maxLength={TITLE_MAX_LENGTH}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              className="rounded border border-neutral-300 px-3 py-2 text-sm"
+              required
+            />
+            {bodyError && <p className="text-sm text-red-700">{errorText(bodyError)}</p>}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="description" className="text-sm font-medium">
+              {t('createItem.description.label')}
+            </label>
+            <textarea
+              id="description"
+              rows={4}
+              maxLength={DESCRIPTION_MAX_LENGTH}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              className="rounded border border-neutral-300 px-3 py-2 text-sm"
+            />
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div
+            className="flex gap-2"
+            role="tablist"
+            aria-label={t('createItem.translation.tabsLabel')}
+          >
+            {ITEM_LOCALES.map((loc) => (
+              <button
+                key={loc}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === loc}
+                onClick={() => setActiveTab(loc)}
+                className={
+                  activeTab === loc
+                    ? 'rounded bg-brand px-3 py-1.5 text-sm font-medium text-neutral-900'
+                    : 'rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700'
+                }
+              >
+                {t(`languageSwitcher.${loc}`)}
+              </button>
+            ))}
+          </div>
+
+          {ITEM_LOCALES.map(
+            (loc) =>
+              activeTab === loc && (
+                <div key={loc} role="tabpanel" className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor={`title-${loc}`} className="text-sm font-medium">
+                      {t('createItem.title.label')}
+                    </label>
+                    <input
+                      id={`title-${loc}`}
+                      type="text"
+                      minLength={TITLE_MIN_LENGTH}
+                      maxLength={TITLE_MAX_LENGTH}
+                      value={multiTitles[loc]}
+                      onChange={(event) =>
+                        setMultiTitles((prev) => ({ ...prev, [loc]: event.target.value }))
+                      }
+                      className="rounded border border-neutral-300 px-3 py-2 text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor={`description-${loc}`} className="text-sm font-medium">
+                      {t('createItem.description.label')}
+                    </label>
+                    <textarea
+                      id={`description-${loc}`}
+                      rows={4}
+                      maxLength={DESCRIPTION_MAX_LENGTH}
+                      value={multiDescriptions[loc]}
+                      onChange={(event) =>
+                        setMultiDescriptions((prev) => ({ ...prev, [loc]: event.target.value }))
+                      }
+                      className="rounded border border-neutral-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              ),
+          )}
+
+          {bodyError && <p className="text-sm text-red-700">{errorText(bodyError)}</p>}
+        </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <label htmlFor="category" className="text-sm font-medium">

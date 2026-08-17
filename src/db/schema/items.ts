@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   index,
   integer,
@@ -53,8 +54,24 @@ export const items = pgTable(
       .notNull()
       .references(() => districts.id),
 
-    title: text('title').notNull(),
-    description: text('description'),
+    /**
+     * Per-locale title/description, mirroring `districts`/`categories`'
+     * `name_hy`/`name_ru`/`name_en` convention. Nullable at the column level —
+     * only `sourceLocale`'s column is guaranteed filled at creation; the other
+     * two are filled by an admin during moderation when `needsTranslation` is
+     * true. `itemTranslationsCompleteWhenActive` below is what forbids an
+     * `active` item from having any of the three missing.
+     */
+    titleHy: text('title_hy'),
+    titleRu: text('title_ru'),
+    titleEn: text('title_en'),
+    descriptionHy: text('description_hy'),
+    descriptionRu: text('description_ru'),
+    descriptionEn: text('description_en'),
+    /** True when the giver asked the admin to translate this into the other two locales. */
+    needsTranslation: boolean('needs_translation').notNull().default(false),
+    /** Which locale the giver actually typed in. Always filled, unlike the two above. */
+    sourceLocale: text('source_locale').notNull().default('hy'),
     condition: itemCondition('condition').notNull().default('working'),
     /** "3rd floor, no lift, bring a friend" */
     pickupNotes: text('pickup_notes'),
@@ -117,6 +134,22 @@ export const items = pgTable(
     check(
       'rejection_reason_matches_status',
       sql`(${table.status} = 'rejected' and ${table.rejectionReason} is not null) or (${table.status} <> 'rejected' and ${table.rejectionReason} is null)`,
+    ),
+
+    // An item cannot go live missing a translation. Once `active`, all three
+    // titles must be filled, and description is all-three-or-none — the
+    // giver's own locale is always the one filled first, so "all or none"
+    // and "the other two follow the source" are the same condition in
+    // practice (DECISIONS.md).
+    check(
+      'item_translations_complete_when_active',
+      sql`${table.status} <> 'active' or (
+        ${table.titleHy} is not null and ${table.titleRu} is not null and ${table.titleEn} is not null
+        and (
+          (${table.descriptionHy} is null and ${table.descriptionRu} is null and ${table.descriptionEn} is null)
+          or (${table.descriptionHy} is not null and ${table.descriptionRu} is not null and ${table.descriptionEn} is not null)
+        )
+      )`,
     ),
   ],
 );

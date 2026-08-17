@@ -3,6 +3,7 @@ import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { claims, itemImages, items } from '@/db/schema';
 
+import type { ItemLocale } from './create';
 import type { ItemStatus } from '@/db/schema';
 
 /** One screen of items. The caller asks for the next page with `nextCursor`. */
@@ -10,7 +11,16 @@ export const MY_ITEMS_PAGE_SIZE = 20;
 
 export type MyItemRow = {
   id: string;
-  title: string;
+  /**
+   * Raw per-locale columns, unresolved — unlike the feed, this list mixes in
+   * every status (a `pending_review` or `rejected` item may be missing two
+   * of these). Resolve with `resolveLocalizedText` (src/lib/items/
+   * localizedText.ts), falling back to `sourceLocale`'s column.
+   */
+  titleHy: string | null;
+  titleRu: string | null;
+  titleEn: string | null;
+  sourceLocale: ItemLocale;
   status: ItemStatus;
   /** Admin-written text shown to the giver verbatim. Non-null only on `rejected`. */
   rejectionReason: string | null;
@@ -83,7 +93,10 @@ export async function getMyItems(userId: string, cursor: Date | null): Promise<M
   const rows = await db
     .select({
       id: items.id,
-      title: items.title,
+      titleHy: items.titleHy,
+      titleRu: items.titleRu,
+      titleEn: items.titleEn,
+      sourceLocale: items.sourceLocale,
       status: items.status,
       rejectionReason: items.rejectionReason,
       createdAt: items.createdAt,
@@ -104,5 +117,12 @@ export async function getMyItems(userId: string, cursor: Date | null): Promise<M
   const page = hasMore ? rows.slice(0, MY_ITEMS_PAGE_SIZE) : rows;
   const nextCursor = hasMore ? page[page.length - 1].createdAt.toISOString() : null;
 
-  return { items: page, nextCursor };
+  // `source_locale` is plain `text`, not a Postgres enum — createItem only
+  // ever writes one of the three locales into it.
+  const resolvedItems: MyItemRow[] = page.map((row) => ({
+    ...row,
+    sourceLocale: row.sourceLocale as ItemLocale,
+  }));
+
+  return { items: resolvedItems, nextCursor };
 }

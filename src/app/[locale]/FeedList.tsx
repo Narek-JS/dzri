@@ -27,6 +27,17 @@ function localizedName(ref: LocalizedRef, locale: string): string {
 }
 
 /**
+ * `FeedItem.titleHy`/`titleRu`/`titleEn` are all guaranteed non-null (the
+ * feed is only ever `active` items — see that type's own doc comment), so
+ * this is a plain three-way pick, the same shape as `localizedName` above.
+ */
+function localizedTitle(item: FeedItem, locale: string): string {
+  if (locale === 'ru') return item.titleRu;
+  if (locale === 'en') return item.titleEn;
+  return item.titleHy;
+}
+
+/**
  * How early the sentinel triggers a load, before it's actually on screen —
  * so the next page is usually there by the time a scroller reaches the
  * bottom of the current one, rather than after.
@@ -136,12 +147,14 @@ export function FeedList({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
         {items.map((item) => {
           const postedAgo = relativeTimeMessage(new Date(item.createdAt), now);
+          const title = localizedTitle(item, locale);
 
           return (
             <ItemCard
               key={item.id}
               item={item}
-              thumbnailAlt={t('itemDetail.gallery.photoAlt', { title: item.title })}
+              title={title}
+              thumbnailAlt={t('itemDetail.gallery.photoAlt', { title })}
               conditionLabel={t(CONDITION_LABEL_KEYS[item.condition] as Parameters<typeof t>[0])}
               districtName={localizedName(item.district, locale)}
               postedAgo={t(postedAgo.key as Parameters<typeof t>[0], postedAgo.values)}

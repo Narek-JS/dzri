@@ -100,7 +100,9 @@ export default async function FeedPage({
 
   const items: FeedItem[] = feed.items.map((item) => ({
     id: item.id,
-    title: item.title,
+    titleHy: item.titleHy,
+    titleRu: item.titleRu,
+    titleEn: item.titleEn,
     condition: item.condition,
     createdAt: item.createdAt.toISOString(),
     thumbnailUrl: item.thumbnailUrl,

@@ -3,15 +3,27 @@ import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { categories, districts, itemImages, items, users } from '@/db/schema';
 
+import type { ItemLocale } from './create';
 import type { ItemCondition } from '@/db/schema';
 
 /** One screen of the moderation queue. The client asks for more with `nextCursor`. */
 const PENDING_QUEUE_PAGE_SIZE = 20;
 
+/**
+ * Raw per-locale title/description, not resolved to one string — the
+ * reviewer needs to see which locales are actually filled to fill in the
+ * rest (PART 4), the opposite of every public-facing item shape.
+ */
 export type PendingQueueItem = {
   id: string;
-  title: string;
-  description: string | null;
+  titleHy: string | null;
+  titleRu: string | null;
+  titleEn: string | null;
+  descriptionHy: string | null;
+  descriptionRu: string | null;
+  descriptionEn: string | null;
+  needsTranslation: boolean;
+  sourceLocale: ItemLocale;
   condition: ItemCondition;
   pickupNotes: string | null;
   createdAt: Date;
@@ -50,8 +62,14 @@ export async function getPendingQueue(cursor: Date | null): Promise<PendingQueue
     .select({
       id: items.id,
       userId: items.userId,
-      title: items.title,
-      description: items.description,
+      titleHy: items.titleHy,
+      titleRu: items.titleRu,
+      titleEn: items.titleEn,
+      descriptionHy: items.descriptionHy,
+      descriptionRu: items.descriptionRu,
+      descriptionEn: items.descriptionEn,
+      needsTranslation: items.needsTranslation,
+      sourceLocale: items.sourceLocale,
       condition: items.condition,
       pickupNotes: items.pickupNotes,
       createdAt: items.createdAt,
@@ -126,8 +144,18 @@ export async function getPendingQueue(cursor: Date | null): Promise<PendingQueue
 
     return {
       id: row.id,
-      title: row.title,
-      description: row.description,
+      titleHy: row.titleHy,
+      titleRu: row.titleRu,
+      titleEn: row.titleEn,
+      descriptionHy: row.descriptionHy,
+      descriptionRu: row.descriptionRu,
+      descriptionEn: row.descriptionEn,
+      needsTranslation: row.needsTranslation,
+      // `source_locale` is plain `text`, not a Postgres enum — createItem
+      // only ever writes one of the three locales into it (CLAUDE.md's i18n
+      // rule), so this cast reflects an application invariant, not a
+      // database one.
+      sourceLocale: row.sourceLocale as ItemLocale,
       condition: row.condition,
       pickupNotes: row.pickupNotes,
       createdAt: row.createdAt,

@@ -29,7 +29,14 @@ type VerifySuccess = { isNewUser: false; user: { id: string; displayName: string
 
 type PendingItem = {
   id: string;
-  title: string;
+  titleHy: string | null;
+  titleRu: string | null;
+  titleEn: string | null;
+  descriptionHy: string | null;
+  descriptionRu: string | null;
+  descriptionEn: string | null;
+  needsTranslation: boolean;
+  sourceLocale: string;
   createdAt: string;
   images: string[];
   giver: { displayName: string; approvedCount: number; rejectedCount: number };
@@ -207,17 +214,31 @@ describe.skipIf(!hasDatabase)('admin API', () => {
    * writes `pending_review` under the default moderation mode. `status` and
    * `createdAt` overrides are applied with a follow-up update, exactly as the
    * moderation flow and the cron sweep reach other states.
+   *
+   * `needsTranslation: true` leaves `titleRu`/`titleEn`/`descriptionRu`/
+   * `descriptionEn` null, the same half-filled shape a real translation
+   * request lands in — callers that ask for this must leave `status` at its
+   * `pending_review` default, since forcing straight to `active` would trip
+   * `item_translations_complete_when_active` exactly as it would for a real
+   * unapproved item.
    */
   async function seedItem(
     userId: string,
     status: ItemStatus = 'pending_review',
-    overrides: { createdAt?: Date } = {},
+    overrides: { createdAt?: Date; needsTranslation?: boolean } = {},
   ): Promise<string> {
+    const needsTranslation = overrides.needsTranslation ?? false;
     const result = await createItem(
       {
         userId,
-        title: 'Ապրանք',
-        description: 'Նկարագրություն',
+        titleHy: 'Ապրանք',
+        titleRu: needsTranslation ? null : 'Ապրանք',
+        titleEn: needsTranslation ? null : 'Ապրանք',
+        descriptionHy: 'Նկարագրություն',
+        descriptionRu: needsTranslation ? null : 'Նկարագրություն',
+        descriptionEn: needsTranslation ? null : 'Նկարագրություն',
+        needsTranslation,
+        sourceLocale: 'hy',
         categoryId,
         districtId,
         condition: 'working',
@@ -350,6 +371,22 @@ describe.skipIf(!hasDatabase)('admin API', () => {
       expectNoPhone(response, giver.phone);
       expectNoPhone(response, admin.phone);
     });
+
+    it('reports which locales are missing on a translation-needed item', async () => {
+      const admin = await signInAdmin();
+      const giver = await signIn();
+      const id = await seedItem(giver.userId, 'pending_review', { needsTranslation: true });
+
+      const response = await api('/api/admin/items/pending', { cookie: admin.cookie });
+      expect(response.status, response.text).toBe(200);
+
+      const row = parse<PendingResponse>(response.text).items.find((item) => item.id === id);
+      expect(row?.needsTranslation).toBe(true);
+      expect(row?.sourceLocale).toBe('hy');
+      expect(row?.titleHy).toBe('Ապրանք');
+      expect(row?.titleRu).toBeNull();
+      expect(row?.titleEn).toBeNull();
+    });
   });
 
   describe('POST /api/admin/items/[id]/approve', () => {
@@ -401,6 +438,71 @@ describe.skipIf(!hasDatabase)('admin API', () => {
       const second = await post(`/api/admin/items/${id}/approve`, {}, admin.cookie);
       expect(second.status, second.text).toBe(409);
       expect(parse<ApiErrorBody>(second.text).error.code).toBe('INVALID_STATUS_TRANSITION');
+    });
+
+    it('refuses to approve a translation-needed item with no body, 400 TRANSLATIONS_REQUIRED', async () => {
+      const admin = await signInAdmin();
+      const giver = await signIn();
+      const id = await seedItem(giver.userId, 'pending_review', { needsTranslation: true });
+
+      const response = await post(`/api/admin/items/${id}/approve`, {}, admin.cookie);
+      expect(response.status, response.text).toBe(400);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('TRANSLATIONS_REQUIRED');
+
+      const [row] = await db.select({ status: items.status }).from(items).where(eq(items.id, id));
+      expect(row.status).toBe('pending_review');
+    });
+
+    it('refuses to approve when only one of the two missing titles is supplied', async () => {
+      const admin = await signInAdmin();
+      const giver = await signIn();
+      const id = await seedItem(giver.userId, 'pending_review', { needsTranslation: true });
+
+      const response = await post(
+        `/api/admin/items/${id}/approve`,
+        { titleRu: 'Продукт' },
+        admin.cookie,
+      );
+      expect(response.status, response.text).toBe(400);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('TRANSLATIONS_REQUIRED');
+    });
+
+    it('approves a translation-needed item once every missing locale is supplied', async () => {
+      const admin = await signInAdmin();
+      const giver = await signIn();
+      const id = await seedItem(giver.userId, 'pending_review', { needsTranslation: true });
+
+      const response = await post(
+        `/api/admin/items/${id}/approve`,
+        {
+          titleRu: 'Продукт',
+          titleEn: 'Product',
+          descriptionRu: 'Описание',
+          descriptionEn: 'Description',
+        },
+        admin.cookie,
+      );
+      expect(response.status, response.text).toBe(200);
+
+      const [row] = await db
+        .select({
+          status: items.status,
+          titleHy: items.titleHy,
+          titleRu: items.titleRu,
+          titleEn: items.titleEn,
+          descriptionRu: items.descriptionRu,
+          descriptionEn: items.descriptionEn,
+        })
+        .from(items)
+        .where(eq(items.id, id));
+
+      expect(row.status).toBe('active');
+      // sourceLocale's own column is untouched by the fill.
+      expect(row.titleHy).toBe('Ապրանք');
+      expect(row.titleRu).toBe('Продукт');
+      expect(row.titleEn).toBe('Product');
+      expect(row.descriptionRu).toBe('Описание');
+      expect(row.descriptionEn).toBe('Description');
     });
   });
 

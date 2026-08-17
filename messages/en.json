@@ -89,6 +89,7 @@
     "cannotClaimOwnItem": "You cannot claim your own item",
     "alreadyClaimed": "You already claimed this item",
     "invalidStatusTransition": "This action is not available right now",
+    "translationsRequired": "Every missing translation must be filled in first",
     "invalidBody": "The form was not filled in correctly",
     "unauthorized": "Sign in is required",
     "smsFailed": "Could not send the code",
@@ -97,6 +98,10 @@
   "createItem": {
     "title": { "label": "Title" },
     "description": { "label": "Description" },
+    "translation": {
+      "checkboxLabel": "Let the admin translate this into the other languages",
+      "tabsLabel": "Languages"
+    },
     "category": { "label": "Category", "placeholder": "Choose a category" },
     "district": { "label": "District", "placeholder": "Choose a district" },
     "condition": {
@@ -246,7 +251,14 @@
         "submit": "Confirm rejection"
       },
       "alreadyReviewed": "Already reviewed — removed from the queue",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "translate": {
+        "badge": "Needs translation",
+        "heading": "Missing translations",
+        "hint": "Required before this can be approved",
+        "titleLabel": "Title: {language}",
+        "descriptionLabel": "Description: {language}"
+      }
     }
   },
   "itemClaims": {

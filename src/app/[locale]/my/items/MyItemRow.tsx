@@ -4,12 +4,13 @@ import { useState } from 'react';
 
 import Image from 'next/image';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button, buttonClassName } from '@/components/ui/Button';
 import { Notice, noticeClassName } from '@/components/ui/Notice';
 import { Link } from '@/i18n/navigation';
 import { apiErrorMessageKey } from '@/lib/api/client';
+import { resolveLocalizedText } from '@/lib/items/localizedText';
 import { relativeTimeMessage } from '@/lib/relativeTime';
 
 import { hasClaimsToShow, isRemovable, MY_ITEM_STATUS_KEYS } from './itemStatusKeys';
@@ -77,10 +78,21 @@ export function MyItemRow({
   onDelete: () => void;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const [confirming, setConfirming] = useState(false);
 
   const postedAgo = relativeTimeMessage(new Date(item.createdAt), now);
   const statusKeys = MY_ITEM_STATUS_KEYS[item.status];
+  // Falls back to item.sourceLocale's column for a pending_review or
+  // rejected item that hasn't been translated into the viewer's locale yet
+  // — this list mixes every status, unlike the public feed/detail views
+  // where item_translations_complete_when_active makes the fallback moot.
+  const title =
+    resolveLocalizedText(
+      { hy: item.titleHy, ru: item.titleRu, en: item.titleEn },
+      item.sourceLocale,
+      locale,
+    ) ?? '';
 
   // The main call to action on this screen: real people are waiting on a
   // decision right now, and the decision is made on the claims page.
@@ -100,7 +112,7 @@ export function MyItemRow({
           {item.imageUrl && (
             <Image
               src={item.imageUrl}
-              alt={t('itemDetail.gallery.photoAlt', { title: item.title })}
+              alt={t('itemDetail.gallery.photoAlt', { title })}
               fill
               sizes={THUMBNAIL_SIZES}
               className="object-cover"
@@ -110,7 +122,7 @@ export function MyItemRow({
 
         <div className="flex min-w-0 flex-col gap-1">
           <Link href={`/items/${item.id}`} className="text-neutral-900 hover:underline">
-            <span className="font-medium break-words">{item.title}</span>
+            <span className="font-medium break-words">{title}</span>
           </Link>
 
           <span className="text-xs text-neutral-500">

@@ -18,7 +18,14 @@ function mockClaim(status: ClaimStatus, rejectedReason?: ClaimRejectedReason): M
     ...(rejectedReason ? { rejectedReason } : {}),
     message: null,
     createdAt: '2026-08-01T00:00:00.000Z',
-    item: { id: 'item-1', title: 'Test item', status: 'active', thumbnailUrl: null },
+    item: {
+      id: 'item-1',
+      titleHy: 'Test item',
+      titleRu: 'Test item',
+      titleEn: 'Test item',
+      status: 'active',
+      thumbnailUrl: null,
+    },
     giver: { displayName: 'Test Giver' },
   };
 }

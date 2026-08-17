@@ -37,12 +37,15 @@ const CARD_IMAGE_SIZES = '(min-width: 1024px) 264px, (min-width: 640px) 31vw, 46
  */
 export function ItemCard({
   item,
+  title,
   thumbnailAlt,
   conditionLabel,
   districtName,
   postedAgo,
 }: {
   item: FeedItem;
+  /** Resolved by `FeedList` for the viewer's locale — see that component's doc comment. */
+  title: string;
   thumbnailAlt: string;
   conditionLabel: string;
   districtName: string;
@@ -62,9 +65,7 @@ export function ItemCard({
         )}
       </div>
       <div className="flex flex-col gap-0.5">
-        <h2 className="line-clamp-2 text-xs font-medium text-neutral-900 md:text-sm">
-          {item.title}
-        </h2>
+        <h2 className="line-clamp-2 text-xs font-medium text-neutral-900 md:text-sm">{title}</h2>
         {/* Already `text-xs` — Tailwind's smallest named step, and there's
             no smaller token in the theme — so the mobile density pass
             leaves these two as-is rather than reach for an arbitrary

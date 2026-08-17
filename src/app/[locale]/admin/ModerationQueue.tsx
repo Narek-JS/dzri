@@ -9,7 +9,19 @@ import { ApiClientError, api, apiErrorMessageKey } from '@/lib/api/client';
 import { PendingItemCard } from './PendingItemCard';
 
 import type { ApiErrorCode } from '@/lib/http';
-import type { PendingItem } from '@/lib/api/client';
+import type { ApproveItemTranslations, ItemLocale, PendingItem } from '@/lib/api/client';
+
+/** Raw per-locale lookup, no fallback — mirrors PendingItemCard's own copy. */
+function textForLocale(
+  hy: string | null,
+  ru: string | null,
+  en: string | null,
+  locale: ItemLocale,
+): string | null {
+  if (locale === 'ru') return ru;
+  if (locale === 'en') return en;
+  return hy;
+}
 
 type Props = {
   /** Already rendered by the server (`page.tsx`) — never refetched here. */
@@ -91,7 +103,11 @@ export function ModerationQueue({ initialItems, initialNextCursor, initialNow }:
   }, []);
 
   const review = useCallback(
-    async (item: PendingItem, action: 'approve' | 'reject', reason?: string) => {
+    async (
+      item: PendingItem,
+      action: 'approve' | 'reject',
+      payload?: { reason?: string; translations?: ApproveItemTranslations },
+    ) => {
       clearItemError(item.id);
       // Optimistic: the row leaves the queue the instant the tap lands.
       setItems((previous) => previous.filter((existing) => existing.id !== item.id));
@@ -99,9 +115,9 @@ export function ModerationQueue({ initialItems, initialNextCursor, initialNow }:
 
       try {
         if (action === 'approve') {
-          await api.admin.approveItem(item.id);
+          await api.admin.approveItem(item.id, payload?.translations);
         } else {
-          await api.admin.rejectItem(item.id, { reason: reason ?? '' });
+          await api.admin.rejectItem(item.id, { reason: payload?.reason ?? '' });
         }
       } catch (error) {
         const code = error instanceof ApiClientError ? error.code : 'INTERNAL';
@@ -111,10 +127,9 @@ export function ModerationQueue({ initialItems, initialNextCursor, initialNow }:
           // either way the row's absence from the queue is correct, so it
           // stays gone. A quiet, dismissible notice explains why, rather
           // than surfacing this as a failure on a row that no longer exists.
-          setNotices((previous) => [
-            ...previous,
-            { key: `${item.id}-${Date.now()}`, title: item.title },
-          ]);
+          const title =
+            textForLocale(item.titleHy, item.titleRu, item.titleEn, item.sourceLocale) ?? '';
+          setNotices((previous) => [...previous, { key: `${item.id}-${Date.now()}`, title }]);
         } else {
           restoreItem(item);
           setItemErrors((previous) => ({ ...previous, [item.id]: code }));
@@ -179,8 +194,8 @@ export function ModerationQueue({ initialItems, initialNextCursor, initialNow }:
               now={now}
               busy={busyIds.has(item.id)}
               errorCode={itemErrors[item.id] ?? null}
-              onApprove={() => void review(item, 'approve')}
-              onReject={(reason) => void review(item, 'reject', reason)}
+              onApprove={(translations) => void review(item, 'approve', { translations })}
+              onReject={(reason) => void review(item, 'reject', { reason })}
             />
           ))}
         </ul>

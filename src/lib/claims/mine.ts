@@ -24,7 +24,16 @@ export type MyClaimRow = {
   createdAt: Date;
   item: {
     id: string;
-    title: string;
+    /**
+     * All three, unresolved. A claim can only be created while
+     * `status = 'active'` (`createClaim`'s own guard), and
+     * `item_translations_complete_when_active` never lets these columns go
+     * null again afterward, so this is guaranteed regardless of the item's
+     * status by the time this claim is read.
+     */
+    titleHy: string;
+    titleRu: string;
+    titleEn: string;
     status: ItemStatus;
     thumbnailUrl: string | null;
   };
@@ -88,7 +97,9 @@ export async function getMyClaims(userId: string, cursor: Date | null): Promise<
       message: claims.message,
       createdAt: claims.createdAt,
       itemId: items.id,
-      itemTitle: items.title,
+      itemTitleHy: items.titleHy,
+      itemTitleRu: items.titleRu,
+      itemTitleEn: items.titleEn,
       itemStatus: items.status,
       thumbnailUrl,
       giverDisplayName: users.displayName,
@@ -115,7 +126,12 @@ export async function getMyClaims(userId: string, cursor: Date | null): Promise<
     createdAt: row.createdAt,
     item: {
       id: row.itemId,
-      title: row.itemTitle,
+      // See MyClaimRow's `item` field doc comment above for why these are
+      // safe to assert non-null: this claim exists, so the item was
+      // `active` at some point.
+      titleHy: row.itemTitleHy as string,
+      titleRu: row.itemTitleRu as string,
+      titleEn: row.itemTitleEn as string,
       status: row.itemStatus,
       thumbnailUrl: row.thumbnailUrl,
     },

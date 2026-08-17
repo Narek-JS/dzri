@@ -191,8 +191,14 @@ describe.skipIf(!hasDatabase)('cron sweep', () => {
     const result = await createItem(
       {
         userId,
-        title: 'Անվճար բազկաթոռ',
-        description: 'Լավ վիճակում',
+        titleHy: 'Անվճար բազկաթոռ',
+        titleRu: 'Անվճար բազկաթոռ',
+        titleEn: 'Անվճար բազկաթոռ',
+        descriptionHy: 'Լավ վիճակում',
+        descriptionRu: 'Լավ վիճակում',
+        descriptionEn: 'Լավ վիճակում',
+        needsTranslation: false,
+        sourceLocale: 'hy',
         categoryId,
         districtId,
         condition: 'working',

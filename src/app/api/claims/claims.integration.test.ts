@@ -60,7 +60,14 @@ type MineClaim = {
   rejectedReason?: string;
   message: string | null;
   createdAt: string;
-  item: { id: string; title: string; status: string; thumbnailUrl: string | null };
+  item: {
+    id: string;
+    titleHy: string;
+    titleRu: string;
+    titleEn: string;
+    status: string;
+    thumbnailUrl: string | null;
+  };
   giver: { displayName: string; phone?: string };
 };
 type MineResponse = { claims: MineClaim[]; nextCursor: string | null };
@@ -226,8 +233,14 @@ describe.skipIf(!hasDatabase)('claims API', () => {
     const result = await createItem(
       {
         userId,
-        title: 'Անվճար բազկաթոռ',
-        description: 'Լավ վիճակում',
+        titleHy: 'Անվճար բազկաթոռ',
+        titleRu: 'Անվճար բազկաթոռ',
+        titleEn: 'Անվճար բազկաթոռ',
+        descriptionHy: 'Լավ վիճակում',
+        descriptionRu: 'Լավ վիճակում',
+        descriptionEn: 'Լավ վիճակում',
+        needsTranslation: false,
+        sourceLocale: 'hy',
         categoryId,
         districtId,
         condition: 'working',
@@ -636,7 +649,7 @@ describe.skipIf(!hasDatabase)('claims API', () => {
       const newest = list[0];
       expect(newest.item.id).toBe(secondItem);
       expect(newest.item.status).toBe('active');
-      expect(newest.item.title).toBe('Անվճար բազկաթոռ');
+      expect(newest.item.titleHy).toBe('Անվճար բազկաթոռ');
       expect(newest.item.thumbnailUrl).not.toBeNull();
     });
 
@@ -691,7 +704,7 @@ describe.skipIf(!hasDatabase)('claims API', () => {
       expect(entry?.rejectedReason).toBe('lost_to_other_claimant');
     });
 
-    it("never includes rejectedReason on a claim that is not rejected", async () => {
+    it('never includes rejectedReason on a claim that is not rejected', async () => {
       const giver = await signIn();
       const claimant = await signIn();
       const itemId = await seedItem(giver.userId);
@@ -780,9 +793,7 @@ describe.skipIf(!hasDatabase)('claims API', () => {
       const chosenClaim = await claimOk(itemId, chosen.cookie);
       await claimOk(itemId, passedOver.cookie);
 
-      expect((await post(`/api/claims/${chosenClaim}/approve`, {}, giver.cookie)).status).toBe(
-        200,
-      );
+      expect((await post(`/api/claims/${chosenClaim}/approve`, {}, giver.cookie)).status).toBe(200);
 
       const response = await api('/my/claims', { cookie: passedOver.cookie });
       expect(response.status, response.text).toBe(200);

@@ -67,7 +67,10 @@ export default async function MyItemsPage({ params }: { params: Promise<LocalePa
   // has to be the same JSON-shaped object as pages 2+.
   const items: MyItem[] = page.items.map((item) => ({
     id: item.id,
-    title: item.title,
+    titleHy: item.titleHy,
+    titleRu: item.titleRu,
+    titleEn: item.titleEn,
+    sourceLocale: item.sourceLocale,
     status: item.status,
     rejectionReason: item.rejectionReason,
     createdAt: item.createdAt.toISOString(),

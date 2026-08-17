@@ -7,6 +7,7 @@ import { Link } from '@/i18n/navigation';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { getSession } from '@/lib/auth/session';
 import { getItemForViewer } from '@/lib/items/visibility';
+import { resolveLocalizedText } from '@/lib/items/localizedText';
 
 import type { ItemCondition, ItemStatus } from '@/db/schema';
 
@@ -155,11 +156,27 @@ export default async function ItemDetailPage({
 
   const postedAt = format.dateTime(item.createdAt, { dateStyle: 'long' });
 
+  // Public (`active`) views never need the fallback — item_translations_
+  // complete_when_active guarantees every title column and description
+  // column (all three or none) is filled. It exists for isPrivateView: the
+  // owner reading their own pending_review or rejected listing, where only
+  // item.sourceLocale's column is guaranteed to hold anything.
+  const title = resolveLocalizedText(
+    { hy: item.titleHy, ru: item.titleRu, en: item.titleEn },
+    item.sourceLocale,
+    locale,
+  );
+  const description = resolveLocalizedText(
+    { hy: item.descriptionHy, ru: item.descriptionRu, en: item.descriptionEn },
+    item.sourceLocale,
+    locale,
+  );
+
   return (
     <main
       className={containerClassName({ size: 'md', className: 'flex flex-1 flex-col gap-6 py-10' })}
     >
-      <ItemGallery images={item.images} title={item.title} />
+      <ItemGallery images={item.images} title={title ?? ''} />
 
       {isOwner && item.status === 'pending_review' && (
         <Notice tone="neutral" className="flex items-center gap-3 text-neutral-700">
@@ -219,7 +236,7 @@ export default async function ItemDetailPage({
       )}
 
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">{item.title}</h1>
+        <h1 className="text-2xl font-semibold">{title}</h1>
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-neutral-600">
           <span>{t(CONDITION_LABEL_KEYS[item.condition] as Parameters<typeof t>[0])}</span>
           <span aria-hidden="true">·</span>
@@ -229,9 +246,7 @@ export default async function ItemDetailPage({
         </div>
       </div>
 
-      {item.description && (
-        <p className="text-sm whitespace-pre-wrap text-neutral-800">{item.description}</p>
-      )}
+      {description && <p className="text-sm whitespace-pre-wrap text-neutral-800">{description}</p>}
 
       {item.pickupNotes && (
         <div className="flex flex-col gap-1">

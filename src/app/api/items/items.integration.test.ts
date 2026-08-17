@@ -35,7 +35,6 @@ const OTP_TTL_MS = 5 * 60 * 1000;
 type VerifySuccess = { isNewUser: false; user: { id: string; displayName: string } };
 type MineItem = {
   id: string;
-  title: string;
   status: string;
   rejectionReason: string | null;
   createdAt: string;
@@ -49,7 +48,7 @@ type MineResponse = { items: MineItem[]; nextCursor: string | null };
 // Only the fields the feed/detail assertions read are typed; the JSON carries
 // more (localized district/category names, thumbnails, giver) and structural
 // typing lets those ride along untyped.
-type FeedItem = { id: string; title: string; createdAt: string };
+type FeedItem = { id: string; createdAt: string };
 type FeedResponse = { items: FeedItem[]; nextCursor: string | null };
 type DetailResponse = { item: { id: string; status: string } };
 
@@ -244,14 +243,25 @@ describe.skipIf(!hasDatabase)('items API', () => {
     };
   }
 
-  /** The full valid body, with per-test overrides. */
+  /**
+   * The full valid body, with per-test overrides. `needsTranslation: false`
+   * with all three locales filled — the common case that never touches the
+   * translation gate — is the default; tests exercising PART 2/3's
+   * translation shapes override these fields directly.
+   */
   function validBody(
     userId: string,
     overrides: Record<string, unknown> = {},
   ): Record<string, unknown> {
     return {
-      title: 'Անվճար բազկաթոռ',
-      description: 'Լավ վիճակում',
+      titleHy: 'Անվճար բազկաթոռ',
+      titleRu: 'Անվճար բազկաթոռ',
+      titleEn: 'Free armchair',
+      descriptionHy: 'Լավ վիճակում',
+      descriptionRu: 'Լավ վիճակում',
+      descriptionEn: 'In good condition',
+      needsTranslation: false,
+      sourceLocale: 'hy',
       categoryId,
       districtId,
       condition: 'working',
@@ -268,17 +278,30 @@ describe.skipIf(!hasDatabase)('items API', () => {
    * reached by this post-write update, exactly as the moderation flow and the
    * cron sweep reach them. The row's owner is a tracked-phone user, so afterEach
    * cascade-deletes it.
+   *
+   * `title` fills all three locale columns identically — every caller here
+   * wants *a* title, not a specific translation state, and
+   * `needsTranslation: false` means the forced status update below can move
+   * straight to `active` without tripping
+   * `item_translations_complete_when_active`.
    */
   async function seedItem(
     userId: string,
     status: ItemStatus,
     overrides: { categoryId?: number; districtId?: number; expiresAt?: Date; title?: string } = {},
   ): Promise<string> {
+    const title = overrides.title ?? 'Ապրանք';
     const result = await createItem(
       {
         userId,
-        title: overrides.title ?? 'Ապրանք',
-        description: null,
+        titleHy: title,
+        titleRu: title,
+        titleEn: title,
+        descriptionHy: null,
+        descriptionRu: null,
+        descriptionEn: null,
+        needsTranslation: false,
+        sourceLocale: 'hy',
         categoryId: overrides.categoryId ?? categoryId,
         districtId: overrides.districtId ?? districtId,
         condition: 'working',
@@ -463,6 +486,97 @@ describe.skipIf(!hasDatabase)('items API', () => {
       expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_CATEGORY');
     });
 
+    it('accepts a needsTranslation submission with only sourceLocale filled', async () => {
+      // In-process with the stub: this is the one path that reaches the R2
+      // existence check, which the throwaway server config cannot satisfy
+      // (see "creates a pending_review item..." above) — the zod-level
+      // validation this shape also has to pass is exercised separately by
+      // the two rejection tests below, which fail before R2 is ever reached.
+      const { userId } = await signIn();
+
+      const result = await createItem(
+        {
+          userId,
+          titleHy: 'Անվճար աթոռ',
+          titleRu: null,
+          titleEn: null,
+          descriptionHy: 'Լավ վիճակում',
+          descriptionRu: null,
+          descriptionEn: null,
+          needsTranslation: true,
+          sourceLocale: 'hy',
+          categoryId,
+          districtId,
+          condition: 'working',
+          pickupNotes: null,
+          images: [ownedImage(userId, 'translation')],
+        },
+        objectAlwaysExists,
+      );
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.status).toBe('pending_review');
+
+      const [row] = await db
+        .select({
+          titleHy: items.titleHy,
+          titleRu: items.titleRu,
+          titleEn: items.titleEn,
+          needsTranslation: items.needsTranslation,
+          sourceLocale: items.sourceLocale,
+        })
+        .from(items)
+        .where(eq(items.id, result.id));
+
+      expect(row.titleHy).toBe('Անվճար աթոռ');
+      expect(row.titleRu).toBeNull();
+      expect(row.titleEn).toBeNull();
+      expect(row.needsTranslation).toBe(true);
+      expect(row.sourceLocale).toBe('hy');
+    });
+
+    it('rejects a needsTranslation submission that also fills a locale outside sourceLocale', async () => {
+      const { cookie, userId } = await signIn();
+
+      const response = await post(
+        '/api/items',
+        validBody(userId, {
+          titleHy: 'Անվճար աթոռ',
+          titleRu: 'Бесплатный стул',
+          titleEn: undefined,
+          needsTranslation: true,
+          sourceLocale: 'hy',
+        }),
+        cookie,
+      );
+
+      expect(response.status, response.text).toBe(400);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_BODY');
+    });
+
+    it('rejects a non-translation submission missing one locale title', async () => {
+      const { cookie, userId } = await signIn();
+
+      const response = await post('/api/items', validBody(userId, { titleEn: undefined }), cookie);
+
+      expect(response.status, response.text).toBe(400);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_BODY');
+    });
+
+    it('rejects a non-translation submission with a description filled in only one locale', async () => {
+      const { cookie, userId } = await signIn();
+
+      const response = await post(
+        '/api/items',
+        validBody(userId, { descriptionRu: undefined, descriptionEn: undefined }),
+        cookie,
+      );
+
+      expect(response.status, response.text).toBe(400);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('INVALID_BODY');
+    });
+
     it('creates a pending_review item with its images in submitted order', async () => {
       // In-process with the stub: this is the one path that reaches the R2
       // existence check, which the throwaway server config cannot satisfy.
@@ -477,8 +591,14 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const result = await createItem(
         {
           userId,
-          title: 'Սեղան',
-          description: null,
+          titleHy: 'Սեղան',
+          titleRu: 'Սեղան',
+          titleEn: 'Սեղան',
+          descriptionHy: null,
+          descriptionRu: null,
+          descriptionEn: null,
+          needsTranslation: false,
+          sourceLocale: 'hy',
           categoryId,
           districtId,
           condition: 'working',
@@ -536,8 +656,14 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const mine = await createItem(
         {
           userId: alice.userId,
-          title: 'Իմ սեղանը',
-          description: null,
+          titleHy: 'Իմ սեղանը',
+          titleRu: 'Իմ սեղանը',
+          titleEn: 'Իմ սեղանը',
+          descriptionHy: null,
+          descriptionRu: null,
+          descriptionEn: null,
+          needsTranslation: false,
+          sourceLocale: 'hy',
           categoryId,
           districtId,
           condition: 'working',
@@ -549,8 +675,14 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const theirs = await createItem(
         {
           userId: bob.userId,
-          title: 'Ուրիշի սեղանը',
-          description: null,
+          titleHy: 'Ուրիշի սեղանը',
+          titleRu: 'Ուրիշի սեղանը',
+          titleEn: 'Ուրիշի սեղանը',
+          descriptionHy: null,
+          descriptionRu: null,
+          descriptionEn: null,
+          needsTranslation: false,
+          sourceLocale: 'hy',
           categoryId,
           districtId,
           condition: 'working',
@@ -577,8 +709,14 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const created = await createItem(
         {
           userId,
-          title: 'Մերժված',
-          description: null,
+          titleHy: 'Մերժված',
+          titleRu: 'Մերժված',
+          titleEn: 'Մերժված',
+          descriptionHy: null,
+          descriptionRu: null,
+          descriptionEn: null,
+          needsTranslation: false,
+          sourceLocale: 'hy',
           categoryId,
           districtId,
           condition: 'working',
@@ -668,8 +806,14 @@ describe.skipIf(!hasDatabase)('items API', () => {
       await createItem(
         {
           userId,
-          title: 'Առարկա',
-          description: null,
+          titleHy: 'Առարկա',
+          titleRu: 'Առարկա',
+          titleEn: 'Առարկա',
+          descriptionHy: null,
+          descriptionRu: null,
+          descriptionEn: null,
+          needsTranslation: false,
+          sourceLocale: 'hy',
           categoryId,
           districtId,
           condition: 'working',

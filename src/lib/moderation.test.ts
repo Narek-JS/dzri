@@ -17,23 +17,28 @@ describe('initialItemStatus', () => {
 
   it("defaults to 'pending_review' when MODERATION_MODE is unset", () => {
     delete process.env.MODERATION_MODE;
-    expect(initialItemStatus()).toBe('pending_review');
+    expect(initialItemStatus(false)).toBe('pending_review');
   });
 
   it("returns 'pending_review' in pre mode", () => {
     process.env.MODERATION_MODE = 'pre';
-    expect(initialItemStatus()).toBe('pending_review');
+    expect(initialItemStatus(false)).toBe('pending_review');
   });
 
   it("returns 'active' in post mode", () => {
     process.env.MODERATION_MODE = 'post';
-    expect(initialItemStatus()).toBe('active');
+    expect(initialItemStatus(false)).toBe('active');
   });
 
   it("falls back to 'pending_review' for any unrecognized value", () => {
     for (const value of ['', 'PRE', 'POST', 'post ', ' post', 'pre-moderation', 'off', 'true']) {
       process.env.MODERATION_MODE = value;
-      expect(initialItemStatus(), JSON.stringify(value)).toBe('pending_review');
+      expect(initialItemStatus(false), JSON.stringify(value)).toBe('pending_review');
     }
+  });
+
+  it("returns 'pending_review' for a translation request even in post mode", () => {
+    process.env.MODERATION_MODE = 'post';
+    expect(initialItemStatus(true)).toBe('pending_review');
   });
 });

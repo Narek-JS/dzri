@@ -22,7 +22,16 @@ export type OwnerClaim = {
 
 export type OwnerItemSummary = {
   id: string;
-  title: string;
+  /**
+   * All three, unresolved, mirroring `FeedItemRow` — a claim can only be
+   * created while `status = 'active'` (`createClaim`'s own guard), and
+   * `item_translations_complete_when_active` never lets these columns go
+   * null again afterward, so this page is guaranteed all three regardless
+   * of the item's current status.
+   */
+  titleHy: string;
+  titleRu: string;
+  titleEn: string;
   status: ItemStatus;
   reservedUntil: Date | null;
 };
@@ -61,7 +70,9 @@ export async function getClaimsForOwner(
     .select({
       id: items.id,
       userId: items.userId,
-      title: items.title,
+      titleHy: items.titleHy,
+      titleRu: items.titleRu,
+      titleEn: items.titleEn,
       status: items.status,
       reservedUntil: items.reservedUntil,
     })
@@ -133,7 +144,11 @@ export async function getClaimsForOwner(
   return {
     item: {
       id: item.id,
-      title: item.title,
+      // See OwnerItemSummary's doc comment for why these are safe to assert
+      // non-null: this item held a claim, so it was `active` at some point.
+      titleHy: item.titleHy as string,
+      titleRu: item.titleRu as string,
+      titleEn: item.titleEn as string,
       status: item.status,
       reservedUntil: item.reservedUntil,
     },

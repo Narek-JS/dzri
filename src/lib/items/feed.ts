@@ -18,7 +18,14 @@ export type FeedFilters = {
 
 export type FeedItemRow = {
   id: string;
-  title: string;
+  /**
+   * All three, unresolved — mirroring `district`/`category` below, since the
+   * feed is only ever `active` items and `item_translations_complete_when_
+   * active` (src/db/schema/items.ts) guarantees every one is non-null.
+   */
+  titleHy: string;
+  titleRu: string;
+  titleEn: string;
   condition: ItemCondition;
   createdAt: Date;
   thumbnailUrl: string | null;
@@ -78,7 +85,9 @@ export async function getFeed(filters: FeedFilters): Promise<FeedPage> {
   const rows = await db
     .select({
       id: items.id,
-      title: items.title,
+      titleHy: items.titleHy,
+      titleRu: items.titleRu,
+      titleEn: items.titleEn,
       condition: items.condition,
       createdAt: items.createdAt,
       thumbnailUrl,
@@ -106,5 +115,17 @@ export async function getFeed(filters: FeedFilters): Promise<FeedPage> {
   const page = hasMore ? rows.slice(0, FEED_PAGE_SIZE) : rows;
   const nextCursor = hasMore ? page[page.length - 1].createdAt.toISOString() : null;
 
-  return { items: page, nextCursor };
+  // The title columns are nullable at the schema level (a pending or
+  // rejected item may be missing two of them), but this query only ever
+  // selects `active` rows, and item_translations_complete_when_active
+  // guarantees an `active` row has all three — an invariant TypeScript can't
+  // see through the column's nullable type, hence the assertion.
+  const resolvedItems: FeedItemRow[] = page.map((row) => ({
+    ...row,
+    titleHy: row.titleHy as string,
+    titleRu: row.titleRu as string,
+    titleEn: row.titleEn as string,
+  }));
+
+  return { items: resolvedItems, nextCursor };
 }

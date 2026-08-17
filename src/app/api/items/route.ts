@@ -111,6 +111,11 @@ const itemImageSchema = z.object({
   blurhash: z.string().min(MIN_BLURHASH_LENGTH).max(MAX_BLURHASH_LENGTH).regex(BLURHASH_CHARSET),
 });
 
+const ITEM_LOCALES = ['hy', 'ru', 'en'] as const;
+
+const titleField = z.string().trim().min(3).max(100).nullish();
+const descriptionField = z.string().trim().max(2000).nullish();
+
 /**
  * Structural validation only for the keys. Image count and key ownership are
  * business rules with their own stable error codes, checked in `createItem`,
@@ -122,16 +127,94 @@ const itemImageSchema = z.object({
  * because they have no business meaning to fail on. There is no
  * "INVALID_DIMENSION" for a client that sends a negative height — that is a
  * malformed body.
+ *
+ * Title/description are per-locale (`titleHy`/`titleRu`/`titleEn`,
+ * `descriptionHy`/`descriptionRu`/`descriptionEn`), mirroring the
+ * `title_hy`/`title_ru`/`title_en` columns. `needsTranslation` and
+ * `sourceLocale` come straight off CreateItemForm's checkbox (PART 2): the
+ * `superRefine` below is what stops a half-filled multi-locale submission —
+ * exactly `sourceLocale`'s fields when `needsTranslation` is true, all three
+ * when it is false. This is request-shape validation, not the "can this
+ * become `active`" question — that is the database's job
+ * (`item_translations_complete_when_active`), and a request never sets
+ * `status` directly anyway.
  */
-const createItemSchema = z.object({
-  title: z.string().trim().min(3).max(100),
-  description: z.string().trim().max(2000).nullish(),
-  categoryId: z.number().int().positive(),
-  districtId: z.number().int().positive(),
-  condition: z.enum(['working', 'needs_repair', 'for_parts']),
-  pickupNotes: z.string().trim().max(300).nullish(),
-  images: z.array(itemImageSchema),
-});
+const createItemSchema = z
+  .object({
+    titleHy: titleField,
+    titleRu: titleField,
+    titleEn: titleField,
+    descriptionHy: descriptionField,
+    descriptionRu: descriptionField,
+    descriptionEn: descriptionField,
+    needsTranslation: z.boolean(),
+    sourceLocale: z.enum(ITEM_LOCALES),
+    categoryId: z.number().int().positive(),
+    districtId: z.number().int().positive(),
+    condition: z.enum(['working', 'needs_repair', 'for_parts']),
+    pickupNotes: z.string().trim().max(300).nullish(),
+    images: z.array(itemImageSchema),
+  })
+  .superRefine((body, ctx) => {
+    const titleByLocale = { hy: body.titleHy, ru: body.titleRu, en: body.titleEn };
+    const descriptionByLocale = {
+      hy: body.descriptionHy,
+      ru: body.descriptionRu,
+      en: body.descriptionEn,
+    };
+    const filled = (value: string | null | undefined) => Boolean(value && value.length > 0);
+
+    if (body.needsTranslation) {
+      // Exactly sourceLocale's title, nothing in the other two — a
+      // needsTranslation item only ever has one language to show until an
+      // admin fills the rest in.
+      for (const locale of ITEM_LOCALES) {
+        const shouldBeFilled = locale === body.sourceLocale;
+        if (filled(titleByLocale[locale]) !== shouldBeFilled) {
+          ctx.addIssue({
+            code: 'custom',
+            message: "needsTranslation requires exactly sourceLocale's title, and no others",
+            path: ['titleHy'],
+          });
+          return;
+        }
+        if (locale !== body.sourceLocale && filled(descriptionByLocale[locale])) {
+          ctx.addIssue({
+            code: 'custom',
+            message:
+              'a description outside sourceLocale is not allowed when needsTranslation is true',
+            path: ['descriptionHy'],
+          });
+          return;
+        }
+      }
+    } else {
+      // All three titles required; description is all-or-nothing across the
+      // three, matching item_translations_complete_when_active exactly, so a
+      // non-translation item is always immediately eligible for 'active'.
+      for (const locale of ITEM_LOCALES) {
+        if (!filled(titleByLocale[locale])) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'all three locale titles are required when needsTranslation is false',
+            path: ['titleHy'],
+          });
+          return;
+        }
+      }
+
+      const descriptionFlags = ITEM_LOCALES.map((locale) => filled(descriptionByLocale[locale]));
+      const allFilled = descriptionFlags.every(Boolean);
+      const noneFilled = descriptionFlags.every((flag) => !flag);
+      if (!allFilled && !noneFilled) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'description must be filled in all three locales or none',
+          path: ['descriptionHy'],
+        });
+      }
+    }
+  });
 
 /** Empty strings survive `.trim()` as `''`; store absence as null, not `''`. */
 function orNull(value: string | null | undefined): string | null {
@@ -166,8 +249,14 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const result = await createItem({
       userId: user.id,
-      title: parsed.data.title,
-      description: orNull(parsed.data.description),
+      titleHy: orNull(parsed.data.titleHy),
+      titleRu: orNull(parsed.data.titleRu),
+      titleEn: orNull(parsed.data.titleEn),
+      descriptionHy: orNull(parsed.data.descriptionHy),
+      descriptionRu: orNull(parsed.data.descriptionRu),
+      descriptionEn: orNull(parsed.data.descriptionEn),
+      needsTranslation: parsed.data.needsTranslation,
+      sourceLocale: parsed.data.sourceLocale,
       categoryId: parsed.data.categoryId,
       districtId: parsed.data.districtId,
       condition: parsed.data.condition,

@@ -4,12 +4,7 @@ import type { ApiErrorBody, ApiErrorCode } from '@/lib/http';
 // pg-core comes along with these. The status/condition unions are typed
 // straight off the schema so this file cannot drift from what a route
 // handler actually returns.
-import type {
-  ClaimRejectedReason,
-  ClaimStatus,
-  ItemCondition,
-  ItemStatus,
-} from '@/db/schema';
+import type { ClaimRejectedReason, ClaimStatus, ItemCondition, ItemStatus } from '@/db/schema';
 
 /**
  * A typed wrapper around `fetch` for every endpoint in API.md. One module,
@@ -69,6 +64,9 @@ function parseRetryAfterSeconds(headers: Headers): number | undefined {
  * UI must render "not found," never "no permission," so there is no
  * "forbidden" key for these to reach for instead.
  */
+/** hy/ru/en — the app's three supported locales (`src/i18n/routing.ts`). */
+export type ItemLocale = 'hy' | 'ru' | 'en';
+
 const ERROR_MESSAGE_KEYS: Record<ApiErrorCode, string> = {
   INVALID_PHONE: 'errors.invalidPhone',
   RATE_LIMITED: 'errors.rateLimited',
@@ -90,6 +88,7 @@ const ERROR_MESSAGE_KEYS: Record<ApiErrorCode, string> = {
   ALREADY_CLAIMED: 'errors.alreadyClaimed',
   CLAIM_NOT_FOUND: 'errors.notFound',
   INVALID_STATUS_TRANSITION: 'errors.invalidStatusTransition',
+  TRANSLATIONS_REQUIRED: 'errors.translationsRequired',
   NOT_FOUND: 'errors.notFound',
   INVALID_BODY: 'errors.invalidBody',
   UNAUTHORIZED: 'errors.unauthorized',
@@ -212,15 +211,22 @@ export type FeedQuery = {
   cursor?: string;
 };
 
+/**
+ * Title, per locale, mirroring `DistrictRef`/`CategoryRef` — the feed only
+ * ever holds `active` items, so `item_translations_complete_when_active`
+ * (src/db/schema/items.ts) guarantees all three are non-null here; no
+ * fallback is needed when resolving one of these to display.
+ */
+export type LocalizedTitleRef = { titleHy: string; titleRu: string; titleEn: string };
+
 export type FeedItem = {
   id: string;
-  title: string;
   condition: ItemCondition;
   createdAt: string;
   thumbnailUrl: string | null;
   district: DistrictRef;
   category: CategoryRef;
-};
+} & LocalizedTitleRef;
 
 export type FeedResponse = { items: FeedItem[]; nextCursor: string | null };
 
@@ -235,8 +241,19 @@ export type ItemImageDetail = {
 
 export type ItemDetail = {
   id: string;
-  title: string;
-  description: string | null;
+  titleHy: string | null;
+  titleRu: string | null;
+  titleEn: string | null;
+  descriptionHy: string | null;
+  descriptionRu: string | null;
+  descriptionEn: string | null;
+  /**
+   * Which of the three the giver actually typed — resolveLocalizedText's
+   * fallback when the viewer's own locale isn't filled yet (owner reading
+   * their own `pending_review`/`rejected` listing). Always present, unlike
+   * the six above.
+   */
+  sourceLocale: ItemLocale;
   condition: ItemCondition;
   pickupNotes: string | null;
   status: ItemStatus;
@@ -266,9 +283,24 @@ export type CreateItemImage = {
   blurhash: string;
 };
 
+/**
+ * Either shape CreateItemForm can produce (PART 2): `needsTranslation: true`
+ * with only `sourceLocale`'s title/description filled, or `false` with all
+ * three locales' titles filled (description follows the same per-locale
+ * all-or-nothing rule, but stays optional overall). The route's
+ * `superRefine` (src/app/api/items/route.ts) is what actually enforces
+ * this — these fields are all individually optional here because either
+ * shape leaves two of the three locale fields absent.
+ */
 export type CreateItemBody = {
-  title: string;
-  description?: string | null;
+  titleHy?: string | null;
+  titleRu?: string | null;
+  titleEn?: string | null;
+  descriptionHy?: string | null;
+  descriptionRu?: string | null;
+  descriptionEn?: string | null;
+  needsTranslation: boolean;
+  sourceLocale: ItemLocale;
   categoryId: number;
   districtId: number;
   condition: ItemCondition;
@@ -282,7 +314,11 @@ export type MyItemsQuery = { cursor?: string };
 
 export type MyItem = {
   id: string;
-  title: string;
+  titleHy: string | null;
+  titleRu: string | null;
+  titleEn: string | null;
+  /** resolveLocalizedText's fallback — a mix of every status lands here, not just `active`. */
+  sourceLocale: ItemLocale;
   status: ItemStatus;
   rejectionReason: string | null;
   createdAt: string;
@@ -352,7 +388,13 @@ export type MyClaim = {
   rejectedReason?: ClaimRejectedReason;
   message: string | null;
   createdAt: string;
-  item: { id: string; title: string; status: ItemStatus; thumbnailUrl: string | null };
+  /**
+   * A claim can only be created on an `active` item (`createClaim`'s own
+   * guard), and `item_translations_complete_when_active` never lets those
+   * columns go null again afterward — so all three titles are guaranteed
+   * here regardless of what the item's status is by the time this is read.
+   */
+  item: { id: string; status: ItemStatus; thumbnailUrl: string | null } & LocalizedTitleRef;
   giver: { displayName: string; phone?: string };
 };
 
@@ -364,10 +406,24 @@ export type MyClaimsResponse = { claims: MyClaim[]; nextCursor: string | null };
 
 export type PendingItemsQuery = { cursor?: string };
 
+/**
+ * Raw per-locale columns, not resolved to one string — unlike every
+ * public-facing item shape, the admin queue needs to tell "not yet
+ * translated" (`null`) apart from "translated as an empty string" (which
+ * can't happen for title, since it's required, but matters for
+ * description), so it can render editable fields for exactly the missing
+ * ones (PART 4).
+ */
 export type PendingItem = {
   id: string;
-  title: string;
-  description: string | null;
+  titleHy: string | null;
+  titleRu: string | null;
+  titleEn: string | null;
+  descriptionHy: string | null;
+  descriptionRu: string | null;
+  descriptionEn: string | null;
+  needsTranslation: boolean;
+  sourceLocale: ItemLocale;
   condition: ItemCondition;
   pickupNotes: string | null;
   createdAt: string;
@@ -378,6 +434,21 @@ export type PendingItem = {
 };
 
 export type PendingItemsResponse = { items: PendingItem[]; nextCursor: string | null };
+
+/**
+ * The missing locales' title/description, sent only when the item's
+ * `needsTranslation` is true — `approveItem` (src/lib/items/moderate.ts)
+ * ignores this entirely when it's false, so a caller with nothing to fill
+ * in can omit the body exactly as before this endpoint took one.
+ */
+export type ApproveItemTranslations = {
+  titleHy?: string;
+  titleRu?: string;
+  titleEn?: string;
+  descriptionHy?: string;
+  descriptionRu?: string;
+  descriptionEn?: string;
+};
 
 export type ApproveItemResponse = { id: string; status: 'active' };
 
@@ -475,8 +546,11 @@ export const api = {
     pendingItems: (query: PendingItemsQuery = {}) =>
       apiFetch<PendingItemsResponse>(`/api/admin/items/pending${buildQuery(query)}`),
 
-    approveItem: (id: string) =>
-      apiFetch<ApproveItemResponse>(`/api/admin/items/${id}/approve`, { method: 'POST' }),
+    approveItem: (id: string, translations?: ApproveItemTranslations) =>
+      apiFetch<ApproveItemResponse>(`/api/admin/items/${id}/approve`, {
+        method: 'POST',
+        ...(translations ? { body: JSON.stringify(translations) } : {}),
+      }),
 
     rejectItem: (id: string, body: RejectItemBody) =>
       apiFetch<RejectItemResponse>(`/api/admin/items/${id}/reject`, {

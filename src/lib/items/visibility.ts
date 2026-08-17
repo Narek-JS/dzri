@@ -6,6 +6,8 @@ import { categories, claims, districts, itemImages, items, users } from '@/db/sc
 import type { ItemCondition, ItemStatus } from '@/db/schema';
 import type { Session } from '@/lib/auth/session';
 
+import type { ItemLocale } from './create';
+
 /** The claim statuses that entitle their holder to keep reading the item. */
 const ENTITLED_CLAIM_STATUSES = ['approved', 'completed'] as const;
 
@@ -27,8 +29,20 @@ export type VisibleItemImage = {
  */
 export type VisibleItem = {
   id: string;
-  title: string;
-  description: string | null;
+  /**
+   * Raw per-locale columns, unresolved — unlike the feed, this item is not
+   * guaranteed `active` (the owner may be looking at their own
+   * `pending_review` or `rejected` listing), so two of the three can be
+   * `null`. Callers resolve with `resolveLocalizedText` (src/lib/items/
+   * localizedText.ts), falling back to `sourceLocale`'s column.
+   */
+  titleHy: string | null;
+  titleRu: string | null;
+  titleEn: string | null;
+  descriptionHy: string | null;
+  descriptionRu: string | null;
+  descriptionEn: string | null;
+  sourceLocale: ItemLocale;
   condition: ItemCondition;
   pickupNotes: string | null;
   status: ItemStatus;
@@ -87,8 +101,13 @@ export async function getItemForViewer(
     .select({
       id: items.id,
       userId: items.userId,
-      title: items.title,
-      description: items.description,
+      titleHy: items.titleHy,
+      titleRu: items.titleRu,
+      titleEn: items.titleEn,
+      descriptionHy: items.descriptionHy,
+      descriptionRu: items.descriptionRu,
+      descriptionEn: items.descriptionEn,
+      sourceLocale: items.sourceLocale,
       condition: items.condition,
       pickupNotes: items.pickupNotes,
       status: items.status,
@@ -164,8 +183,15 @@ export async function getItemForViewer(
   return {
     item: {
       id: row.id,
-      title: row.title,
-      description: row.description,
+      titleHy: row.titleHy,
+      titleRu: row.titleRu,
+      titleEn: row.titleEn,
+      descriptionHy: row.descriptionHy,
+      descriptionRu: row.descriptionRu,
+      descriptionEn: row.descriptionEn,
+      // `source_locale` is plain `text`, not a Postgres enum — createItem
+      // only ever writes one of the three locales into it.
+      sourceLocale: row.sourceLocale as ItemLocale,
       condition: row.condition,
       pickupNotes: row.pickupNotes,
       status: row.status,

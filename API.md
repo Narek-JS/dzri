@@ -315,7 +315,9 @@ link should never break.
   "items": [
     {
       "id": "uuid",
-      "title": "Անվճար բազկաթոռ",
+      "titleHy": "Անվճար բազկաթոռ",
+      "titleRu": "Бесплатное кресло",
+      "titleEn": "Free armchair",
       "condition": "working",
       "createdAt": "2026-08-07T12:00:00.000Z",
       "thumbnailUrl": "https://.../photo.jpg",
@@ -328,6 +330,12 @@ link should never break.
 ```
 
 24 per page, newest first. No description, no pickup notes, no user info.
+
+`titleHy`/`titleRu`/`titleEn` are all three, unresolved — the same
+`nameHy`/`nameRu`/`nameEn` shape `district`/`category` already use. Pick
+one client-side for the viewer's locale. The feed is only ever `active`
+items, and the `item_translations_complete_when_active` check constraint
+guarantees all three are non-null for those — no fallback needed here.
 
 `Cache-Control: public, s-maxage=60, stale-while-revalidate=300` — safe
 to render server-side and cheap to re-fetch.
@@ -363,8 +371,13 @@ A malformed uuid also returns 404.
 {
   "item": {
     "id": "uuid",
-    "title": "Անվճար բազկաթոռ",
-    "description": "Լավ վիճակում",
+    "titleHy": "Անվճար բազկաթոռ",
+    "titleRu": "Бесплатное кресло",
+    "titleEn": "Free armchair",
+    "descriptionHy": "Լավ վիճակում",
+    "descriptionRu": "В хорошем состоянии",
+    "descriptionEn": "In good condition",
+    "sourceLocale": "hy",
     "condition": "working",
     "pickupNotes": "3-րդ հարկ, վերելակ չկա",
     "status": "active",
@@ -390,6 +403,15 @@ A malformed uuid also returns 404.
 Never the giver's phone — not for anyone, including the owner and
 including the approved claimant. The claimant gets the number from
 `GET /api/claims/mine`; this is not a fourth phone-bearing endpoint.
+
+`titleHy`/`titleRu`/`titleEn`/`descriptionHy`/`descriptionRu`/`descriptionEn`
+are all six, unresolved — pick one per field for the viewer's locale,
+client-side, the same as the feed. Unlike the feed this item is not
+guaranteed `active` (the owner may be reading their own `pending_review`
+or `rejected` listing), so two of the three locales can be `null` for
+each field. `sourceLocale` names which one the giver actually typed and
+is always filled — fall back to it when the viewer's own locale is
+`null`. For an `active` item the fallback never triggers.
 
 `thumbUrl` is the 400px variant. It is `null` on images uploaded before
 the two-variant pipeline existed — fall back to `url` when it is. Use
@@ -449,12 +471,14 @@ deletion. A second delete is also a 409.
 
 Creates a listing. Requires auth.
 
-**Body**
+**Body — checkbox checked ("let the admin translate"), the default**
 
 ```json
 {
-  "title": "Անվճար բազկաթոռ",
-  "description": "Լավ վիճակում",
+  "titleHy": "Անվճար բազկաթոռ",
+  "descriptionHy": "Լավ վիճակում",
+  "needsTranslation": true,
+  "sourceLocale": "hy",
   "categoryId": 1,
   "districtId": 7,
   "condition": "working",
@@ -471,10 +495,53 @@ Creates a listing. Requires auth.
 }
 ```
 
+Only `sourceLocale`'s `title{Hy,Ru,En}`/`description{Hy,Ru,En}` fields
+may be present; the other two locales must be absent (not empty
+strings — absent). The item lands in `pending_review` regardless of
+`MODERATION_MODE`, since an admin still has to fill the other two
+locales in before it can become `active` — see
+`POST /api/admin/items/[id]/approve` below.
+
+**Body — checkbox unchecked, all three locales typed directly**
+
+```json
+{
+  "titleHy": "Անվճար բազկաթոռ",
+  "titleRu": "Бесплатное кресло",
+  "titleEn": "Free armchair",
+  "descriptionHy": "Լավ վիճակում",
+  "descriptionRu": "В хорошем состоянии",
+  "descriptionEn": "In good condition",
+  "needsTranslation": false,
+  "sourceLocale": "hy",
+  "categoryId": 1,
+  "districtId": 7,
+  "condition": "working",
+  "pickupNotes": "3-րդ հարկ",
+  "images": [
+    {
+      "key": "uploads/{userId}/a.jpg",
+      "thumbKey": "uploads/{userId}/a-thumb.jpg",
+      "width": 1600,
+      "height": 1200,
+      "blurhash": "LEHV6nWB2yk8pyo0adR*.7kCMdnj"
+    }
+  ]
+}
+```
+
+All three `title{Hy,Ru,En}` fields are required. Description is
+optional but all-or-nothing across the three locales — either all three
+`description{Hy,Ru,En}` are present, or none are. `sourceLocale` still
+records which locale the giver was actually typing in, but nothing is
+left for an admin to translate.
+
 | Field | Rule |
 |---|---|
-| `title` | 3–100 chars, trimmed, required |
-| `description` | max 2000, optional |
+| `titleHy`/`titleRu`/`titleEn` | 3–100 chars, trimmed each; see above for which are required |
+| `descriptionHy`/`descriptionRu`/`descriptionEn` | max 2000 each, optional, all-or-nothing per locale rules above |
+| `needsTranslation` | boolean, required |
+| `sourceLocale` | `hy` \| `ru` \| `en`, required |
 | `categoryId` | int, must exist |
 | `districtId` | int, must exist |
 | `condition` | `working` \| `needs_repair` \| `for_parts` |
@@ -509,16 +576,18 @@ plus both blobs from one decode.
 { "id": "uuid", "status": "pending_review" }
 ```
 
-`status` comes from `MODERATION_MODE`. It is `pending_review` at launch
-— **a new item is not visible on the feed until an admin approves it.**
-The UI must say this after posting, or the giver will think it failed.
+`status` comes from `MODERATION_MODE`, except when `needsTranslation` is
+true, which always lands in `pending_review` regardless of mode (see
+above). At launch that means `pending_review` either way — **a new item
+is not visible on the feed until an admin approves it.** The UI must say
+this after posting, or the giver will think it failed.
 
 **Errors**
 
 | Code | Status | Meaning |
 |---|---|---|
 | `UNAUTHORIZED` | 401 | |
-| `INVALID_BODY` | 400 | Failed field validation, incl. a bad width, height or blurhash |
+| `INVALID_BODY` | 400 | Failed field validation, incl. a bad width, height, blurhash, or the wrong locale fields present/absent for `needsTranslation` |
 | `IMAGES_REQUIRED` | 400 | Empty `images` |
 | `TOO_MANY_IMAGES` | 400 | More than 6 |
 | `INVALID_IMAGE_KEY` | 400 | A `key` or `thumbKey` not under `uploads/{yourUserId}/`, or a duplicate |
@@ -542,7 +611,10 @@ The caller's own listings, newest first. Requires auth.
   "items": [
     {
       "id": "uuid",
-      "title": "Անվճար բազկաթոռ",
+      "titleHy": "Անվճար բազկաթոռ",
+      "titleRu": null,
+      "titleEn": null,
+      "sourceLocale": "hy",
       "status": "rejected",
       "rejectionReason": "Նկարը հստակ չէ",
       "createdAt": "...",
@@ -558,6 +630,13 @@ The caller's own listings, newest first. Requires auth.
 
 20 per page. `rejectionReason` is user-facing text written by an admin —
 show it verbatim.
+
+`titleHy`/`titleRu`/`titleEn` are all three, unresolved, with
+`sourceLocale` naming which one is guaranteed non-null — this list mixes
+in every status, so (unlike the feed) a `pending_review` or `rejected`
+item may still be waiting on a translation. Resolve for display by
+picking the viewer's locale and falling back to `sourceLocale`'s column
+when it's `null`.
 
 `claimCount` is how many people have asked for the item, ever, whatever
 became of those claims. `pendingClaimCount` counts only the ones still
@@ -778,7 +857,9 @@ Everything the caller has asked for, newest first. Requires auth.
       "createdAt": "...",
       "item": {
         "id": "uuid",
-        "title": "Անվճար բազկաթոռ",
+        "titleHy": "Անվճար բազկաթոռ",
+        "titleRu": "Бесплатное кресло",
+        "titleEn": "Free armchair",
         "status": "reserved",
         "thumbnailUrl": "https://.../photo.jpg"
       },
@@ -791,6 +872,12 @@ Everything the caller has asked for, newest first. Requires auth.
 
 20 per page. `giver.phone` appears **only** when `status` is `approved`.
 Absent otherwise.
+
+`item.titleHy`/`titleRu`/`titleEn` are all three, unresolved, and always
+non-null here — a claim can only be created on an `active` item, and the
+`item_translations_complete_when_active` check constraint never lets
+those columns go null again afterward, regardless of what the item's
+status is by the time this claim is read.
 
 `rejectedReason` appears **only** when `status` is `rejected`. Absent
 otherwise — never `null`, same convention as `giver.phone`. One of:
@@ -838,8 +925,14 @@ feed. The person who has waited longest is reviewed first.
   "items": [
     {
       "id": "uuid",
-      "title": "Անվճար բազկաթոռ",
-      "description": "Լավ վիճակում",
+      "titleHy": "Անվճար բազկաթոռ",
+      "titleRu": null,
+      "titleEn": null,
+      "descriptionHy": "Լավ վիճակում",
+      "descriptionRu": null,
+      "descriptionEn": null,
+      "needsTranslation": true,
+      "sourceLocale": "hy",
       "condition": "working",
       "pickupNotes": "3-րդ հարկ",
       "createdAt": "...",
@@ -856,6 +949,15 @@ feed. The person who has waited longest is reviewed first.
 20 per page. The giver's prior counts are what make a repeat spammer
 obvious at a glance. Never a phone.
 
+Title/description are the raw per-locale columns, **not** resolved to
+one string — the reviewer needs to see exactly which locales are `null`
+to fill them in, the opposite of every public-facing item response. A
+`null` title column means "not translated yet"; for description a
+`null` can also mean the giver never wrote one at all — `needsTranslation`
+plus `sourceLocale` is what tells them apart from the reviewer's side
+(`sourceLocale`'s own description column is `null` in the second case,
+non-null in the first).
+
 `Cache-Control: no-store`.
 
 **Errors:** `NOT_FOUND` 404.
@@ -864,15 +966,41 @@ obvious at a glance. Never a phone.
 
 ### POST /api/admin/items/[id]/approve
 
-Publishes a pending item. No body.
+Publishes a pending item.
+
+**Body — optional.** No body at all when the item's `needsTranslation`
+is false — the common case, and exactly the same request this endpoint
+took before translations existed. When `needsTranslation` is true, the
+missing locales' text:
+
+```json
+{
+  "titleRu": "Бесплатное кресло",
+  "titleEn": "Free armchair",
+  "descriptionRu": "В хорошем состоянии",
+  "descriptionEn": "In good condition"
+}
+```
+
+Every key is optional in the schema, but the specific ones a given item
+is actually missing are required in practice — send less than that and
+the response is `TRANSLATIONS_REQUIRED`. `sourceLocale`'s own
+title/description are never in this body; they were written at creation
+and this endpoint never overwrites them. Description keys are only
+required when the item has one at all — `sourceLocale`'s own description
+column being null means there's nothing to translate.
 
 **200** `{ "id": "uuid", "status": "active" }`
 
 Also resets `expiresAt` to 30 days from **now**, so a slow review doesn't
-eat the item's lifetime.
+eat the item's lifetime, and writes any supplied translations into the
+row in the same transition.
 
 **Errors:** `NOT_FOUND` 404, `INVALID_STATUS_TRANSITION` 409 (not
-pending — including a double-click).
+pending — including a double-click), `INVALID_BODY` 400 (malformed
+translation field — wrong type, too short, too long),
+`TRANSLATIONS_REQUIRED` 400 (the item needs a translation and the body
+didn't supply every locale it's still missing).
 
 ---
 
@@ -987,6 +1115,7 @@ Documented here only so nobody wires a UI button to it.
 | `ALREADY_CLAIMED` | 409 |
 | `CLAIM_NOT_FOUND` | 404 |
 | `INVALID_STATUS_TRANSITION` | 409 |
+| `TRANSLATIONS_REQUIRED` | 400 |
 | `NOT_FOUND` | 404 |
 | `INTERNAL` | 500 |
 

@@ -32,6 +32,7 @@ export type ApiErrorCode =
   | 'CLAIM_NOT_FOUND'
   // moderation
   | 'INVALID_STATUS_TRANSITION'
+  | 'TRANSLATIONS_REQUIRED'
   // generic
   | 'NOT_FOUND'
   | 'INVALID_BODY'
@@ -60,6 +61,7 @@ const status: Record<ApiErrorCode, number> = {
   ALREADY_CLAIMED: 409,
   CLAIM_NOT_FOUND: 404,
   INVALID_STATUS_TRANSITION: 409,
+  TRANSLATIONS_REQUIRED: 400,
   NOT_FOUND: 404,
   INVALID_BODY: 400,
   UNAUTHORIZED: 401,
@@ -89,6 +91,7 @@ const message: Record<ApiErrorCode, string> = {
   CLAIM_NOT_FOUND: 'No claim with that id is visible to the requester',
   INVALID_STATUS_TRANSITION:
     'The item or claim is not in a status from which this action is allowed',
+  TRANSLATIONS_REQUIRED: 'Every missing locale must be translated before this item can be approved',
   NOT_FOUND: 'Not found',
   INVALID_BODY: 'Request body failed validation',
   UNAUTHORIZED: 'Not signed in',

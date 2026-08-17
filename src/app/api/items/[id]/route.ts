@@ -53,8 +53,13 @@ export async function GET(
     {
       item: {
         id: item.id,
-        title: item.title,
-        description: item.description,
+        titleHy: item.titleHy,
+        titleRu: item.titleRu,
+        titleEn: item.titleEn,
+        descriptionHy: item.descriptionHy,
+        descriptionRu: item.descriptionRu,
+        descriptionEn: item.descriptionEn,
+        sourceLocale: item.sourceLocale,
         condition: item.condition,
         pickupNotes: item.pickupNotes,
         status: item.status,

@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import Image from 'next/image';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/Button';
 import { Notice, noticeClassName } from '@/components/ui/Notice';
@@ -69,6 +69,7 @@ export function MyClaimRow({
   onWithdraw: () => void;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const [confirming, setConfirming] = useState(false);
 
   const askedAgo = relativeTimeMessage(new Date(claim.createdAt), now);
@@ -76,7 +77,16 @@ export function MyClaimRow({
   const giverPhone = claim.giver.phone;
   const isApproved = claim.status === 'approved';
 
-  const title = <span className="font-medium break-words">{claim.item.title}</span>;
+  // All three columns are guaranteed non-null on a claimed item (MyClaim's
+  // `item` field doc comment, src/lib/api/client.ts), so this is a plain
+  // three-way pick, no fallback.
+  const itemTitle =
+    locale === 'ru'
+      ? claim.item.titleRu
+      : locale === 'en'
+        ? claim.item.titleEn
+        : claim.item.titleHy;
+  const title = <span className="font-medium break-words">{itemTitle}</span>;
 
   return (
     <li
@@ -91,7 +101,7 @@ export function MyClaimRow({
           {claim.item.thumbnailUrl && (
             <Image
               src={claim.item.thumbnailUrl}
-              alt={t('itemDetail.gallery.photoAlt', { title: claim.item.title })}
+              alt={t('itemDetail.gallery.photoAlt', { title: itemTitle })}
               fill
               sizes={THUMBNAIL_SIZES}
               className="object-cover"

@@ -20,7 +20,18 @@ import { items } from '@/db/schema';
  * same refusal to the caller.
  */
 
-export type ModerationResult = { ok: true } | { ok: false; code: 'INVALID_STATUS_TRANSITION' };
+export type ModerationResult =
+  { ok: true } | { ok: false; code: 'INVALID_STATUS_TRANSITION' | 'TRANSLATIONS_REQUIRED' };
+
+/** The missing locales' title/description, keyed exactly like the item's own columns. */
+export type ApproveTranslations = {
+  titleHy?: string;
+  titleRu?: string;
+  titleEn?: string;
+  descriptionHy?: string;
+  descriptionRu?: string;
+  descriptionEn?: string;
+};
 
 /**
  * `pending_review → active`.
@@ -30,8 +41,83 @@ export type ModerationResult = { ok: true } | { ok: false; code: 'INVALID_STATUS
  * never silently eats into it. Clears any prior `rejectionReason` (the
  * check constraint forbids a non-rejected item carrying one) and records
  * who reviewed it and when.
+ *
+ * When the item's `needsTranslation` is true, `item_translations_complete_
+ * when_active` refuses this update unless every currently-null locale
+ * column is filled in the same statement — so this reads the row first to
+ * learn which columns are actually missing, validates `translations` covers
+ * all of them, and folds the fill into the same conditional UPDATE that
+ * performs the transition. A row that turns out not to be `pending_review`
+ * by the time that UPDATE runs (approved or rejected between the read and
+ * the write) still resolves to `INVALID_STATUS_TRANSITION`, exactly as
+ * before this function took a second argument — the guard is unchanged,
+ * there is just more it can now also set.
+ *
+ * `translations` is ignored entirely when `needsTranslation` is false: a
+ * caller that sends nothing (today's only caller) sees no behavior change.
  */
-export async function approveItem(itemId: string, adminId: string): Promise<ModerationResult> {
+export async function approveItem(
+  itemId: string,
+  adminId: string,
+  translations?: ApproveTranslations,
+): Promise<ModerationResult> {
+  const [item] = await db
+    .select({
+      status: items.status,
+      needsTranslation: items.needsTranslation,
+      titleHy: items.titleHy,
+      titleRu: items.titleRu,
+      titleEn: items.titleEn,
+      descriptionHy: items.descriptionHy,
+      descriptionRu: items.descriptionRu,
+      descriptionEn: items.descriptionEn,
+    })
+    .from(items)
+    .where(eq(items.id, itemId))
+    .limit(1);
+
+  if (!item || item.status !== 'pending_review') {
+    return { ok: false, code: 'INVALID_STATUS_TRANSITION' };
+  }
+
+  const fill: ApproveTranslations = {};
+
+  if (item.needsTranslation) {
+    if (item.titleHy === null) {
+      if (!translations?.titleHy) return { ok: false, code: 'TRANSLATIONS_REQUIRED' };
+      fill.titleHy = translations.titleHy;
+    }
+    if (item.titleRu === null) {
+      if (!translations?.titleRu) return { ok: false, code: 'TRANSLATIONS_REQUIRED' };
+      fill.titleRu = translations.titleRu;
+    }
+    if (item.titleEn === null) {
+      if (!translations?.titleEn) return { ok: false, code: 'TRANSLATIONS_REQUIRED' };
+      fill.titleEn = translations.titleEn;
+    }
+
+    // Description only needs filling in when the source locale actually has
+    // one — an item posted with no description needs no description
+    // translated, and item_translations_complete_when_active allows all
+    // three to stay null just as readily as all three filled.
+    const hasSourceDescription =
+      item.descriptionHy !== null || item.descriptionRu !== null || item.descriptionEn !== null;
+    if (hasSourceDescription) {
+      if (item.descriptionHy === null) {
+        if (!translations?.descriptionHy) return { ok: false, code: 'TRANSLATIONS_REQUIRED' };
+        fill.descriptionHy = translations.descriptionHy;
+      }
+      if (item.descriptionRu === null) {
+        if (!translations?.descriptionRu) return { ok: false, code: 'TRANSLATIONS_REQUIRED' };
+        fill.descriptionRu = translations.descriptionRu;
+      }
+      if (item.descriptionEn === null) {
+        if (!translations?.descriptionEn) return { ok: false, code: 'TRANSLATIONS_REQUIRED' };
+        fill.descriptionEn = translations.descriptionEn;
+      }
+    }
+  }
+
   const updated = await db
     .update(items)
     .set({
@@ -41,6 +127,7 @@ export async function approveItem(itemId: string, adminId: string): Promise<Mode
       rejectionReason: null,
       expiresAt: sql`now() + interval '30 days'`,
       updatedAt: sql`now()`,
+      ...fill,
     })
     .where(and(eq(items.id, itemId), eq(items.status, 'pending_review')))
     .returning({ id: items.id });

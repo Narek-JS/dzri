@@ -89,6 +89,7 @@
     "cannotClaimOwnItem": "Չեք կարող հայտ ներկայացնել սեփական իրի համար",
     "alreadyClaimed": "Դուք արդեն հայտ եք ներկայացրել այս իրի համար",
     "invalidStatusTransition": "Այս գործողությունն այժմ հնարավոր չէ",
+    "translationsRequired": "Անհրաժեշտ է լրացնել բոլոր բացակայող թարգմանությունները",
     "invalidBody": "Ձևը սխալ է լրացված",
     "unauthorized": "Անհրաժեշտ է մուտք գործել",
     "smsFailed": "Չհաջողվեց ուղարկել կոդը",
@@ -97,6 +98,10 @@
   "createItem": {
     "title": { "label": "Վերնագիր" },
     "description": { "label": "Նկարագրություն" },
+    "translation": {
+      "checkboxLabel": "Ադմինիստրատորը թող թարգմանի սա մյուս լեզուներով",
+      "tabsLabel": "Լեզուներ"
+    },
     "category": { "label": "Կատեգորիա", "placeholder": "Ընտրեք կատեգորիա" },
     "district": { "label": "Թաղամաս", "placeholder": "Ընտրեք թաղամաս" },
     "condition": {
@@ -246,7 +251,14 @@
         "submit": "Հաստատել մերժումը"
       },
       "alreadyReviewed": "Արդեն դիտարկված է — հեռացվել է հերթից",
-      "dismiss": "Փակել"
+      "dismiss": "Փակել",
+      "translate": {
+        "badge": "Կարիք ունի թարգմանության",
+        "heading": "Բացակայող թարգմանություններ",
+        "hint": "Անհրաժեշտ է հաստատելու համար",
+        "titleLabel": "Վերնագիր՝ {language}",
+        "descriptionLabel": "Նկարագրություն՝ {language}"
+      }
     }
   },
   "itemClaims": {

@@ -18,7 +18,8 @@ export type ModerationMode = 'pre' | 'post';
 type InitialItemStatus = Extract<ItemStatus, 'pending_review' | 'active'>;
 
 /**
- * The status a freshly created item should get, based on `MODERATION_MODE`.
+ * The status a freshly created item should get, based on `MODERATION_MODE`
+ * and whether it still needs an admin translation.
  *
  * The env var is read lazily on every call, never at module scope: a
  * `next build` on a machine without it must still succeed, and flipping the
@@ -27,7 +28,17 @@ type InitialItemStatus = Extract<ItemStatus, 'pending_review' | 'active'>;
  * Anything other than an exact `post` — unset, misspelled, empty — falls
  * back to pre-moderation. The safe failure is to hold an item for review,
  * never to publish it unreviewed.
+ *
+ * `needsTranslation` overrides the mode outright: `item_translations_
+ * complete_when_active` (src/db/schema/items.ts) refuses an `active` row
+ * missing any locale's title, and a freshly created item flagged for
+ * translation only has one. Publishing it straight to `active` in `post`
+ * mode would not skip review, it would fail the insert — so a translation
+ * request holds for `pending_review` regardless of moderation mode, the
+ * same way a rejected item's non-null `rejection_reason` is not something
+ * `MODERATION_MODE` can route around either.
  */
-export function initialItemStatus(): InitialItemStatus {
+export function initialItemStatus(needsTranslation: boolean): InitialItemStatus {
+  if (needsTranslation) return 'pending_review';
   return process.env.MODERATION_MODE === 'post' ? 'active' : 'pending_review';
 }

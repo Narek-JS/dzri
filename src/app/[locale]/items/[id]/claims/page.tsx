@@ -52,6 +52,10 @@ export default async function ItemClaimsPage({
 
   const { item, claims } = result;
 
+  // All three columns are guaranteed non-null here (OwnerItemSummary's doc
+  // comment), so this is a plain three-way pick, no fallback.
+  const itemTitle = locale === 'ru' ? item.titleRu : locale === 'en' ? item.titleEn : item.titleHy;
+
   // Frozen once, threaded down (serialized) to `ClaimsBoard` — see
   // src/lib/relativeTime.ts and ModerationQueue's `now` state (the admin
   // queue) for why every "ago"/"left" on this page reads against one
@@ -78,7 +82,7 @@ export default async function ItemClaimsPage({
 
       <ClaimsBoard
         itemId={item.id}
-        itemTitle={item.title}
+        itemTitle={itemTitle}
         initialItemStatus={item.status}
         initialClaims={serializedClaims}
         initialNow={now.toISOString()}

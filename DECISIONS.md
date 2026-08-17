@@ -640,3 +640,81 @@ second, parallel field to describe the same partition just to avoid
 returning a column that already is one would be a distinction without a
 difference, and one more shape to keep hand-in-sync with the district
 table.
+
+### 2026-08-17 — Item translation is a manual admin step, not a live AI call
+
+`items.title`/`description` became per-locale columns —
+`title_hy`/`title_ru`/`title_en`, `description_hy`/`description_ru`/
+`description_en` — mirroring the `name_hy`/`name_ru`/`name_en`
+convention `districts`/`categories` already used. No translation API is
+called anywhere in this change. A solo pre-launch product does not
+justify the cost or the failure modes (rate limits, a vendor outage
+blocking every new listing, a mistranslation nobody reviewed) of a live
+call on the request path, and CLAUDE.md already runs one moderation
+queue with a human in it — routing translation through the same human
+is free in a way a second vendor integration is not.
+
+`CreateItemForm`'s checkbox (default checked) sets `needsTranslation`
+and `sourceLocale` instead: checked writes the giver's text into one
+locale's columns and leaves the other two null for an admin to fill in
+during moderation; unchecked shows three tabs and requires all three
+directly, with no admin step at all. The checkbox label deliberately
+does not say "auto-translate" or anything implying immediacy — a
+pending item can sit in the queue for a while, and copy that reads as
+instant would be a lie the moment review is not.
+
+The load-bearing piece is `item_translations_complete_when_active`
+(`src/db/schema/items.ts`), a check constraint mirroring
+`rejection_reason_matches_status`'s own shape: `active` requires all
+three titles non-null, and description is all-three-or-none. This is
+what makes "an approved item missing a translation" structurally
+unrepresentable rather than a rule `approveItem` has to remember to
+enforce — the same reasoning CLAUDE.md already gives for the older
+constraints on this table. Description is checked as a symmetric
+all-or-nothing across the three columns rather than "the other two
+follow whichever one is `source_locale`": the two conditions are
+equivalent under the only way the app ever writes these columns (a
+translation only ever fills in the locales the giver did not, never
+invents a description in a locale the source never had one in), and
+the symmetric form needs no per-row branch on which locale is the
+source.
+
+One interaction this forced a change to elsewhere: `initialItemStatus`
+(`src/lib/moderation.ts`) now takes `needsTranslation` and returns
+`pending_review` regardless of `MODERATION_MODE` when it's true.
+Without that, a translation-flagged item created under `MODERATION_MODE
+= post` would attempt to insert as `active` with two title columns
+still null and fail the check constraint outright — moderation mode
+governs whether a *complete* listing needs a human's approval, not
+whether an *incomplete* one can skip translation.
+
+Approval reads the row before writing it, a change from the plain
+conditional `UPDATE` `approveItem` used before: it has to know which of
+the three locale columns are actually null to validate the caller
+supplied all of them (`TRANSLATIONS_REQUIRED` if not) and to fold the
+fill into the same statement that flips the status, since the
+constraint above evaluates on that one statement's result, not on two.
+The transition's safety against a double-click or a second admin is
+unchanged — the write is still a conditional `UPDATE ... WHERE status =
+'pending_review'`, so a row that moved between the read and the write
+still resolves to `INVALID_STATUS_TRANSITION`, exactly as it did before
+this function took a second argument.
+
+Resolving a title/description to one string for display follows
+whichever convention was already established for the same viewer: the
+public feed, item detail and my-items views return the raw per-locale
+columns and the client picks one — the same
+`localizedName()`-over-`nameHy`/`nameRu`/`nameEn` pattern already used
+for `districts`/`categories` — rather than the server resolving it,
+so this is one convention, not two. The admin queue is the exception on
+purpose: it needs to see exactly which locales are `null` to render
+inputs for them, so it gets the raw columns with no resolution at all.
+A small addition on top of the districts/categories pattern:
+`resolveLocalizedText` (`src/lib/items/localizedText.ts`) falls back to
+`source_locale`'s column when the requested locale is null. For the
+feed this never triggers — `item_translations_complete_when_active`
+guarantees every column non-null on the only status the feed shows. It
+matters on my-items and the owner's own item-detail view, where a
+`pending_review` or `rejected` item may have only one locale filled in
+at all, and showing nothing would be worse than showing the language
+the giver actually typed.

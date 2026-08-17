@@ -33,10 +33,24 @@ export type CreateItemImage = {
   blurhash: string;
 };
 
+/** hy/ru/en — the app's three supported locales (`src/i18n/routing.ts`). */
+export type ItemLocale = 'hy' | 'ru' | 'en';
+
 export type CreateItemInput = {
   userId: string;
-  title: string;
-  description: string | null;
+  /**
+   * Only `sourceLocale`'s column is guaranteed non-null here. When
+   * `needsTranslation` is true the other two are null until an admin fills
+   * them in during moderation (`approveItem`, src/lib/items/moderate.ts).
+   */
+  titleHy: string | null;
+  titleRu: string | null;
+  titleEn: string | null;
+  descriptionHy: string | null;
+  descriptionRu: string | null;
+  descriptionEn: string | null;
+  needsTranslation: boolean;
+  sourceLocale: ItemLocale;
   categoryId: number;
   districtId: number;
   condition: ItemCondition;
@@ -148,7 +162,9 @@ export async function createItem(
   }
 
   const id = randomUUID();
-  const status = initialItemStatus();
+  // A translation request holds for review regardless of MODERATION_MODE —
+  // see initialItemStatus's own doc comment for why 'post' cannot skip this.
+  const status = initialItemStatus(input.needsTranslation);
 
   await db.batch([
     db.insert(items).values({
@@ -156,8 +172,14 @@ export async function createItem(
       userId,
       categoryId: input.categoryId,
       districtId: input.districtId,
-      title: input.title,
-      description: input.description,
+      titleHy: input.titleHy,
+      titleRu: input.titleRu,
+      titleEn: input.titleEn,
+      descriptionHy: input.descriptionHy,
+      descriptionRu: input.descriptionRu,
+      descriptionEn: input.descriptionEn,
+      needsTranslation: input.needsTranslation,
+      sourceLocale: input.sourceLocale,
       condition: input.condition,
       pickupNotes: input.pickupNotes,
       // Never hardcode 'active' — pre-moderation must be able to hold it.

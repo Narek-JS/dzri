@@ -89,6 +89,7 @@
     "cannotClaimOwnItem": "Нельзя подать заявку на свою вещь",
     "alreadyClaimed": "Вы уже подали заявку на эту вещь",
     "invalidStatusTransition": "Это действие сейчас недоступно",
+    "translationsRequired": "Нужно заполнить все недостающие переводы",
     "invalidBody": "Форма заполнена неверно",
     "unauthorized": "Нужно войти в аккаунт",
     "smsFailed": "Не удалось отправить код",
@@ -97,6 +98,10 @@
   "createItem": {
     "title": { "label": "Заголовок" },
     "description": { "label": "Описание" },
+    "translation": {
+      "checkboxLabel": "Пусть администратор переведёт это на другие языки",
+      "tabsLabel": "Языки"
+    },
     "category": { "label": "Категория", "placeholder": "Выберите категорию" },
     "district": { "label": "Район", "placeholder": "Выберите район" },
     "condition": {
@@ -246,7 +251,14 @@
         "submit": "Подтвердить отклонение"
       },
       "alreadyReviewed": "Уже проверено — удалено из очереди",
-      "dismiss": "Скрыть"
+      "dismiss": "Скрыть",
+      "translate": {
+        "badge": "Требуется перевод",
+        "heading": "Отсутствующие переводы",
+        "hint": "Нужно заполнить, чтобы одобрить",
+        "titleLabel": "Заголовок: {language}",
+        "descriptionLabel": "Описание: {language}"
+      }
     }
   },
   "itemClaims": {
