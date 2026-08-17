@@ -171,7 +171,7 @@ export function MyItemsList({ initialItems, initialNextCursor, initialNow }: Pro
             type="button"
             onClick={() => setRefreshedNotice(false)}
             aria-label={t('myItems.dismiss')}
-            className="text-neutral-500 hover:text-neutral-800"
+            className="cursor-pointer text-neutral-500 hover:text-neutral-800"
           >
             ×
           </button>

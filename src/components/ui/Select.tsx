@@ -140,7 +140,7 @@ function SelectRoot({
     <SelectPrimitive.Root value={radixValue} onValueChange={handleValueChange} disabled={disabled}>
       <SelectPrimitive.Trigger
         id={id}
-        className={`flex items-center justify-between gap-2 rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-strong focus:ring-1 focus:ring-brand-strong disabled:opacity-50 data-[placeholder]:text-neutral-400 ${TRIGGER_WIDTH_CLASSES[variant]} ${triggerClassName}`}
+        className={`flex cursor-pointer items-center justify-between gap-2 rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-strong focus:ring-1 focus:ring-brand-strong disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-neutral-400 ${TRIGGER_WIDTH_CLASSES[variant]} ${triggerClassName}`}
         {...triggerProps}
       >
         <span className="flex items-center gap-1.5">

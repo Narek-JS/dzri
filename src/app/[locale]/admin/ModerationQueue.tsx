@@ -176,7 +176,7 @@ export function ModerationQueue({ initialItems, initialNextCursor, initialNow }:
             type="button"
             onClick={() => dismissNotice(notice.key)}
             aria-label={t('admin.queue.dismiss')}
-            className="text-neutral-500 hover:text-neutral-800"
+            className="cursor-pointer text-neutral-500 hover:text-neutral-800"
           >
             ×
           </button>
@@ -213,7 +213,7 @@ export function ModerationQueue({ initialItems, initialNextCursor, initialNow }:
             onClick={() => void loadMore()}
             disabled={loadingMore}
             aria-busy={loadingMore}
-            className="rounded border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-50"
+            className="cursor-pointer rounded border border-neutral-300 px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loadingMore ? t('feed.loadingMore') : t('feed.loadMore')}
           </button>

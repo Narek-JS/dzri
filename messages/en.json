@@ -27,7 +27,12 @@
   },
   "session": {
     "login": "Log in",
-    "logout": "Log out"
+    "logout": "Log out",
+    "logoutConfirm": {
+      "title": "Log out?",
+      "confirm": "Log out",
+      "cancel": "Cancel"
+    }
   },
   "login": {
     "phone": {

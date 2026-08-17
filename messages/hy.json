@@ -27,7 +27,12 @@
   },
   "session": {
     "login": "Մուտք",
-    "logout": "Ելք"
+    "logout": "Ելք",
+    "logoutConfirm": {
+      "title": "Դուրս գալ հաշվից",
+      "confirm": "Դուրս գալ",
+      "cancel": "Չեղարկել"
+    }
   },
   "login": {
     "phone": {

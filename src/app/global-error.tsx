@@ -18,7 +18,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
         <button
           type="button"
           onClick={reset}
-          className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-neutral-900"
+          className="cursor-pointer rounded bg-brand px-3 py-1.5 text-sm font-medium text-neutral-900"
         >
           Փորձել կրկին · Try again
         </button>

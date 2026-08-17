@@ -27,7 +27,12 @@
   },
   "session": {
     "login": "Войти",
-    "logout": "Выйти"
+    "logout": "Выйти",
+    "logoutConfirm": {
+      "title": "Выйти из аккаунта?",
+      "confirm": "Выйти",
+      "cancel": "Отмена"
+    }
   },
   "login": {
     "phone": {

@@ -370,7 +370,7 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
                 type="button"
                 onClick={cancelReject}
                 disabled={busy}
-                className="rounded border border-neutral-300 px-3 py-2 text-sm font-medium disabled:opacity-50"
+                className="cursor-pointer rounded border border-neutral-300 px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {t('admin.queue.reject.cancel')}
               </button>
@@ -379,7 +379,7 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
                 onClick={submitReject}
                 disabled={busy || !reasonValid}
                 aria-busy={busy}
-                className="rounded bg-red-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                className="cursor-pointer rounded bg-red-700 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {t('admin.queue.reject.submit')}
               </button>
@@ -393,7 +393,7 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
             onClick={submitApprove}
             disabled={busy || !translationsComplete}
             aria-busy={busy}
-            className="rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
+            className="cursor-pointer rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t('admin.queue.approve')}
           </button>
@@ -401,7 +401,7 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
             type="button"
             onClick={openReject}
             disabled={busy}
-            className="rounded border border-red-300 px-4 py-2 text-sm font-medium text-red-700 disabled:opacity-50"
+            className="cursor-pointer rounded border border-red-300 px-4 py-2 text-sm font-medium text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t('admin.queue.reject.open')}
           </button>

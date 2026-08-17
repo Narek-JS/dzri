@@ -446,8 +446,8 @@ export function CreateItemForm({ districts, categories }: Props) {
                 onClick={() => setActiveTab(loc)}
                 className={
                   activeTab === loc
-                    ? 'rounded bg-brand px-3 py-1.5 text-sm font-medium text-neutral-900'
-                    : 'rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700'
+                    ? 'cursor-pointer rounded bg-brand px-3 py-1.5 text-sm font-medium text-neutral-900'
+                    : 'cursor-pointer rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700'
                 }
               >
                 {t(`languageSwitcher.${loc}`)}
@@ -615,7 +615,7 @@ export function CreateItemForm({ districts, categories }: Props) {
       <button
         type="submit"
         disabled={!canSubmit}
-        className="rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
+        className="cursor-pointer rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {t('createItem.submit')}
       </button>

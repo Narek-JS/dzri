@@ -72,7 +72,7 @@ export function PhotoTile({
             onClick={onMoveUp}
             disabled={!canMoveUp}
             aria-label={t('moveUp')}
-            className="rounded border border-neutral-300 px-1.5 py-0.5 disabled:opacity-30"
+            className="cursor-pointer rounded border border-neutral-300 px-1.5 py-0.5 disabled:cursor-not-allowed disabled:opacity-30"
           >
             ↑
           </button>
@@ -81,12 +81,16 @@ export function PhotoTile({
             onClick={onMoveDown}
             disabled={!canMoveDown}
             aria-label={t('moveDown')}
-            className="rounded border border-neutral-300 px-1.5 py-0.5 disabled:opacity-30"
+            className="cursor-pointer rounded border border-neutral-300 px-1.5 py-0.5 disabled:cursor-not-allowed disabled:opacity-30"
           >
             ↓
           </button>
         </div>
-        <button type="button" onClick={onRemove} className="text-red-700 hover:underline">
+        <button
+          type="button"
+          onClick={onRemove}
+          className="cursor-pointer text-red-700 hover:underline"
+        >
           {t('remove')}
         </button>
       </div>

@@ -238,7 +238,7 @@ export function FeedFilters({
           <button
             type="button"
             onClick={clearAll}
-            className="pb-2 text-sm text-brand-strong hover:underline"
+            className="cursor-pointer pb-2 text-sm text-brand-strong hover:underline"
           >
             {t('feed.filters.clearAll')}
           </button>
@@ -286,7 +286,7 @@ export function FeedFilters({
                 type="button"
                 onClick={() => setDrawerOpen(false)}
                 aria-label={t('feed.filters.close')}
-                className="text-2xl leading-none text-neutral-500"
+                className="cursor-pointer text-2xl leading-none text-neutral-500"
               >
                 ×
               </button>
@@ -307,7 +307,7 @@ export function FeedFilters({
               <button
                 type="button"
                 onClick={clearAll}
-                className="text-sm text-brand-strong hover:underline"
+                className="cursor-pointer text-sm text-brand-strong hover:underline"
               >
                 {t('feed.filters.clearAll')}
               </button>

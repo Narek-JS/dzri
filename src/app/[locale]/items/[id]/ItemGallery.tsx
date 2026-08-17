@@ -94,7 +94,7 @@ export function ItemGallery({ images, title }: { images: GalleryImage[]; title: 
         type="button"
         onClick={() => setLightboxOpen(true)}
         aria-label={t('openFullSize')}
-        className="relative block aspect-square w-full overflow-hidden rounded bg-neutral-100"
+        className="relative block aspect-square w-full cursor-pointer overflow-hidden rounded bg-neutral-100"
       >
         {current.blurhash && !heroLoaded && (
           <BlurhashCanvas hash={current.blurhash} className="absolute inset-0 h-full w-full" />
@@ -120,7 +120,7 @@ export function ItemGallery({ images, title }: { images: GalleryImage[]; title: 
               onClick={() => setSelected(index)}
               aria-label={t('photoThumbnailAlt', { index: index + 1 })}
               aria-current={index === selected}
-              className={`relative h-16 w-16 shrink-0 overflow-hidden rounded border ${
+              className={`relative h-16 w-16 shrink-0 cursor-pointer overflow-hidden rounded border ${
                 index === selected ? 'border-brand-strong' : 'border-neutral-300'
               }`}
             >
@@ -147,7 +147,7 @@ export function ItemGallery({ images, title }: { images: GalleryImage[]; title: 
             type="button"
             onClick={() => setLightboxOpen(false)}
             aria-label={t('close')}
-            className="absolute top-4 right-4 text-2xl leading-none text-white"
+            className="absolute top-4 right-4 cursor-pointer text-2xl leading-none text-white"
           >
             ×
           </button>

@@ -177,7 +177,7 @@ export function MyClaimsList({ initialClaims, initialNextCursor, initialNow }: P
             type="button"
             onClick={() => setRefreshedNotice(false)}
             aria-label={t('myClaims.dismiss')}
-            className="text-neutral-500 hover:text-neutral-800"
+            className="cursor-pointer text-neutral-500 hover:text-neutral-800"
           >
             ×
           </button>

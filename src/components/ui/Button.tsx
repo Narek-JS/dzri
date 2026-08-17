@@ -5,7 +5,8 @@ import type { ButtonHTMLAttributes } from 'react';
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger';
 export type ButtonSize = 'md' | 'sm';
 
-const BASE = 'inline-flex items-center justify-center font-medium transition-colors';
+const BASE =
+  'inline-flex items-center justify-center font-medium transition-colors cursor-pointer disabled:cursor-not-allowed';
 
 // BRAND.md contrast rule: a filled #E8894A (bg-brand) fill carries
 // near-black text, never white — neutral-900 is a built-in Tailwind

@@ -13,6 +13,7 @@ import { api } from '@/lib/api/client';
 import { useSession } from '@/lib/auth/sessionContext';
 
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { LogoutConfirmDialog } from './LogoutConfirmDialog';
 import { isPathActive, Nav } from './Nav';
 
 function MenuIcon({ className = '' }: { className?: string }) {
@@ -47,18 +48,19 @@ function PlusIcon({ className = '' }: { className?: string }) {
  * `md`, unchanged from before the drawer existed: text "Post" CTA, name
  * pill, plain-text "Log out"), once as `variant="mobile"` (hidden at `md`
  * and up: circular Avatar next to a compact "Log out") — the same
- * dual-instance shape as `Nav` and FeedFilters' `FilterFields`. The logout
- * request and its pending state live once, in Header, and are passed down
- * so either instance behaves identically; only one is ever
- * visible/interactive at a given viewport width.
+ * dual-instance shape as `Nav` and FeedFilters' `FilterFields`. Neither
+ * instance calls the logout endpoint directly: tapping "Log out" only
+ * opens the confirm dialog Header renders once; the actual request and its
+ * pending state live there too, so either instance behaves identically and
+ * only one is ever visible/interactive at a given viewport width.
  */
 function AccountCluster({
   variant,
-  onLogout,
+  onRequestLogout,
   loggingOut,
 }: {
   variant: 'desktop' | 'mobile';
-  onLogout: () => void;
+  onRequestLogout: () => void;
   loggingOut: boolean;
 }) {
   const t = useTranslations();
@@ -113,7 +115,7 @@ function AccountCluster({
             <Avatar displayName={session.displayName} avatarUrl={session.avatarUrl} />
             <button
               type="button"
-              onClick={onLogout}
+              onClick={onRequestLogout}
               disabled={loggingOut}
               className={buttonClassName({ variant: 'ghost', className: 'min-w-10' })}
             >
@@ -144,7 +146,7 @@ function AccountCluster({
           </span>
           <button
             type="button"
-            onClick={onLogout}
+            onClick={onRequestLogout}
             disabled={loggingOut}
             className={buttonClassName({ variant: 'ghost' })}
           >
@@ -183,12 +185,17 @@ export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerTitleId = useId();
 
   const postActive = isPathActive(pathname, '/items/new');
 
-  async function handleLogout() {
+  // Only ever called from inside LogoutConfirmDialog's own confirm button —
+  // "Log out" in either AccountCluster instance opens that dialog instead
+  // (openLogoutDialog below), so a stray double-tap or an already-cleared
+  // session never fires this a second time.
+  async function handleLogoutConfirmed() {
     if (loggingOut) return;
 
     setLoggingOut(true);
@@ -204,6 +211,10 @@ export function Header() {
     // no reload, once [locale]/layout.tsx stopped being misclassified as
     // static (see the `dynamic` export there).
     router.refresh();
+  }
+
+  function openLogoutDialog() {
+    setLogoutDialogOpen(true);
   }
 
   useEffect(() => {
@@ -231,7 +242,7 @@ export function Header() {
             type="button"
             onClick={() => setDrawerOpen(true)}
             aria-label={t('shell.menu')}
-            className="-ml-2 rounded p-2.5 text-neutral-700 hover:bg-neutral-100 md:hidden"
+            className="-ml-2 cursor-pointer rounded p-2.5 text-neutral-700 hover:bg-neutral-100 md:hidden"
           >
             <MenuIcon className="h-6 w-6" />
           </button>
@@ -270,14 +281,22 @@ export function Header() {
 
         {/* Desktop account / utility cluster, hidden below md. */}
         <div className="hidden md:flex">
-          <AccountCluster variant="desktop" onLogout={handleLogout} loggingOut={loggingOut} />
+          <AccountCluster
+            variant="desktop"
+            onRequestLogout={openLogoutDialog}
+            loggingOut={loggingOut}
+          />
         </div>
 
         {/* Mobile account / utility cluster — language and avatar/Log out
             (or Log in) stay reachable on the closed row itself, hidden at
             md and up. */}
         <div className="flex md:hidden">
-          <AccountCluster variant="mobile" onLogout={handleLogout} loggingOut={loggingOut} />
+          <AccountCluster
+            variant="mobile"
+            onRequestLogout={openLogoutDialog}
+            loggingOut={loggingOut}
+          />
         </div>
       </div>
 
@@ -302,7 +321,7 @@ export function Header() {
                 type="button"
                 onClick={() => setDrawerOpen(false)}
                 aria-label={t('feed.filters.close')}
-                className="text-2xl leading-none text-neutral-500"
+                className="cursor-pointer text-2xl leading-none text-neutral-500"
               >
                 ×
               </button>
@@ -328,6 +347,12 @@ export function Header() {
           </div>
         </div>
       )}
+
+      <LogoutConfirmDialog
+        open={logoutDialogOpen}
+        onOpenChange={setLogoutDialogOpen}
+        onConfirm={() => void handleLogoutConfirmed()}
+      />
     </header>
   );
 }

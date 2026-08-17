@@ -173,7 +173,7 @@ export function FeedList({
               <button
                 type="button"
                 onClick={() => void loadMore()}
-                className="rounded border border-neutral-300 px-4 py-2 text-sm font-medium"
+                className="cursor-pointer rounded border border-neutral-300 px-4 py-2 text-sm font-medium"
               >
                 {t('error.retry')}
               </button>
@@ -189,7 +189,7 @@ export function FeedList({
               onClick={() => void loadMore()}
               disabled={status === 'loading'}
               aria-busy={status === 'loading'}
-              className="rounded border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-50"
+              className="cursor-pointer rounded border border-neutral-300 px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
             >
               {status === 'loading' ? t('feed.loadingMore') : t('feed.loadMore')}
             </button>

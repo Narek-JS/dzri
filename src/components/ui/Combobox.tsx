@@ -203,7 +203,7 @@ function ComboboxAnchorInput({
       onClick={onClick}
       onChange={onChange}
       onKeyDown={onKeyDown}
-      className="w-full rounded border border-neutral-300 bg-white py-2 pr-8 pl-3 text-sm text-neutral-900 outline-none focus:border-brand-strong focus:ring-1 focus:ring-brand-strong disabled:opacity-50"
+      className="w-full rounded border border-neutral-300 bg-white py-2 pr-8 pl-3 text-sm text-neutral-900 outline-none focus:border-brand-strong focus:ring-1 focus:ring-brand-strong disabled:cursor-not-allowed disabled:opacity-50"
     />
   );
 }
