@@ -83,16 +83,18 @@ function AccountCluster({
   );
 
   if (variant === 'mobile') {
-    // A plain `ghost` Button (no padding, text-sm's own 20px line-height)
-    // and this same `loginLink` above both render under the ~40px
-    // tap-target floor — `min-h-10 min-w-10` floors both without touching
-    // the desktop instances, which render the unmodified `buttonClassName`
-    // output and `loginLink` directly, below.
+    // This same `loginLink` above renders under the 36px tap-target floor
+    // (plain text-sm, no padding) — `min-h-9` floors its height without
+    // touching the desktop instance, which renders `loginLink` directly,
+    // below. `min-w-10` is untouched from the width-floor pass this task
+    // doesn't revisit (height only). The ghost Log out button gets its
+    // own height floor from `buttonClassName` itself now (Button.tsx), so
+    // it only needs the width floor here.
     const mobileLoginLink = (
       <Link
         href="/login"
         aria-current={loginActive ? 'page' : undefined}
-        className={`flex min-h-10 min-w-10 items-center justify-center rounded px-2 text-sm font-medium ${
+        className={`flex min-h-9 min-w-10 items-center justify-center rounded px-2 text-sm font-medium ${
           loginActive
             ? 'bg-brand-tint text-brand-strong'
             : 'text-neutral-600 hover:text-brand-strong'
@@ -104,7 +106,7 @@ function AccountCluster({
 
     return (
       <div className="flex items-center gap-2">
-        <LanguageSwitcher triggerClassName="min-h-10" />
+        <LanguageSwitcher triggerClassName="min-h-9" />
 
         {session ? (
           <div className="flex items-center gap-1.5">
@@ -113,10 +115,7 @@ function AccountCluster({
               type="button"
               onClick={onLogout}
               disabled={loggingOut}
-              className={buttonClassName({
-                variant: 'ghost',
-                className: 'min-h-10 min-w-10',
-              })}
+              className={buttonClassName({ variant: 'ghost', className: 'min-w-10' })}
             >
               {t('session.logout')}
             </button>
@@ -240,12 +239,24 @@ export function Header() {
           <Link href="/" className="flex items-center">
             {/* SVG source is a real vector lockup (icon + wordmark) — not
                 optimized through the raster pipeline since it doesn't need
-                resizing/format conversion, only CSS-driven scaling. */}
+                resizing/format conversion, only CSS-driven scaling.
+                `dzri-lockup-header.svg` is a header-only crop of
+                `dzri-icon.svg`'s own viewBox (`0 0 1280 427`, ~193-198
+                units of pure margin on every side) down to `168 68 939
+                295` — a 25-unit margin on all sides, computed from the
+                path data's real min/max coordinates, not eyeballed. Same
+                path, same fill; only the viewBox changed, so `icon.svg`
+                (favicon source, deliberately padded for its circle-crop
+                legibility test) and `opengraph-image.tsx` (its own inlined
+                copy of this same path, for a Satori render that can't load
+                an external file) are both untouched. `width`/`height`
+                match the new viewBox's own 939:295 ratio — the old
+                1280:427 pair would otherwise stretch this crop. */}
             <Image
-              src="/dzri-icon.svg"
+              src="/dzri-lockup-header.svg"
               alt={t('shell.wordmark')}
-              width={1280}
-              height={427}
+              width={939}
+              height={295}
               unoptimized
               priority
               className="h-8 w-auto sm:h-9"
@@ -307,7 +318,7 @@ export function Header() {
                 className={buttonClassName({
                   variant: postActive ? 'secondary' : 'primary',
                   size: 'sm',
-                  className: 'min-h-10 w-full gap-2',
+                  className: 'w-full gap-2',
                 })}
               >
                 <PlusIcon className="h-4 w-4" />

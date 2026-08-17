@@ -26,10 +26,30 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   danger: 'rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50',
 };
 
+// `min-h-9` (36px) is the tap-target floor, mobile only — `md:min-h-0`
+// steps out of the way and `md:py-*` reproduces exactly today's desktop
+// padding, so nothing above `md` moves. Below `md`, the floor — not the
+// tightened `py-*` — is what actually produces the rendered 36px: `md`'s
+// own padding (py-2) already lands on exactly 36px with text-sm's 20px
+// line-height, and `sm`'s (py-1.5) already lands under it at 32px, so
+// neither size had slack to shrink below 36px in the first place. Both
+// get tighter mobile `py-*` regardless, so the floor is what's carrying
+// the height, not leftover desktop padding — the moment text-sm gets any
+// shorter pairing or the floor drops, these values start doing real work
+// instead of being inert.
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  md: 'px-4 py-2 text-sm',
-  sm: 'px-3 py-1.5 text-sm',
+  md: 'min-h-9 px-4 py-1.5 text-sm md:min-h-0 md:py-2',
+  sm: 'min-h-9 px-3 py-1 text-sm md:min-h-0 md:py-1.5',
 };
+
+// `ghost` renders as bare text with zero padding today (BASE has no
+// padding, VARIANT_CLASSES.ghost has none, and `SIZE_CLASSES` was never
+// applied to it) — 20px tall at text-sm, well under the floor. Rather
+// than adding real padding, this is the floor doing the entire job: pure
+// `min-h-9`, so the extra 16px is invisible space split by `items-center`
+// (BASE), not a visible padding change to a variant that's deliberately
+// plain text.
+const GHOST_SIZE_CLASS = 'min-h-9 text-sm md:min-h-0';
 
 export function buttonClassName({
   variant = 'primary',
@@ -40,7 +60,7 @@ export function buttonClassName({
   size?: ButtonSize;
   className?: string;
 } = {}): string {
-  const sizeClass = variant === 'ghost' ? 'text-sm' : SIZE_CLASSES[size];
+  const sizeClass = variant === 'ghost' ? GHOST_SIZE_CLASS : SIZE_CLASSES[size];
   return [BASE, VARIANT_CLASSES[variant], sizeClass, className].filter(Boolean).join(' ');
 }
 
