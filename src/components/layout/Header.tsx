@@ -5,6 +5,7 @@ import { useEffect, useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 
+import { Avatar } from '@/components/ui/Avatar';
 import { buttonClassName } from '@/components/ui/Button';
 import { containerClassName } from '@/components/ui/Container';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -24,23 +25,39 @@ function MenuIcon({ className = '' }: { className?: string }) {
   );
 }
 
+function PlusIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={className}>
+      <path d="M10 4V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M4 10H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /**
- * Post link, signed-in-state slot, and the language switcher. Rendered
- * twice by Header — once as `variant="desktop"` (hidden below `md`), once
- * as `variant="drawer"` inside the mobile drawer — the same dual-instance
- * shape as `Nav` and FeedFilters' `FilterFields`. The logout request and
- * its pending state live once, in Header, and are passed down so either
- * instance behaves identically; only one is ever visible/interactive at a
- * given viewport width.
+ * Signed-in-state slot and the language switcher — the part of the header
+ * that stays reachable without opening the mobile drawer. Post lives here
+ * too on desktop, but not on mobile: alongside the logo, the language
+ * switcher and avatar/Log out, it doesn't fit on one line at narrow
+ * viewports, so it moves into the drawer instead, next to the nav links —
+ * identity/utility (language, avatar, logout) stays persistent over the
+ * CTA.
+ *
+ * Rendered twice by Header — once as `variant="desktop"` (hidden below
+ * `md`, unchanged from before the drawer existed: text "Post" CTA, name
+ * pill, plain-text "Log out"), once as `variant="mobile"` (hidden at `md`
+ * and up: circular Avatar next to a compact "Log out") — the same
+ * dual-instance shape as `Nav` and FeedFilters' `FilterFields`. The logout
+ * request and its pending state live once, in Header, and are passed down
+ * so either instance behaves identically; only one is ever
+ * visible/interactive at a given viewport width.
  */
 function AccountCluster({
   variant,
-  onNavigate,
   onLogout,
   loggingOut,
 }: {
-  variant: 'desktop' | 'drawer';
-  onNavigate?: () => void;
+  variant: 'desktop' | 'mobile';
   onLogout: () => void;
   loggingOut: boolean;
 }) {
@@ -51,41 +68,9 @@ function AccountCluster({
   const postActive = isPathActive(pathname, '/items/new');
   const loginActive = isPathActive(pathname, '/login');
 
-  const postLink = (
-    <Link
-      href="/items/new"
-      onClick={onNavigate}
-      aria-current={postActive ? 'page' : undefined}
-      className={buttonClassName({ variant: postActive ? 'secondary' : 'primary', size: 'sm' })}
-    >
-      {t('nav.create')}
-    </Link>
-  );
-
-  const sessionSlot = session ? (
-    <span
-      className={
-        variant === 'desktop'
-          ? 'flex items-center gap-3 text-sm text-neutral-600'
-          : 'flex items-center justify-between gap-3'
-      }
-    >
-      <span className="rounded bg-brand-tint px-2 py-0.5 font-medium text-brand-strong">
-        {session.displayName}
-      </span>
-      <button
-        type="button"
-        onClick={onLogout}
-        disabled={loggingOut}
-        className={buttonClassName({ variant: 'ghost' })}
-      >
-        {t('session.logout')}
-      </button>
-    </span>
-  ) : (
+  const loginLink = (
     <Link
       href="/login"
-      onClick={onNavigate}
       aria-current={loginActive ? 'page' : undefined}
       className={
         loginActive
@@ -97,20 +82,58 @@ function AccountCluster({
     </Link>
   );
 
-  if (variant === 'drawer') {
+  if (variant === 'mobile') {
     return (
-      <div className="flex flex-col gap-3">
-        {postLink}
-        {sessionSlot}
+      <div className="flex items-center gap-2">
         <LanguageSwitcher />
+
+        {session ? (
+          <div className="flex items-center gap-1.5">
+            <Avatar displayName={session.displayName} avatarUrl={session.avatarUrl} />
+            <button
+              type="button"
+              onClick={onLogout}
+              disabled={loggingOut}
+              className={buttonClassName({ variant: 'ghost' })}
+            >
+              {t('session.logout')}
+            </button>
+          </div>
+        ) : (
+          loginLink
+        )}
       </div>
     );
   }
 
   return (
     <div className="flex items-center gap-3 border-l border-neutral-200 pl-3 sm:gap-4 sm:pl-4">
-      {postLink}
-      {sessionSlot}
+      <Link
+        href="/items/new"
+        aria-current={postActive ? 'page' : undefined}
+        className={buttonClassName({ variant: postActive ? 'secondary' : 'primary', size: 'sm' })}
+      >
+        {t('nav.create')}
+      </Link>
+
+      {session ? (
+        <span className="flex items-center gap-3 text-sm text-neutral-600">
+          <span className="rounded bg-brand-tint px-2 py-0.5 font-medium text-brand-strong">
+            {session.displayName}
+          </span>
+          <button
+            type="button"
+            onClick={onLogout}
+            disabled={loggingOut}
+            className={buttonClassName({ variant: 'ghost' })}
+          >
+            {t('session.logout')}
+          </button>
+        </span>
+      ) : (
+        loginLink
+      )}
+
       <LanguageSwitcher />
     </div>
   );
@@ -122,18 +145,27 @@ function AccountCluster({
  * `SessionProvider` — no fetch here.
  *
  * Below `md` — the same breakpoint FeedFilters switches at, so the header
- * and the filter bar collapse together — everything but the hamburger and
- * wordmark moves into a bottom-sheet drawer, reusing FeedFilters' drawer
- * shape verbatim (scrim, rounded-t-lg sheet, Escape-to-close, tap-outside-
- * to-close) rather than inventing a second drawer pattern. `md` and up is
- * the original single-row layout, unchanged.
+ * and the filter bar collapse together — the closed row is
+ * `[hamburger] [logo] ... [language] [avatar/Log out]`: language and
+ * account stay reachable without opening anything (`AccountCluster`'s
+ * `mobile` variant). What moves into the bottom-sheet drawer is the nav
+ * links (Items/My items/My claims/Admin) plus Post — Post doesn't fit on
+ * the closed row alongside the logo, language switcher and avatar/Log out,
+ * so it rides along with the nav links instead of forcing a second row.
+ * The drawer reuses FeedFilters' shape verbatim (scrim, rounded-t-lg
+ * sheet, Escape-to-close, tap-outside-to-close) rather than inventing a
+ * second pattern. `md` and up is the original single-row layout,
+ * unchanged.
  */
 export function Header() {
   const t = useTranslations();
   const router = useRouter();
+  const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerTitleId = useId();
+
+  const postActive = isPathActive(pathname, '/items/new');
 
   async function handleLogout() {
     if (loggingOut) return;
@@ -153,11 +185,6 @@ export function Header() {
     router.refresh();
   }
 
-  async function handleLogoutFromDrawer() {
-    await handleLogout();
-    setDrawerOpen(false);
-  }
-
   useEffect(() => {
     if (!drawerOpen) return;
 
@@ -171,9 +198,7 @@ export function Header() {
 
   return (
     <header className="border-b border-neutral-200 py-4">
-      <div
-        className={containerClassName({ className: 'flex items-center justify-between gap-4' })}
-      >
+      <div className={containerClassName({ className: 'flex items-center justify-between gap-4' })}>
         {/* Primary navigation cluster: hamburger (mobile only), wordmark,
             and the desktop nav row (hidden below md). */}
         <div className="flex items-center gap-4 sm:gap-10">
@@ -206,10 +231,16 @@ export function Header() {
           </div>
         </div>
 
-        {/* Account / utility cluster, hidden below md — it lives in the
-            drawer there instead. */}
+        {/* Desktop account / utility cluster, hidden below md. */}
         <div className="hidden md:flex">
           <AccountCluster variant="desktop" onLogout={handleLogout} loggingOut={loggingOut} />
+        </div>
+
+        {/* Mobile account / utility cluster — language and avatar/Log out
+            (or Log in) stay reachable on the closed row itself, hidden at
+            md and up. */}
+        <div className="flex md:hidden">
+          <AccountCluster variant="mobile" onLogout={handleLogout} loggingOut={loggingOut} />
         </div>
       </div>
 
@@ -243,14 +274,19 @@ export function Header() {
             <div className="flex flex-col gap-4 overflow-y-auto">
               <Nav variant="drawer" onNavigate={() => setDrawerOpen(false)} />
 
-              <div className="border-t border-neutral-200 pt-4">
-                <AccountCluster
-                  variant="drawer"
-                  onNavigate={() => setDrawerOpen(false)}
-                  onLogout={handleLogoutFromDrawer}
-                  loggingOut={loggingOut}
-                />
-              </div>
+              <Link
+                href="/items/new"
+                onClick={() => setDrawerOpen(false)}
+                aria-current={postActive ? 'page' : undefined}
+                className={buttonClassName({
+                  variant: postActive ? 'secondary' : 'primary',
+                  size: 'sm',
+                  className: 'w-full gap-2',
+                })}
+              >
+                <PlusIcon className="h-4 w-4" />
+                {t('nav.create')}
+              </Link>
             </div>
           </div>
         </div>

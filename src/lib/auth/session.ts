@@ -137,6 +137,30 @@ export async function requireUser(): Promise<SessionUser | null> {
 }
 
 /**
+ * `isAdmin` and `avatarUrl` together, for the header — cheaper than
+ * `requireAdmin()` (which throws away `avatarUrl` for every non-admin, the
+ * majority of signed-in visitors) plus a second query just for the photo.
+ * Not an authorization gate like `requireUser`/`requireAdmin`: it never
+ * returns null, since a missing or banned row just means "no admin nav
+ * link, no photo," not "reject the request." `isAdmin` is still read
+ * fresh from the database and still false for a banned row, matching
+ * `requireAdmin`'s gate.
+ */
+export async function getSessionProfile(
+  userId: string,
+): Promise<{ isAdmin: boolean; avatarUrl: string | null }> {
+  const [user] = await db
+    .select({ avatarUrl: users.avatarUrl, isAdmin: users.isAdmin, isBanned: users.isBanned })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user) return { isAdmin: false, avatarUrl: null };
+
+  return { isAdmin: user.isAdmin && !user.isBanned, avatarUrl: user.avatarUrl };
+}
+
+/**
  * Like `requireUser`, but also requires `is_admin`. Returns null for an
  * absent or invalid session, a banned or missing user, *and* for any
  * authenticated non-admin.
