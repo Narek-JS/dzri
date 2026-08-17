@@ -816,3 +816,176 @@ picker — an admin never changes an item's category from that screen.
 that label; the public feed and item-detail queries
 (`src/lib/items/feed.ts`, `src/lib/items/visibility.ts`) were not touched,
 since nothing in this brief asked either of those views to show a group.
+
+### 2026-08-18 — Migration 0005's blanket category delete broke on production; scoped to non-overlapping slugs only
+
+The category-restructure migration (`drizzle/0005_workable_cammi.sql`,
+previous entry) applied cleanly to dev but rolled back the whole
+transaction against production. Per the 2026-08-13 entry on
+`drizzle-kit migrate`'s silent `exit 1` with no error text, the build log
+said nothing useful; the actual cause was found by querying production
+directly. `DELETE FROM "categories"` — hand-added ahead of the `NOT NULL
+group_id` column for the reason the previous entry gives — deletes every
+category row unconditionally, and production has one real item whose
+`category_id` still points at the legacy `'other'` row. The delete tripped
+`items.category_id`'s foreign key and Postgres rolled the transaction
+back, so the `category_groups` table and the `group_id` column never
+landed there either — an all-or-nothing failure, not a partial one, which
+is the same guarantee `db.batch` and the neon-http driver give everywhere
+else in this codebase.
+
+Dev never hit this because dev's `items` table had been truncated to zero
+rows earlier in the same category-restructure task, with the user's
+explicit sign-off, specifically to let this migration proceed at all
+(previous entry). That made dev's `items` table empty at exactly the
+moment this migration ran on it — a state production was never in and was
+never asked to be in. The FK-safety check that *was* performed up front
+(counting `items` rows referencing `categories.id` before writing the
+migration) was real and correctly gated the original migration on an
+empty count; what it did not cover was whether the delete-and-reseed
+strategy for `categories` itself was safe independent of `items` — those
+are two different tables with two different questions, and only the first
+one got asked.
+
+The fix is narrower, not more permissive: of the 10 legacy category
+slugs, 4 are spelled identically in the new 41-category list — `furniture`,
+`books`, `plants`, `other`. `src/db/seed.ts`'s `onConflictDoUpdate`
+targets `categories.slug`, so seeding these four is an `UPDATE` on the
+existing row (same `id`, new name/position/`group_id`), never a delete
+and reinsert. A row that is never deleted needs no FK check against it at
+all — the production item referencing `'other'` keeps pointing at the
+same row, now correctly grouped, without ever being touched by a delete
+statement. The migration's `DELETE` is now scoped to exactly the 6 legacy
+slugs with no equivalent in the new list (`appliances`, `electronics`,
+`clothes`, `kids`, `kitchen`, `building_materials`) — everything else in
+the file (the `category_groups` table, the `NOT NULL group_id` column and
+its FK) is unchanged. If a live item ever turns up referencing one of
+those six, this statement fails exactly the way the original blanket
+delete did, on purpose — that is still the correct, safe outcome for a
+slug this migration has no update path for, not a case worth silently
+working around.
+
+One tooling question this raised: does editing `0005_workable_cammi.sql`
+after dev already applied it require fixing up dev's migration-tracking
+metadata? Traced through `readMigrationFiles()` and `migrate()` in
+`drizzle-orm/migrator.js` and `drizzle-orm/neon-http/migrator.js` (the
+same functions the 2026-08-13 entry already points at as the ground truth
+under `drizzle-kit migrate`'s silent CLI). Each migration's `hash` is a
+`sha256` of the full file's current content, but the apply/skip decision
+in `migrate()` never reads that stored hash back for comparison — it
+computes `lastDbMigration` as the tracking table's most recent row by
+`created_at` and applies a migration only if its `folderMillis` (the
+`when` timestamp from `meta/_journal.json`, not derived from the file at
+all) is greater than that. The `hash` column is written on insert and
+never consulted again. Confirmed empirically against dev before editing
+anything: `drizzle.__drizzle_migrations` row `id=6` has
+`created_at=1786997179536`, exactly `_journal.json`'s `"when"` for
+`0005_workable_cammi`, and its stored `hash` matched
+`sha256sum drizzle/0005_workable_cammi.sql` computed on the file exactly
+as it stood before this edit. After this edit the file's hash no longer
+matches that stored value — and that mismatch is permanently inert:
+nothing in `migrate()` will ever read it again, dev will never attempt to
+reapply migration 5, and no correction to dev's tracking table is needed
+or was made. `hash` here is an audit trail of what ran, not a checksum
+gate on what may run again.
+
+The general lesson: a migration that changes the primary-key set under a
+live table — new category slugs replacing old ones — has to reason about
+overlap with whatever the table already holds, not just about whether
+some *other*, upstream table (`items`) is empty. "The table this FK
+points at has no incoming references" and "the table this FK points at
+can be safely deleted and reseeded" are different claims, and checking
+the first does not establish the second whenever any old and new key
+values happen to coincide.
+
+**Follow-up, a few minutes later.** The scoped delete above was correct
+and ran cleanly against production — confirmed directly: `category_groups`
+existed, `categories` was down to exactly the 4 surviving rows
+(`furniture`, `books`, `plants`, `other`), and the item referencing
+`'other'` was untouched. The very next statement,
+`ALTER TABLE categories ADD COLUMN group_id integer NOT NULL`, then failed
+with Postgres error 23502, `column "group_id" of relation "categories"
+contains null values`. This has nothing to do with neon-http's lack of
+cross-statement transactions (the running theme in the 2026-08-13 and
+first-half-of-today entries) — it is a plain Postgres rule that has
+nothing to do with this project's driver choice: adding a `NOT NULL`
+column with no `DEFAULT` to a table that already has rows always fails,
+full stop, because Postgres has to fill every existing row with *some*
+value for the new column and refuses to guess one. Dev never hit this
+because dev's `categories` table was empty at this exact point in the file
+under the *original* blanket-delete version of this migration — a
+coincidence of dev's state, not evidence the statement itself was safe.
+
+The deeper miss: making `group_id` `NOT NULL` needs backfill data — every
+surviving row needs a real group to point at — and that data (which
+`category_groups` row is `furniture`'s group, versus `books`'s) existed
+only in `src/db/seed.ts`'s TypeScript, never in the SQL migration itself.
+Scoping the `DELETE` correctly (first half of this entry) fixed *which
+rows survive* but did nothing about *what those rows should point at*,
+because nothing before this follow-up had put the answer to that question
+anywhere the migration file could read it.
+
+The fix, in order, all idempotent so the file is safe to run again from
+wherever a prior attempt stopped:
+
+1. `CREATE TABLE "category_groups"` → `CREATE TABLE IF NOT EXISTS
+   "category_groups"` — production already has this table from the
+   partially-applied run; the bare form errors with "relation already
+   exists" on a second attempt.
+2. A new `INSERT INTO "category_groups" ... ON CONFLICT ("slug") DO
+   NOTHING`, right after the table creation, carrying only the 4 groups
+   the 4 surviving categories need (`furniture-decor`, `garden`,
+   `hobby-sport`, `other` — cross-checked byte-for-byte against
+   `categoryGroupSeeds` in `src/db/seed.ts`, including `position`, not
+   retyped from memory). Not all 11 — `npm run db:seed`, run against
+   production immediately after this migration succeeds, inserts the
+   remaining 7 and reconciles these 4's names/positions through its own
+   already-idempotent upsert-by-slug. This statement only has to unblock
+   the constraint two statements later, not duplicate the seed.
+3. `ADD COLUMN "group_id" integer NOT NULL` → `ADD COLUMN IF NOT EXISTS
+   "group_id" integer` — nullable, no default needed because nothing
+   reads it as a real value before the backfill below runs.
+4. Four backfill `UPDATE ... WHERE "slug" = '...'` statements, one per
+   surviving category, each setting `group_id` via a subquery against
+   `category_groups` by slug. Only these 4 slugs can exist in
+   `categories` at this point in the file — the scoped `DELETE` already
+   ran — so four statements fully backfill the table; nothing is left
+   null for the next statement to reject. Deliberately narrow: only
+   `group_id` is set, not `position`/`name_hy`/etc., which stay at their
+   stale 4-old-category values on purpose, since `db:seed` corrects those
+   right after and duplicating that logic here would be a second place to
+   keep in sync with `seed.ts` for no benefit.
+5. `ALTER TABLE "categories" ALTER COLUMN "group_id" SET NOT NULL` —
+   its own statement now, separated from the `ADD COLUMN` above. This is
+   the exact pattern the 2026-08-13 entry already established for
+   `claims.rejected_reason`: a `NOT NULL` column addition to a live table
+   needs either a `DEFAULT` or a backfill step in the same migration, and
+   this is that same rule applying to a second column that the scoped
+   `DELETE` fix, on its own, didn't fully anticipate. Setting `NOT NULL`
+   on an already-`NOT NULL` column is a no-op in Postgres, so this
+   statement is also safe to re-run.
+6. The FK constraint statement (`group_id` → `category_groups.id`) is
+   unchanged — it was never reached by the failed run.
+
+On the acceptance question of full idempotency: statements 1 through 5
+are each safe to run any number of times, in order, from this
+partially-applied state or from empty. Statement 6, the `ADD CONSTRAINT`,
+is not idempotent in isolation — running it a second time after it has
+already succeeded errors with "constraint already exists" — but per the
+brief it was left unchanged rather than guarded, and in practice this is
+inert: it is the last statement in the file, so it is only ever reached
+once every statement before it has already succeeded, meaning there is
+nothing left in the file that could fail and force a second attempt to
+reach it again.
+
+The general lesson, sharpened by this second half of the same incident:
+a `NOT NULL` column addition to a live table always needs either a
+`DEFAULT` or a backfill step in the same migration — not a new rule, this
+project already wrote it down once (2026-08-13, `claims.rejected_reason`)
+— and scoping a `DELETE` correctly is a necessary fix for a live-FK
+failure but not a sufficient one for a `NOT NULL` column that comes right
+after it. The two failures in this migration were caused by the same root
+gap — a migration written under the assumption `categories` would be
+empty, patched once to survive with rows left in it, but not re-audited
+for every later statement that assumption had been quietly load-bearing
+for.
