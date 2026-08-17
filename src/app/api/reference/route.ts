@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { categories, districts } from '@/db/schema';
+import { categories, categoryGroups, districts } from '@/db/schema';
 
 /**
  * Reference data changes about once a year, and every form and filter on the
@@ -20,16 +20,22 @@ const CACHE = 'public, max-age=300, stale-while-revalidate=86400';
  * PUBLIC. The create-item form needs both as dropdowns and the feed needs them
  * as filters, and a client that had to fetch them separately would either make
  * two round trips or render half a form. Both tables are small and fixed (32
- * districts, 10 categories), so there is no pagination and no filtering: the
+ * districts, 41 categories), so there is no pagination and no filtering: the
  * whole thing is one cached payload.
  *
  * Ordering is server-side so every client renders the same list. Districts by
- * `region` then `nameHy`. `region` itself is returned now too (see
- * DECISIONS.md, region-exposure reversal) because the District combobox
- * groups its options by it — Yerevan, then each marz. Categories by
- * `position` then `slug` — `position` is the editorial order, and the slug
- * tiebreak keeps two categories sharing a position from swapping places
- * between requests.
+ * `region` then `nameHy`. `region` itself is returned too (see DECISIONS.md,
+ * region-exposure reversal) because the District combobox groups its options
+ * by it — Yerevan, then each marz.
+ *
+ * Categories are joined to `category_groups` and carry their group's slug and
+ * three names (`groupSlug`, `groupNameHy`, `groupNameRu`, `groupNameEn`) —
+ * the same "return the column the UI already groups by" reasoning the region
+ * entry above gives, applied to categories now that they have a real group
+ * table instead of a district's borrowed `region` column (DECISIONS.md).
+ * Ordered by the group's `position`, then the category's own `position`
+ * within that group, then `slug` — a defensive final tiebreak, same as
+ * before, for two rows that end up sharing a position.
  *
  * No user data is touched on this path, so there is no phone to leak and no
  * session to read.
@@ -57,9 +63,14 @@ export async function GET(): Promise<NextResponse> {
         nameEn: categories.nameEn,
         icon: categories.icon,
         position: categories.position,
+        groupSlug: categoryGroups.slug,
+        groupNameHy: categoryGroups.nameHy,
+        groupNameRu: categoryGroups.nameRu,
+        groupNameEn: categoryGroups.nameEn,
       })
       .from(categories)
-      .orderBy(asc(categories.position), asc(categories.slug)),
+      .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
+      .orderBy(asc(categoryGroups.position), asc(categories.position), asc(categories.slug)),
   ]);
 
   return NextResponse.json(

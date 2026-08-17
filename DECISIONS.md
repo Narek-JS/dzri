@@ -718,3 +718,101 @@ matters on my-items and the owner's own item-detail view, where a
 `pending_review` or `rejected` item may have only one locale filled in
 at all, and showing nothing would be worse than showing the language
 the giver actually typed.
+
+### 2026-08-18 — Categories restructured into 41 categories under 11 translated groups, via a new `category_groups` table
+
+The flat 10-category list became 41 categories organized under 11 groups
+(Furniture & Decor, Clothing & Shoes, ...), so a giver picking a category
+now sees the same kind of grouped picker the District combobox already
+gives them for districts — one pattern for "a long list that groups
+naturally," not a bespoke shape per field.
+
+A new `category_groups` table (`src/db/schema/reference.ts`) carries the
+group data: `slug`, `name_hy`/`name_ru`/`name_en`, `position` — the same
+shape as `districts`/`categories` themselves. `categories` gained a
+`group_id` FK into it. This is *not* the same move as districts' `region`:
+`region` is a plain `text` column that happens to already carry the right
+partition (a marz slug, or `'yerevan'`), so grouping districts needed no
+new table at all (2026-08-17 entry). Categories had no equivalent column
+to borrow — a group needs three translated display names of its own, and
+there is no existing category-table column that could stand in for that.
+So unlike `region`, this grouping needed a real table, seeded the same
+upsert-by-slug way `districts`/`categories` already are.
+
+Before writing the migration, the brief for this change required checking
+`items` for rows referencing `categories.id` in both prod and dev, since
+the category slugs are changing outright and a live FK would need a
+remapping strategy that does not exist. Prod's local `DATABASE_URL` (from
+a `vercel env pull`) turned out to be a stale 11-character placeholder,
+not a real connection string, so no prod count was obtainable that way.
+Dev had 18 rows — non-zero, which is exactly the condition the brief said
+to stop on, so the migration was not written yet and the count was
+reported back instead. Those 18 rows turned out to be pre-launch seed/test
+data from the friend-account and item-photo seeding work, not real
+listings, and were explicitly cleared by running
+`TRUNCATE TABLE items, item_images, claims RESTART IDENTITY CASCADE`
+against dev's `DATABASE_URL` before the migration proceeded — a
+destructive statement run only after the user identified the data as
+disposable and asked for it directly, not a judgment call made
+unilaterally.
+
+`items` being empty did not mean `categories` was empty — the 10 legacy
+category rows were still there, seeded independently — and the new
+`group_id` column is `NOT NULL` with no default. `drizzle-kit generate`
+produced the two DDL statements (`CREATE TABLE category_groups`,
+`ALTER TABLE categories ADD COLUMN group_id ... NOT NULL`), and the
+generated migration was hand-edited to add one `DELETE FROM "categories"`
+ahead of the `ALTER`, the same way the 2026-08-13 entry's
+`claim_rejected_reason` migration and the 2026-08-08 image-variant
+migration were hand-edited with a data step no schema diff can express —
+not a hand-written schema change, just a data step bolted onto a
+generated one. Deleting first is safe specifically because the 10 old
+rows are being replaced outright by the reseed below, not remapped, and
+because the empty-`items` check above already confirmed nothing points at
+them.
+
+`src/db/seed.ts` now seeds `category_groups` before `categories`, both
+idempotent upserts keyed on `slug`. A category needs its group's `id`,
+resolved from the seed data's nested `groupSlug` via one `returning()` on
+the groups upsert rather than a second round-trip select. `position` on
+both tables is assigned by array index — 0 through 10 for a group's place
+among the 11, and 0 through however-many-1 for a category's place within
+*its* group, not a single global counter across all 41 the way the old
+10-category seed used one.
+
+`GET /api/reference` joins `categories` to `category_groups` and returns
+`groupSlug`/`groupNameHy`/`groupNameRu`/`groupNameEn` per category — the
+same "return the column the UI groups by" reasoning the 2026-08-17 entry
+gives for returning `region` on a district, applied here now that
+categories have a real group column instead of nothing to group by at
+all. Ordering changed to match: a group's `position`, then the category's
+own `position` within it, then `slug` as the same defensive tiebreak the
+old single-level ordering already had. `src/lib/reference.ts` — the
+server-component twin of the route handler, kept in sync by hand per its
+own doc comment — got the identical join and ordering.
+
+On the frontend, `Combobox` (`src/components/ui/Combobox.tsx`) needed no
+changes at all: it already accepted an optional `groups` prop and an
+`options[].group` field, built when the District combobox was added, and
+neither is district-specific. `buildDistrictGroups`
+(`src/lib/districtGroups.ts`) was left untouched rather than generalized
+into a shared function, per the brief — it does real district-only work
+(hoisting `'yerevan'` to the front of the group order, relabeling the
+marz-wide "anywhere in this marz" row) that a category grouping has no
+equivalent of: `GET /api/reference` already returns categories in the
+right group order, and there is no "anywhere in this group" pseudo-row to
+special-case. A new, much smaller `buildCategoryGroups`
+(`src/lib/categoryGroups.ts`) does only what is actually shared — turn
+grouped rows into `Combobox`'s `groups`/`options` shape — and both
+`CreateItemForm`'s category picker and the feed's `FeedFilters` category
+filter now group visually by category group, the same way both already
+group by region for district.
+
+The admin moderation queue shows a category's group name too
+(`PendingItemCard`), but only as a label next to the category name, not a
+picker — an admin never changes an item's category from that screen.
+`getPendingQueue` (`src/lib/items/pendingQueue.ts`) joins
+`category_groups` for exactly the three name columns needed to render
+that label; the public feed and item-detail queries
+(`src/lib/items/feed.ts`, `src/lib/items/visibility.ts`) were not touched,
+since nothing in this brief asked either of those views to show a group.

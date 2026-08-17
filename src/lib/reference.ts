@@ -1,7 +1,7 @@
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { categories, districts } from '@/db/schema';
+import { categories, categoryGroups, districts } from '@/db/schema';
 
 import type { Category, District } from '@/lib/api/client';
 
@@ -17,9 +17,11 @@ export type ReferenceData = { districts: District[]; categories: Category[] };
  * rules out touching any route handler — there is nowhere to extract a
  * shared function to without editing `src/app/api/reference/route.ts`.
  * The ordering must stay in sync by hand: districts by `region` then
- * `nameHy`, categories by `position` then `slug` (API.md). `region` is
- * selected too, same as the route handler — the District combobox groups
- * by it.
+ * `nameHy`, categories by their group's `position` then their own
+ * `position` then `slug` (API.md). `region` is selected too, same as the
+ * route handler — the District combobox groups by it. Categories are
+ * joined to `category_groups` the same way, for the same reason — the
+ * Category combobox groups by `groupSlug`.
  */
 export async function getReferenceData(): Promise<ReferenceData> {
   const [districtRows, categoryRows] = await Promise.all([
@@ -44,9 +46,14 @@ export async function getReferenceData(): Promise<ReferenceData> {
         nameEn: categories.nameEn,
         icon: categories.icon,
         position: categories.position,
+        groupSlug: categoryGroups.slug,
+        groupNameHy: categoryGroups.nameHy,
+        groupNameRu: categoryGroups.nameRu,
+        groupNameEn: categoryGroups.nameEn,
       })
       .from(categories)
-      .orderBy(asc(categories.position), asc(categories.slug)),
+      .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
+      .orderBy(asc(categoryGroups.position), asc(categories.position), asc(categories.slug)),
   ]);
 
   return { districts: districtRows, categories: categoryRows };

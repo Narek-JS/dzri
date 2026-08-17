@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Combobox } from '@/components/ui/Combobox';
 import { Notice } from '@/components/ui/Notice';
 import { Link } from '@/i18n/navigation';
+import { buildCategoryGroups } from '@/lib/categoryGroups';
 import { buildDistrictGroups } from '@/lib/districtGroups';
 import {
   ApiClientError,
@@ -246,6 +247,21 @@ export function CreateItemForm({ districts, categories }: Props) {
       return next;
     });
   }
+
+  const { groups: categoryGroups, options: categoryOptions } = buildCategoryGroups({
+    categories,
+    nameOf: (category) => localizedName(category, locale),
+    groupNameOf: (category) =>
+      localizedName(
+        {
+          nameHy: category.groupNameHy,
+          nameRu: category.groupNameRu,
+          nameEn: category.groupNameEn,
+        },
+        locale,
+      ),
+    valueOf: (category) => String(category.id),
+  });
 
   const { groups: districtGroups, options: districtOptions } = buildDistrictGroups({
     districts,
@@ -511,10 +527,8 @@ export function CreateItemForm({ districts, categories }: Props) {
           placeholder={t('createItem.category.placeholder')}
           searchPlaceholder={t('combobox.search')}
           emptyText={t('combobox.noResults')}
-          options={categories.map((category) => ({
-            value: String(category.id),
-            label: localizedName(category, locale),
-          }))}
+          groups={categoryGroups}
+          options={categoryOptions}
         />
         {categoryError && <p className="text-sm text-red-700">{errorText(categoryError)}</p>}
       </div>

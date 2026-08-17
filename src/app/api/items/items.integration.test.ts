@@ -75,6 +75,7 @@ let items: (typeof import('@/db/schema'))['items'];
 let itemImages: (typeof import('@/db/schema'))['itemImages'];
 let claims: (typeof import('@/db/schema'))['claims'];
 let categories: (typeof import('@/db/schema'))['categories'];
+let categoryGroups: (typeof import('@/db/schema'))['categoryGroups'];
 let districts: (typeof import('@/db/schema'))['districts'];
 let hashOtpCode: (typeof import('@/lib/auth/otp'))['hashOtpCode'];
 let createItem: (typeof import('@/lib/items/create'))['createItem'];
@@ -94,6 +95,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
   let districtId: number;
   let categoryId2: number;
   let districtId2: number;
+  let categoryGroupId: number;
   let categorySlug: string;
   let districtSlug: string;
   let categorySlug2: string;
@@ -101,7 +103,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
 
   beforeAll(async () => {
     ({ db } = await import('@/db'));
-    ({ users, otpCodes, items, itemImages, claims, categories, districts } =
+    ({ users, otpCodes, items, itemImages, claims, categories, categoryGroups, districts } =
       await import('@/db/schema'));
     ({ hashOtpCode } = await import('@/lib/auth/otp'));
     ({ createItem } = await import('@/lib/items/create'));
@@ -112,11 +114,17 @@ describe.skipIf(!hasDatabase)('items API', () => {
     categorySlug2 = `test-cat2-${suffix}`;
     districtSlug2 = `test-dist2-${suffix}`;
 
+    const [group] = await db
+      .insert(categoryGroups)
+      .values({ slug: `test-cat-group-${suffix}`, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test' })
+      .returning({ id: categoryGroups.id });
+    categoryGroupId = group.id;
+
     const insertedCategories = await db
       .insert(categories)
       .values([
-        { slug: categorySlug, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test' },
-        { slug: categorySlug2, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test' },
+        { slug: categorySlug, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test', groupId: categoryGroupId },
+        { slug: categorySlug2, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test', groupId: categoryGroupId },
       ])
       .returning({ id: categories.id });
     const insertedDistricts = await db
@@ -150,6 +158,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
     // Reference rows have no cascade; by now afterEach has removed every item
     // that referenced them, so these deletes cannot hit an FK.
     await db.delete(categories).where(inArray(categories.id, [categoryId, categoryId2]));
+    await db.delete(categoryGroups).where(eq(categoryGroups.id, categoryGroupId));
     await db.delete(districts).where(inArray(districts.id, [districtId, districtId2]));
   });
 

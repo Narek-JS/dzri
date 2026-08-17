@@ -1,7 +1,7 @@
 import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { categories, districts, itemImages, items, users } from '@/db/schema';
+import { categories, categoryGroups, districts, itemImages, items, users } from '@/db/schema';
 
 import type { ItemLocale } from './create';
 import type { ItemCondition } from '@/db/schema';
@@ -29,7 +29,21 @@ export type PendingQueueItem = {
   createdAt: Date;
   images: string[];
   district: { slug: string; nameHy: string; nameRu: string; nameEn: string };
-  category: { slug: string; nameHy: string; nameRu: string; nameEn: string };
+  /**
+   * Carries its group's three names too — CLAUDE.md's category restructure
+   * asks the moderation queue to show which group a category belongs to, a
+   * display-only addition, not a picker (the queue never lets an admin
+   * change a category).
+   */
+  category: {
+    slug: string;
+    nameHy: string;
+    nameRu: string;
+    nameEn: string;
+    groupNameHy: string;
+    groupNameRu: string;
+    groupNameEn: string;
+  };
   giver: { displayName: string; approvedCount: number; rejectedCount: number };
 };
 
@@ -84,12 +98,16 @@ export async function getPendingQueue(cursor: Date | null): Promise<PendingQueue
         nameHy: categories.nameHy,
         nameRu: categories.nameRu,
         nameEn: categories.nameEn,
+        groupNameHy: categoryGroups.nameHy,
+        groupNameRu: categoryGroups.nameRu,
+        groupNameEn: categoryGroups.nameEn,
       },
       giverDisplayName: users.displayName,
     })
     .from(items)
     .innerJoin(districts, eq(items.districtId, districts.id))
     .innerJoin(categories, eq(items.categoryId, categories.id))
+    .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
     .innerJoin(users, eq(items.userId, users.id))
     .where(where)
     .orderBy(asc(items.createdAt), asc(items.id))

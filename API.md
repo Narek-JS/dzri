@@ -50,8 +50,8 @@ Every district and every category, in one response. No auth.
 
 The create-item form needs both as dropdowns and the feed needs them as
 filters. There is no pagination and no filtering — both tables are small
-and fixed (32 districts, 12 Yerevan + 10 marzes + 10 marz capitals; 10
-categories).
+and fixed (32 districts, 12 Yerevan + 10 marzes + 10 marz capitals; 41
+categories in 11 groups).
 
 **200**
 
@@ -61,13 +61,26 @@ categories).
     { "id": 7, "slug": "kentron", "nameHy": "Կենտրոն", "nameRu": "Кентрон", "nameEn": "Kentron", "region": "yerevan" }
   ],
   "categories": [
-    { "id": 1, "slug": "furniture", "nameHy": "Կահույք", "nameRu": "Мебель", "nameEn": "Furniture", "icon": "🪑", "position": 0 }
+    {
+      "id": 1,
+      "slug": "furniture",
+      "nameHy": "Կահույք",
+      "nameRu": "Мебель",
+      "nameEn": "Furniture",
+      "icon": "🪑",
+      "position": 0,
+      "groupSlug": "furniture-decor",
+      "groupNameHy": "Կահույք և դեկոր",
+      "groupNameRu": "Мебель и декор",
+      "groupNameEn": "Furniture & Decor"
+    }
   ]
 }
 ```
 
 Districts are ordered by region then `nameHy`. Categories are ordered by
-`position` then `slug`. Render them in the order you receive them — the
+their group's `position`, then the category's own `position` within that
+group, then `slug`. Render them in the order you receive them — the
 ordering is server-side so every client agrees, and the tiebreaks exist
 so two rows never swap places between requests.
 
@@ -76,6 +89,12 @@ marz's slug — it is returned so the District combobox can group its
 options by it (Yerevan first, then each marz, in the order districts
 already come back in). It used to be withheld as an internal
 ordering-only column; DECISIONS.md records why that changed.
+
+`groupSlug`/`groupNameHy`/`groupNameRu`/`groupNameEn` are the category's
+group, joined in from `category_groups` — the same reasoning as `region`
+above, returned so the Category combobox can group its options the same
+way the District combobox groups by region. There is no `groupId`; join
+on `groupSlug` if you need it.
 
 `Cache-Control: public, max-age=300, stale-while-revalidate=86400`. Fetch
 it once per session and keep it.
@@ -938,7 +957,15 @@ feed. The person who has waited longest is reviewed first.
       "createdAt": "...",
       "images": ["https://.../a.jpg", "https://.../b.jpg"],
       "district": { "slug": "...", "nameHy": "...", "nameRu": "...", "nameEn": "..." },
-      "category": { "slug": "...", "nameHy": "...", "nameRu": "...", "nameEn": "..." },
+      "category": {
+        "slug": "...",
+        "nameHy": "...",
+        "nameRu": "...",
+        "nameEn": "...",
+        "groupNameHy": "...",
+        "groupNameRu": "...",
+        "groupNameEn": "..."
+      },
       "giver": { "displayName": "Անի", "approvedCount": 4, "rejectedCount": 1 }
     }
   ],
@@ -948,6 +975,11 @@ feed. The person who has waited longest is reviewed first.
 
 20 per page. The giver's prior counts are what make a repeat spammer
 obvious at a glance. Never a phone.
+
+`category` carries its group's three names (`groupNameHy`/`groupNameRu`/
+`groupNameEn`, no `groupSlug` here) so the queue can show which group a
+category belongs to next to its name — display only, since this screen
+never lets an admin change an item's category.
 
 Title/description are the raw per-locale columns, **not** resolved to
 one string — the reviewer needs to see exactly which locales are `null`

@@ -89,6 +89,7 @@ let items: (typeof import('@/db/schema'))['items'];
 let claims: (typeof import('@/db/schema'))['claims'];
 let userReliability: (typeof import('@/db/schema'))['userReliability'];
 let categories: (typeof import('@/db/schema'))['categories'];
+let categoryGroups: (typeof import('@/db/schema'))['categoryGroups'];
 let districts: (typeof import('@/db/schema'))['districts'];
 let hashOtpCode: (typeof import('@/lib/auth/otp'))['hashOtpCode'];
 let createItem: (typeof import('@/lib/items/create'))['createItem'];
@@ -99,20 +100,33 @@ describe.skipIf(!hasDatabase)('claims API', () => {
   const createdPhones = new Set<string>();
 
   let categoryId: number;
+  let categoryGroupId: number;
   let districtId: number;
 
   beforeAll(async () => {
     ({ db } = await import('@/db'));
-    ({ users, otpCodes, items, claims, userReliability, categories, districts } =
+    ({ users, otpCodes, items, claims, userReliability, categories, categoryGroups, districts } =
       await import('@/db/schema'));
     ({ hashOtpCode } = await import('@/lib/auth/otp'));
     ({ createItem } = await import('@/lib/items/create'));
 
     const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
+    const [group] = await db
+      .insert(categoryGroups)
+      .values({ slug: `claim-cat-group-${suffix}`, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test' })
+      .returning({ id: categoryGroups.id });
+    categoryGroupId = group.id;
+
     const [category] = await db
       .insert(categories)
-      .values({ slug: `claim-cat-${suffix}`, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test' })
+      .values({
+        slug: `claim-cat-${suffix}`,
+        nameHy: 'Թեստ',
+        nameRu: 'Тест',
+        nameEn: 'Test',
+        groupId: categoryGroupId,
+      })
       .returning({ id: categories.id });
     const [district] = await db
       .insert(districts)
@@ -157,6 +171,7 @@ describe.skipIf(!hasDatabase)('claims API', () => {
     if (categoryId === undefined) return;
 
     await db.delete(categories).where(eq(categories.id, categoryId));
+    await db.delete(categoryGroups).where(eq(categoryGroups.id, categoryGroupId));
     await db.delete(districts).where(eq(districts.id, districtId));
   });
 

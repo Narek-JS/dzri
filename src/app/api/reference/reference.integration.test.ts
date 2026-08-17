@@ -1,4 +1,4 @@
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 /**
@@ -24,7 +24,14 @@ type ReferenceDistrict = {
   region: string;
 };
 
-type ReferenceCategory = ReferenceDistrict & { icon: string | null; position: number };
+type ReferenceCategory = ReferenceDistrict & {
+  icon: string | null;
+  position: number;
+  groupSlug: string;
+  groupNameHy: string;
+  groupNameRu: string;
+  groupNameEn: string;
+};
 
 type ReferenceResponse = {
   districts: ReferenceDistrict[];
@@ -36,6 +43,7 @@ type ReferenceResponse = {
 // `skipIf` would never get the chance to run.
 let db: (typeof import('@/db'))['db'];
 let categories: (typeof import('@/db/schema'))['categories'];
+let categoryGroups: (typeof import('@/db/schema'))['categoryGroups'];
 let districts: (typeof import('@/db/schema'))['districts'];
 
 describe.skipIf(!hasDatabase)('GET /api/reference', () => {
@@ -45,10 +53,12 @@ describe.skipIf(!hasDatabase)('GET /api/reference', () => {
   let districtRegionA: string;
   let insertedDistrictIds: number[] = [];
   let insertedCategoryIds: number[] = [];
+  let categoryGroupId: number;
+  let categoryGroupSlug: string;
 
   beforeAll(async () => {
     ({ db } = await import('@/db'));
-    ({ categories, districts } = await import('@/db/schema'));
+    ({ categories, categoryGroups, districts } = await import('@/db/schema'));
 
     const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
@@ -94,6 +104,16 @@ describe.skipIf(!hasDatabase)('GET /api/reference', () => {
       .returning({ id: districts.id });
     insertedDistrictIds = insertedDistricts.map((row) => row.id);
 
+    // One group for all three test categories — group position is therefore
+    // constant across them, so this still isolates the `position`-then-`slug`
+    // ordering within a group, same as before the group column existed.
+    categoryGroupSlug = `test-ref-cat-group-${suffix}`;
+    const [group] = await db
+      .insert(categoryGroups)
+      .values({ slug: categoryGroupSlug, nameHy: 'Խումբ', nameRu: 'Группа', nameEn: 'Group' })
+      .returning({ id: categoryGroups.id });
+    categoryGroupId = group.id;
+
     // Positions 1 and 2, with two categories sharing position 2 so the `slug`
     // tiebreak is exercised and not just the position sort.
     categorySlugs = [
@@ -105,9 +125,33 @@ describe.skipIf(!hasDatabase)('GET /api/reference', () => {
     const insertedCategories = await db
       .insert(categories)
       .values([
-        { slug: categorySlugs[2], nameHy: 'Գ', nameRu: 'В', nameEn: 'C', icon: null, position: 2 },
-        { slug: categorySlugs[0], nameHy: 'Ա', nameRu: 'А', nameEn: 'A', icon: '📦', position: 1 },
-        { slug: categorySlugs[1], nameHy: 'Բ', nameRu: 'Б', nameEn: 'B', icon: null, position: 2 },
+        {
+          slug: categorySlugs[2],
+          nameHy: 'Գ',
+          nameRu: 'В',
+          nameEn: 'C',
+          icon: null,
+          position: 2,
+          groupId: categoryGroupId,
+        },
+        {
+          slug: categorySlugs[0],
+          nameHy: 'Ա',
+          nameRu: 'А',
+          nameEn: 'A',
+          icon: '📦',
+          position: 1,
+          groupId: categoryGroupId,
+        },
+        {
+          slug: categorySlugs[1],
+          nameHy: 'Բ',
+          nameRu: 'Б',
+          nameEn: 'B',
+          icon: null,
+          position: 2,
+          groupId: categoryGroupId,
+        },
       ])
       .returning({ id: categories.id });
     insertedCategoryIds = insertedCategories.map((row) => row.id);
@@ -115,12 +159,16 @@ describe.skipIf(!hasDatabase)('GET /api/reference', () => {
 
   afterAll(async () => {
     // Nothing here references these rows — the suite creates no items — so the
-    // deletes cannot hit a foreign key.
+    // deletes cannot hit a foreign key, as long as categories (which reference
+    // the group) are dropped before the group itself.
     if (insertedDistrictIds.length) {
       await db.delete(districts).where(inArray(districts.id, insertedDistrictIds));
     }
     if (insertedCategoryIds.length) {
       await db.delete(categories).where(inArray(categories.id, insertedCategoryIds));
+    }
+    if (categoryGroupId !== undefined) {
+      await db.delete(categoryGroups).where(eq(categoryGroups.id, categoryGroupId));
     }
   });
 
@@ -184,7 +232,14 @@ describe.skipIf(!hasDatabase)('GET /api/reference', () => {
     expect(row, 'the suite category must be in the response').toBeDefined();
     if (!row) return;
 
+    // `groupSlug`/`groupName{Hy,Ru,En}` are returned too now — the Category
+    // combobox groups its options by them (DECISIONS.md, category
+    // restructure), the same reasoning `region` is returned on a district.
     expect(Object.keys(row).sort()).toEqual([
+      'groupNameEn',
+      'groupNameHy',
+      'groupNameRu',
+      'groupSlug',
       'icon',
       'id',
       'nameEn',
@@ -195,6 +250,7 @@ describe.skipIf(!hasDatabase)('GET /api/reference', () => {
     ]);
     expect(row.icon).toBe('📦');
     expect(row.position).toBe(1);
+    expect(row.groupSlug).toBe(categoryGroupSlug);
   });
 
   it('orders districts by region then nameHy', async () => {
@@ -231,6 +287,12 @@ describe.skipIf(!hasDatabase)('GET /api/reference', () => {
   it('never returns a phone number', async () => {
     const response = await get();
 
-    expect(response.text).not.toMatch(/phone/i);
+    // A bare /phone/i substring match is no longer safe to assert: the
+    // category restructure (DECISIONS.md, 2026-08-18) added a real category
+    // named "Phones & Accessories" (slug `phones-accessories`), which this
+    // very route legitimately returns. What must actually be absent is a
+    // `phone` field in the JSON — this route never selects user data at all
+    // (route doc comment), so there is nothing to leak in the first place.
+    expect(response.text).not.toMatch(/"phone"\s*:/i);
   });
 });

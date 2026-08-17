@@ -148,6 +148,17 @@ async function apiFetch<TResponse>(path: string, init?: RequestInit): Promise<TR
 
 type DistrictRef = { slug: string; nameHy: string; nameRu: string; nameEn: string };
 type CategoryRef = { slug: string; nameHy: string; nameRu: string; nameEn: string };
+/**
+ * `CategoryRef` plus its group's three names — just enough for the admin
+ * queue to show a group label next to the category (CLAUDE.md's category
+ * restructure), not a full `groupSlug` + join shape like `Category` below,
+ * since nothing in the admin queue selects or filters by group.
+ */
+type CategoryWithGroupRef = CategoryRef & {
+  groupNameHy: string;
+  groupNameRu: string;
+  groupNameEn: string;
+};
 
 /**
  * `region` lives only here, not on `DistrictRef` — that shared shape also
@@ -157,10 +168,23 @@ type CategoryRef = { slug: string; nameHy: string; nameRu: string; nameEn: strin
  * reference-list row carries it now.
  */
 export type District = DistrictRef & { id: number; region: string };
+/**
+ * `groupSlug`/`groupName{Hy,Ru,En}` live only here, not on `CategoryRef` —
+ * same reasoning as `region` on `District` above: the shared `CategoryRef`
+ * shape also backs the category embedded on a feed/detail/pending item,
+ * which never joins `category_groups` and shouldn't start leaking group
+ * data just because this type grew fields. See DECISIONS.md for why
+ * categories needed a real group table instead of borrowing a column the
+ * way districts borrow `region`.
+ */
 export type Category = CategoryRef & {
   id: number;
   icon: string | null;
   position: number;
+  groupSlug: string;
+  groupNameHy: string;
+  groupNameRu: string;
+  groupNameEn: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -429,7 +453,7 @@ export type PendingItem = {
   createdAt: string;
   images: string[];
   district: DistrictRef;
-  category: CategoryRef;
+  category: CategoryWithGroupRef;
   giver: { displayName: string; approvedCount: number; rejectedCount: number };
 };
 

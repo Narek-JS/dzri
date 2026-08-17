@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Combobox } from '@/components/ui/Combobox';
 import { Select } from '@/components/ui/Select';
 import { usePathname, useRouter } from '@/i18n/navigation';
+import { buildCategoryGroups } from '@/lib/categoryGroups';
 import { buildDistrictGroups } from '@/lib/districtGroups';
 
 import type { Category, District } from '@/lib/api/client';
@@ -75,6 +76,21 @@ function FilterFields({
     allOfMarzLabel: (marz) => t('districts.allOfMarz', { marz }),
   });
 
+  const { groups: categoryGroups, options: categoryOptions } = buildCategoryGroups({
+    categories,
+    nameOf: (category) => localizedName(category, locale),
+    groupNameOf: (category) =>
+      localizedName(
+        {
+          nameHy: category.groupNameHy,
+          nameRu: category.groupNameRu,
+          nameEn: category.groupNameEn,
+        },
+        locale,
+      ),
+    valueOf: (category) => category.slug,
+  });
+
   return (
     <>
       <div className="flex flex-1 flex-col gap-1">
@@ -105,12 +121,10 @@ function FilterFields({
           onValueChange={(value) => onChange('category', value)}
           searchPlaceholder={t('combobox.search')}
           emptyText={t('combobox.noResults')}
+          groups={categoryGroups}
           options={[
             { value: '', label: t('feed.filters.category.all'), pinned: true },
-            ...categories.map((option) => ({
-              value: option.slug,
-              label: localizedName(option, locale),
-            })),
+            ...categoryOptions,
           ]}
         />
       </div>

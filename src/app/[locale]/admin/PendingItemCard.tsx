@@ -241,7 +241,18 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
           <span aria-hidden="true">·</span>
           <span>{localizedName(item.district, locale)}</span>
           <span aria-hidden="true">·</span>
-          <span>{localizedName(item.category, locale)}</span>
+          <span>
+            {localizedName(
+              {
+                nameHy: item.category.groupNameHy,
+                nameRu: item.category.groupNameRu,
+                nameEn: item.category.groupNameEn,
+              },
+              locale,
+            )}
+            {' › '}
+            {localizedName(item.category, locale)}
+          </span>
         </div>
       </div>
 
