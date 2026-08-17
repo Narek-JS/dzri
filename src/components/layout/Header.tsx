@@ -83,9 +83,28 @@ function AccountCluster({
   );
 
   if (variant === 'mobile') {
+    // A plain `ghost` Button (no padding, text-sm's own 20px line-height)
+    // and this same `loginLink` above both render under the ~40px
+    // tap-target floor — `min-h-10 min-w-10` floors both without touching
+    // the desktop instances, which render the unmodified `buttonClassName`
+    // output and `loginLink` directly, below.
+    const mobileLoginLink = (
+      <Link
+        href="/login"
+        aria-current={loginActive ? 'page' : undefined}
+        className={`flex min-h-10 min-w-10 items-center justify-center rounded px-2 text-sm font-medium ${
+          loginActive
+            ? 'bg-brand-tint text-brand-strong'
+            : 'text-neutral-600 hover:text-brand-strong'
+        }`}
+      >
+        {t('session.login')}
+      </Link>
+    );
+
     return (
       <div className="flex items-center gap-2">
-        <LanguageSwitcher />
+        <LanguageSwitcher triggerClassName="min-h-10" />
 
         {session ? (
           <div className="flex items-center gap-1.5">
@@ -94,13 +113,16 @@ function AccountCluster({
               type="button"
               onClick={onLogout}
               disabled={loggingOut}
-              className={buttonClassName({ variant: 'ghost' })}
+              className={buttonClassName({
+                variant: 'ghost',
+                className: 'min-h-10 min-w-10',
+              })}
             >
               {t('session.logout')}
             </button>
           </div>
         ) : (
-          loginLink
+          mobileLoginLink
         )}
       </div>
     );
@@ -197,11 +219,15 @@ export function Header() {
   }, [drawerOpen]);
 
   return (
-    <header className="border-b border-neutral-200 py-4">
+    <header className="border-b border-neutral-200 py-2 md:py-4">
       <div className={containerClassName({ className: 'flex items-center justify-between gap-4' })}>
         {/* Primary navigation cluster: hamburger (mobile only), wordmark,
-            and the desktop nav row (hidden below md). */}
-        <div className="flex items-center gap-4 sm:gap-10">
+            and the desktop nav row (hidden below md). Hamburger and logo
+            read as one grouped cluster on mobile (gap-2); at md, where the
+            hamburger disappears, this same gap instead separates the logo
+            from the nav row — gap-10 there is unchanged from before this
+            pass. */}
+        <div className="flex items-center gap-2 md:gap-10">
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
@@ -281,7 +307,7 @@ export function Header() {
                 className={buttonClassName({
                   variant: postActive ? 'secondary' : 'primary',
                   size: 'sm',
-                  className: 'w-full gap-2',
+                  className: 'min-h-10 w-full gap-2',
                 })}
               >
                 <PlusIcon className="h-4 w-4" />

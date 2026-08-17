@@ -62,7 +62,13 @@ export function ItemCard({
         )}
       </div>
       <div className="flex flex-col gap-0.5">
-        <h2 className="line-clamp-2 text-sm font-medium text-neutral-900">{item.title}</h2>
+        <h2 className="line-clamp-2 text-xs font-medium text-neutral-900 md:text-sm">
+          {item.title}
+        </h2>
+        {/* Already `text-xs` — Tailwind's smallest named step, and there's
+            no smaller token in the theme — so the mobile density pass
+            leaves these two as-is rather than reach for an arbitrary
+            sub-text-xs value. */}
         <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-neutral-600">
           <span>{conditionLabel}</span>
           <span aria-hidden="true">·</span>

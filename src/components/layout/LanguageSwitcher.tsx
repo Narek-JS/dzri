@@ -32,8 +32,12 @@ function isLocale(value: string): value is (typeof locales)[number] {
  * `NEXT_LOCALE` cookie is set by the proxy the moment it processes the
  * resulting navigation (`localeCookie` defaults to on in routing.ts) —
  * nothing here writes it directly.
+ *
+ * `triggerClassName` is unset everywhere except the mobile header row,
+ * which passes `min-h-10` to floor its tap target without affecting the
+ * desktop instance of this same component.
  */
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ triggerClassName }: { triggerClassName?: string } = {}) {
   const t = useTranslations('languageSwitcher');
   const locale = useLocale();
   const pathname = usePathname();
@@ -54,6 +58,7 @@ export function LanguageSwitcher() {
       aria-label={t('label')}
       triggerIcon={<GlobeIcon className="h-4 w-4 shrink-0 text-neutral-500" />}
       triggerLabel={t(`short.${locale}`)}
+      triggerClassName={triggerClassName}
     >
       {locales.map((code) => (
         <Select.Item key={code} value={code}>

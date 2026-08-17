@@ -110,7 +110,11 @@ export default async function FeedPage({
 
   return (
     <main
-      className={containerClassName({ size: 'lg', className: 'flex flex-1 flex-col gap-6 py-8' })}
+      className={containerClassName({
+        size: 'lg',
+        padding: 'tight',
+        className: 'flex flex-1 flex-col gap-6 py-8',
+      })}
     >
       {/* The nav already reads "Items" for this page; a second visible
           heading saying the same thing adds nothing but still belongs in

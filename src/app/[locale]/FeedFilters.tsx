@@ -245,9 +245,19 @@ export function FeedFilters({
         )}
       </div>
 
-      {/* Below md: a compact trigger opens a bottom-sheet drawer. */}
+      {/* Below md: a compact trigger opens a bottom-sheet drawer. `size="sm"`
+          alone renders under the ~40px tap-target floor (py-1.5 + text-sm's
+          own line-height is 32px) — `min-h-10` floors it without touching
+          the padding, which is already about as tight as the label can
+          take. */}
       <div className="md:hidden">
-        <Button type="button" variant="secondary" size="sm" onClick={openDrawer}>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={openDrawer}
+          className="min-h-10"
+        >
           {t('feed.filters.toggle')}
           {activeCount > 0 && (
             <span

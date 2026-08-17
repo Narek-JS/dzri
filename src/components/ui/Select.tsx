@@ -105,6 +105,15 @@ type SelectProps = {
    * full native name in the open list.
    */
   triggerLabel?: ReactNode;
+  /**
+   * Appended to (never replacing) the trigger's own classes — unlike a
+   * bare `className` in `...triggerProps`, which Radix would apply after
+   * the trigger's own explicit `className` and so silently wipe it out.
+   * `LanguageSwitcher` uses this to floor its mobile header instance's tap
+   * target at `min-h-10` without touching the desktop instance, which
+   * passes nothing.
+   */
+  triggerClassName?: string;
 };
 
 function SelectRoot({
@@ -117,6 +126,7 @@ function SelectRoot({
   variant = 'field',
   triggerIcon,
   triggerLabel,
+  triggerClassName = '',
   ...triggerProps
 }: SelectProps) {
   const hasPlaceholder = placeholder !== undefined;
@@ -130,7 +140,7 @@ function SelectRoot({
     <SelectPrimitive.Root value={radixValue} onValueChange={handleValueChange} disabled={disabled}>
       <SelectPrimitive.Trigger
         id={id}
-        className={`flex items-center justify-between gap-2 rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-strong focus:ring-1 focus:ring-brand-strong disabled:opacity-50 data-[placeholder]:text-neutral-400 ${TRIGGER_WIDTH_CLASSES[variant]}`}
+        className={`flex items-center justify-between gap-2 rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-strong focus:ring-1 focus:ring-brand-strong disabled:opacity-50 data-[placeholder]:text-neutral-400 ${TRIGGER_WIDTH_CLASSES[variant]} ${triggerClassName}`}
         {...triggerProps}
       >
         <span className="flex items-center gap-1.5">
