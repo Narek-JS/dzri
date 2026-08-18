@@ -568,7 +568,7 @@ export function CreateItemForm({ districts, categories }: Props) {
 
       <fieldset className="flex flex-col gap-2">
         <legend className="text-sm font-medium">{t('createItem.condition.label')}</legend>
-        <div className="flex flex-wrap gap-x-4 gap-y-2">
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 sm:mt-0">
           {CONDITIONS.map((value) => (
             <label key={value} className="flex items-center gap-1.5 text-sm whitespace-nowrap">
               <span className="relative inline-flex shrink-0">
