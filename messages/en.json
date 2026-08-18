@@ -109,7 +109,7 @@
       "tabsLabel": "Languages"
     },
     "category": { "label": "Category", "placeholder": "Choose a category" },
-    "district": { "label": "District", "placeholder": "Choose a district" },
+    "district": { "label": "Location", "placeholder": "Choose a district" },
     "condition": {
       "label": "Condition",
       "working": "Working",
@@ -213,7 +213,7 @@
     "filters": {
       "toggle": "Filters",
       "toggleActive": "Filters, {count} active",
-      "district": { "label": "District", "all": "All districts" },
+      "district": { "label": "Location", "all": "All districts" },
       "category": { "label": "Category", "all": "All categories" },
       "condition": { "label": "Condition", "all": "Any condition" },
       "clearAll": "Clear all",
