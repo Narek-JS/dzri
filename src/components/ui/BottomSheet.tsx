@@ -26,6 +26,19 @@ const SNAP_POINTS = [0.5, 0.9];
  * Combobox/Select fields), and `data-vaul-no-drag` on those regions keeps
  * a tap there from being misread as a drag on the sheet.
  *
+ * `footer`, when passed, renders as its own `position: fixed` bar pinned
+ * to the actual viewport bottom — a sibling of `Drawer.Content`, not a
+ * child of it. vaul's snap points translate `Drawer.Content` as one rigid
+ * `h-[90vh]` block anchored via `bottom: 0`; at any snap point short of
+ * "fully open" (both of this app's two points qualify — even the taller
+ * one is only 90%) that translate pushes the block's own bottom edge, and
+ * anything sitting at the bottom of it via flex, below the viewport's
+ * bottom edge. A `footer` living inside that block — e.g. FeedFilters'
+ * persistent Clear all/Apply — would only ever be reachable by dragging
+ * to a snap point tall enough to happen to include it, not "always
+ * visible" as the prop implies. Pinning it outside the translated block
+ * instead keeps it flush with the screen regardless of snap position.
+ *
  * `md:hidden` on the portal-rendered pieces (not the trigger, which callers
  * render themselves) keeps this entirely inert above the mobile breakpoint
  * — desktop callers never mount `open`, but this also guards against the
@@ -77,11 +90,13 @@ export function BottomSheet({
               expect ("grab the sheet from anywhere near the top"). Instead
               the whole `Drawer.Content` is a drag surface (vaul's
               default), and the specific regions that must stay
-              click-only — the scrollable field list, the footer's
-              buttons, and the close button — are opted out individually
-              via `data-vaul-no-drag`, the attribute vaul's own `shouldDrag`
-              checks (confirmed in node_modules/vaul/dist/index.mjs) before
-              turning a press on/inside that element into a drag. */}
+              click-only — the scrollable field list and the close
+              button — are opted out individually via `data-vaul-no-drag`,
+              the attribute vaul's own `shouldDrag` checks (confirmed in
+              node_modules/vaul/dist/index.mjs) before turning a press
+              on/inside that element into a drag. `footer` doesn't need
+              this: it's not inside `Drawer.Content` at all, see the
+              comment above. */}
           <Drawer.Handle className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-neutral-300" />
 
           <div className="flex items-center justify-between px-4 pt-3">
@@ -98,27 +113,27 @@ export function BottomSheet({
             </Drawer.Close>
           </div>
 
-          {/* Safe-area padding lands on whichever section is visually last
-              — the content area when there's no footer, the footer itself
-              otherwise — so it's never applied twice. */}
+          {/* Safe-area padding lands on whichever section is visually
+              last. With no footer that's this content area; with a
+              footer, the footer (its own fixed bar below) takes the
+              safe-area padding instead, and this area gets a flat, more
+              generous `pb-28` so its last scrolled-to item clears the
+              footer bar rather than sitting behind it. */}
           <div
             data-vaul-no-drag
             className={`flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 ${
-              footer ? '' : 'pb-[max(1rem,env(safe-area-inset-bottom))]'
+              footer ? 'pb-28' : 'pb-[max(1rem,env(safe-area-inset-bottom))]'
             }`}
           >
             {children}
           </div>
-
-          {footer && (
-            <div
-              data-vaul-no-drag
-              className="border-t border-neutral-200 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
-            >
-              {footer}
-            </div>
-          )}
         </Drawer.Content>
+
+        {open && footer && (
+          <div className="fixed inset-x-0 bottom-0 z-50 border-t border-neutral-200 bg-white px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden">
+            {footer}
+          </div>
+        )}
       </Drawer.Portal>
     </Drawer.Root>
   );
