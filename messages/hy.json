@@ -28,6 +28,7 @@
   "session": {
     "login": "Մուտք",
     "logout": "Ելք",
+    "accountMenu": "Հաշվի ընտրացանկ",
     "logoutConfirm": {
       "title": "Դուրս գալ հաշվից",
       "confirm": "Դուրս գալ",

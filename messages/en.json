@@ -28,6 +28,7 @@
   "session": {
     "login": "Log in",
     "logout": "Log out",
+    "accountMenu": "Account menu",
     "logoutConfirm": {
       "title": "Log out?",
       "confirm": "Log out",

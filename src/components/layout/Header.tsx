@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState } from 'react';
 
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 
@@ -37,22 +38,26 @@ function PlusIcon({ className = '' }: { className?: string }) {
 
 /**
  * Signed-in-state slot and the language switcher — the part of the header
- * that stays reachable without opening the mobile drawer. Post lives here
- * too on desktop, but not on mobile: alongside the logo, the language
- * switcher and avatar/Log out, it doesn't fit on one line at narrow
- * viewports, so it moves into the drawer instead, next to the nav links —
- * identity/utility (language, avatar, logout) stays persistent over the
- * CTA.
+ * that stays reachable without opening the mobile drawer. Post as a
+ * standalone row CTA lives here only on desktop: alongside the logo, the
+ * language switcher and avatar, a second visible "Post" button doesn't fit
+ * on one line at narrow viewports, so the row CTA moves into the drawer
+ * instead, next to the nav links — identity/utility (language, avatar)
+ * stays persistent over the CTA. Post is still reachable on the closed
+ * mobile row too, tucked into the avatar's own dropdown alongside Log out,
+ * so it's never more than one tap away even before the drawer opens.
  *
  * Rendered twice by Header — once as `variant="desktop"` (hidden below
  * `md`, unchanged from before the drawer existed: text "Post" CTA, name
  * pill, plain-text "Log out"), once as `variant="mobile"` (hidden at `md`
- * and up: circular Avatar next to a compact "Log out") — the same
- * dual-instance shape as `Nav` and FeedFilters' `FilterFields`. Neither
- * instance calls the logout endpoint directly: tapping "Log out" only
- * opens the confirm dialog Header renders once; the actual request and its
- * pending state live there too, so either instance behaves identically and
- * only one is ever visible/interactive at a given viewport width.
+ * and up: a clickable circular Avatar that opens a small Radix
+ * DropdownMenu with "Post" and "Log out", no standalone Log out button in
+ * the row) — the same dual-instance shape as `Nav` and FeedFilters'
+ * `FilterFields`. Neither instance calls the logout endpoint directly:
+ * selecting "Log out" only opens the confirm dialog Header renders once;
+ * the actual request and its pending state live there too, so either
+ * instance behaves identically and only one is ever visible/interactive at
+ * a given viewport width.
  */
 function AccountCluster({
   variant,
@@ -89,9 +94,7 @@ function AccountCluster({
     // (plain text-sm, no padding) — `min-h-9` floors its height without
     // touching the desktop instance, which renders `loginLink` directly,
     // below. `min-w-10` is untouched from the width-floor pass this task
-    // doesn't revisit (height only). The ghost Log out button gets its
-    // own height floor from `buttonClassName` itself now (Button.tsx), so
-    // it only needs the width floor here.
+    // doesn't revisit (height only).
     const mobileLoginLink = (
       <Link
         href="/login"
@@ -108,23 +111,64 @@ function AccountCluster({
 
     return (
       <div className="flex items-center gap-2">
-        <LanguageSwitcher triggerClassName="min-h-9" />
-
         {session ? (
-          <div className="flex items-center gap-1.5">
-            <Avatar displayName={session.displayName} avatarUrl={session.avatarUrl} />
-            <button
-              type="button"
-              onClick={onRequestLogout}
-              disabled={loggingOut}
-              className={buttonClassName({ variant: 'ghost', className: 'min-w-10' })}
-            >
-              {t('session.logout')}
-            </button>
-          </div>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              {/* Icon-only trigger, same shape as the hamburger/drawer-close
+                  buttons above: a bare `cursor-pointer` rather than
+                  `buttonClassName`, whose variants all add visible chrome
+                  (background, underline) that fights the circular avatar
+                  they'd be wrapping. */}
+              <button
+                type="button"
+                aria-label={t('session.accountMenu')}
+                className="cursor-pointer rounded-full"
+              >
+                <Avatar displayName={session.displayName} avatarUrl={session.avatarUrl} />
+              </button>
+            </DropdownMenu.Trigger>
+
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="start"
+                sideOffset={4}
+                collisionPadding={10}
+                // "Log out" opens the AlertDialog from inside this menu's own
+                // onSelect — Radix's default close behavior would otherwise
+                // return focus to the avatar trigger right after, racing the
+                // AlertDialog's own auto-focus and sometimes winning it back.
+                // Same guard Combobox.tsx already applies to its Popover.Content
+                // for the equivalent reason.
+                onCloseAutoFocus={(event) => event.preventDefault()}
+                className="z-[100] min-w-36 overflow-hidden rounded-md border border-neutral-200 bg-white p-1 shadow-lg"
+              >
+                <DropdownMenu.Item asChild>
+                  <Link
+                    href="/items/new"
+                    className="block cursor-pointer rounded px-3 py-2 text-sm text-neutral-900 outline-none select-none data-[highlighted]:bg-brand-tint data-[highlighted]:text-brand-strong"
+                  >
+                    {t('nav.create')}
+                  </Link>
+                </DropdownMenu.Item>
+                {/* Only opens the confirm dialog Header already renders —
+                    see the doc comment above AccountCluster. Radix closes
+                    the menu itself once onSelect returns, so this doesn't
+                    need to call setOpen/close anything by hand. */}
+                <DropdownMenu.Item
+                  onSelect={onRequestLogout}
+                  disabled={loggingOut}
+                  className="cursor-pointer rounded px-3 py-2 text-sm text-neutral-900 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-brand-tint data-[highlighted]:text-brand-strong"
+                >
+                  {t('session.logout')}
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         ) : (
           mobileLoginLink
         )}
+
+        <LanguageSwitcher triggerClassName="min-h-9" />
       </div>
     );
   }
@@ -169,15 +213,17 @@ function AccountCluster({
  *
  * Below `md` — the same breakpoint FeedFilters switches at, so the header
  * and the filter bar collapse together — the closed row is
- * `[hamburger] [logo] ... [language] [avatar/Log out]`: language and
- * account stay reachable without opening anything (`AccountCluster`'s
- * `mobile` variant). What moves into the bottom-sheet drawer is the nav
- * links (Items/My items/My claims/Admin) plus Post — Post doesn't fit on
- * the closed row alongside the logo, language switcher and avatar/Log out,
- * so it rides along with the nav links instead of forcing a second row.
- * The drawer reuses FeedFilters' shape verbatim (scrim, rounded-t-lg
- * sheet, Escape-to-close, tap-outside-to-close) rather than inventing a
- * second pattern. `md` and up is the original single-row layout,
+ * `[hamburger] [logo] ... [avatar or Log in] [language]`: account and
+ * language stay reachable without opening anything (`AccountCluster`'s
+ * `mobile` variant). Tapping the avatar opens a small dropdown (Post, Log
+ * out) rather than a standalone Log out button in the row. What moves into
+ * the bottom-sheet drawer is the nav links (Items/My items/My claims/Admin)
+ * plus a second, full-width Post CTA — the row's own avatar dropdown
+ * already reaches Post without opening the drawer, but the drawer keeps its
+ * own copy alongside the nav links for anyone who opens it via the
+ * hamburger instead. The drawer reuses FeedFilters' shape verbatim (scrim,
+ * rounded-t-lg sheet, Escape-to-close, tap-outside-to-close) rather than
+ * inventing a second pattern. `md` and up is the original single-row layout,
  * unchanged.
  */
 export function Header() {

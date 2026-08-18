@@ -28,6 +28,7 @@
   "session": {
     "login": "Войти",
     "logout": "Выйти",
+    "accountMenu": "Меню аккаунта",
     "logoutConfirm": {
       "title": "Выйти из аккаунта?",
       "confirm": "Выйти",
