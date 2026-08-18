@@ -136,7 +136,9 @@
     "validation": {
       "titleRequired": "Վերնագիրը պարտադիր է",
       "titleTooShort": "Վերնագիրը պետք է ունենա առնվազն {min} նիշ",
+      "categoryRequired": "Կատեգորիան պարտադիր է",
       "districtRequired": "Թաղամասը պարտադիր է",
+      "conditionRequired": "Վիճակը պարտադիր է",
       "photosNotReady": "Նկարները դեռ վերբեռնվում են"
     },
     "submit": "Տեղադրել",
