@@ -151,17 +151,27 @@ function AccountCluster({
                     (Radix's keyboard-nav state) gets its own brightness
                     shift since the fill means the original
                     bg-brand-tint highlight treatment no longer applies
-                    cleanly on top of it. */}
+                    cleanly on top of it.
+                    Deliberately smaller than `buttonClassName`'s usual
+                    tap-target floor (`min-h-9`, full-width): this sits
+                    inside a compact dropdown next to a plain text "Log
+                    out" row, not in a form or a full-width sheet, so a
+                    slim, content-hugging pill reads better than a
+                    stretched full-size button — every size-related class
+                    below is `!`-prefixed since it must win over the
+                    `md`-size classes `buttonClassName` bakes in by
+                    default, which are equal-specificity plain utilities
+                    that wouldn't otherwise reliably lose to these. */}
                 <DropdownMenu.Item asChild>
                   <Link
                     href="/items/new"
                     className={buttonClassName({
                       variant: postActive ? 'secondary' : 'primary',
-                      size: 'sm',
-                      className: 'w-full gap-2 outline-none select-none data-[highlighted]:brightness-95',
+                      className:
+                        'w-fit gap-1 !min-h-0 !px-2.5 !py-1 !text-xs outline-none select-none data-[highlighted]:brightness-95',
                     })}
                   >
-                    <PlusIcon className="h-4 w-4" />
+                    <PlusIcon className="h-3 w-3" />
                     {t('nav.create')}
                   </Link>
                 </DropdownMenu.Item>
