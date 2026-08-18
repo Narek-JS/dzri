@@ -366,7 +366,7 @@ export function Combobox({
             collisionPadding={10}
             onOpenAutoFocus={(event) => event.preventDefault()}
             onCloseAutoFocus={(event) => event.preventDefault()}
-            className="z-[100] flex max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] flex-col overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg"
+            className="z-[100] flex max-h-[min(520px,var(--radix-popover-content-available-height))] w-[var(--radix-popover-trigger-width)] flex-col overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg"
           >
             <div id={listboxId} className="min-h-0 overflow-y-auto p-1">
               <CommandPrimitive.List>

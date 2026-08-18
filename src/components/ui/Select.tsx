@@ -165,7 +165,7 @@ function SelectRoot({
           // changes, per this project's "same behavior, not an accident of
           // two libraries' defaults happening to agree" convention.
           collisionPadding={10}
-          className={`z-[100] flex max-h-[var(--radix-select-content-available-height)] flex-col overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg ${CONTENT_WIDTH_CLASSES[variant]}`}
+          className={`z-[100] flex max-h-[min(520px,var(--radix-select-content-available-height))] flex-col overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg ${CONTENT_WIDTH_CLASSES[variant]}`}
         >
           <SelectPrimitive.ScrollUpButton className="flex items-center justify-center py-1 text-neutral-500">
             <ChevronIcon className="h-4 w-4 rotate-180" />
