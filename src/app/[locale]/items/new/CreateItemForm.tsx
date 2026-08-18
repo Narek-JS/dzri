@@ -403,13 +403,29 @@ export function CreateItemForm({ districts, categories }: Props) {
         </p>
       )}
 
-      <label className="flex items-start gap-2 text-sm text-neutral-800">
-        <input
-          type="checkbox"
-          checked={needsTranslation}
-          onChange={(event) => setNeedsTranslation(event.target.checked)}
-          className="mt-0.5"
-        />
+      <label className="flex items-start gap-2 text-xs text-neutral-800 sm:text-sm">
+        <span className="relative mt-0.5 inline-flex shrink-0">
+          <input
+            type="checkbox"
+            checked={needsTranslation}
+            onChange={(event) => setNeedsTranslation(event.target.checked)}
+            className="peer h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border border-neutral-300 bg-white checked:border-brand-strong checked:bg-brand-strong focus:ring-1 focus:ring-brand-strong focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          />
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            fill="none"
+            className="pointer-events-none absolute inset-0 hidden h-4 w-4 text-white peer-checked:block"
+          >
+            <path
+              d="M4 10.5L8 14.5L16 6"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
         {t('createItem.translation.checkboxLabel')}
       </label>
 
