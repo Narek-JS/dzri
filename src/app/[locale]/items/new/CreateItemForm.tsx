@@ -634,7 +634,7 @@ export function CreateItemForm({ districts, categories }: Props) {
 
       {needsTranslation ? (
         <>
-          <div className="flex flex-col gap-1">
+          <div className="relative flex flex-col gap-1">
             <label htmlFor="title" className="text-sm font-medium">
               {t('createItem.title.label')}{' '}
               <span className="text-red-700" aria-hidden="true">
@@ -653,7 +653,7 @@ export function CreateItemForm({ districts, categories }: Props) {
               className="rounded border border-neutral-300 px-3 py-2 text-sm"
             />
             {shown?.title && (
-              <p id="title-error" className="text-xs text-red-700">
+              <p id="title-error" className="absolute top-full left-0 mt-1 text-xs text-red-700">
                 {fieldMsgText(shown.title)}
               </p>
             )}
@@ -733,8 +733,12 @@ export function CreateItemForm({ districts, categories }: Props) {
             const pickupNotesErr = shown?.multiPickupNotes[loc] ?? null;
 
             return (
-              <div key={loc} role="tabpanel" className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
+              // gap-6, not gap-4: the field errors below are absolutely
+              // positioned so that showing one never reflows the page, which
+              // means each field has to leave room for its own message in the
+              // gap underneath it. The rest of the form is already gap-6.
+              <div key={loc} role="tabpanel" className="flex flex-col gap-6">
+                <div className="relative flex flex-col gap-1">
                   <label htmlFor={`title-${loc}`} className="text-sm font-medium">
                     {localeFieldLabel('createItem.title.label', loc)}{' '}
                     <span className="text-red-700" aria-hidden="true">
@@ -755,13 +759,16 @@ export function CreateItemForm({ districts, categories }: Props) {
                     className="rounded border border-neutral-300 px-3 py-2 text-sm"
                   />
                   {titleErr && (
-                    <p id={`title-${loc}-error`} className="text-xs text-red-700">
+                    <p
+                      id={`title-${loc}-error`}
+                      className="absolute top-full left-0 mt-1 text-xs text-red-700"
+                    >
                       {fieldMsgText(titleErr)}
                     </p>
                   )}
                 </div>
 
-                <div className="flex flex-col gap-1">
+                <div className="relative flex flex-col gap-1">
                   <label htmlFor={`description-${loc}`} className="text-sm font-medium">
                     {localeFieldLabel('createItem.description.label', loc)}
                   </label>
@@ -778,13 +785,16 @@ export function CreateItemForm({ districts, categories }: Props) {
                     className="rounded border border-neutral-300 px-3 py-2 text-sm"
                   />
                   {descriptionErr && (
-                    <p id={`description-${loc}-error`} className="text-xs text-red-700">
+                    <p
+                      id={`description-${loc}-error`}
+                      className="absolute top-full left-0 mt-1 text-xs text-red-700"
+                    >
                       {fieldMsgText(descriptionErr)}
                     </p>
                   )}
                 </div>
 
-                <div className="flex flex-col gap-1">
+                <div className="relative flex flex-col gap-1">
                   <label htmlFor={`pickupNotes-${loc}`} className="text-sm font-medium">
                     {localeFieldLabel('createItem.pickupNotes.label', loc)}
                   </label>
@@ -801,7 +811,10 @@ export function CreateItemForm({ districts, categories }: Props) {
                     className="rounded border border-neutral-300 px-3 py-2 text-sm"
                   />
                   {pickupNotesErr && (
-                    <p id={`pickupNotes-${loc}-error`} className="text-xs text-red-700">
+                    <p
+                      id={`pickupNotes-${loc}-error`}
+                      className="absolute top-full left-0 mt-1 text-xs text-red-700"
+                    >
                       {fieldMsgText(pickupNotesErr)}
                     </p>
                   )}
@@ -831,7 +844,7 @@ export function CreateItemForm({ districts, categories }: Props) {
         {categoryError && <p className="text-sm text-red-700">{errorText(categoryError)}</p>}
       </div>
 
-      <div className="flex flex-col gap-1">
+      <div className="relative flex flex-col gap-1">
         <label htmlFor="district" className="text-sm font-medium">
           {t('createItem.district.label')}{' '}
           <span className="text-red-700" aria-hidden="true">
@@ -849,7 +862,7 @@ export function CreateItemForm({ districts, categories }: Props) {
           options={districtOptions}
         />
         {shown?.district && (
-          <p id="district-error" className="text-xs text-red-700">
+          <p id="district-error" className="absolute top-full left-0 mt-1 text-xs text-red-700">
             {fieldMsgText(shown.district)}
           </p>
         )}
