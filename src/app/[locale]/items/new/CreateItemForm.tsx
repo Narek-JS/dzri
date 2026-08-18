@@ -155,17 +155,14 @@ export function CreateItemForm({ districts, categories }: Props) {
   const [bodyError, setBodyError] = useState<ApiErrorCode | null>(null);
   const [formError, setFormError] = useState<ApiErrorCode | null>(null);
 
-  // Client-side validation layer, checked on submit — separate from the
-  // ApiErrorCode states above, which only ever come from the server. Each
-  // holds an i18n key (plus any interpolation params) rather than a
-  // translated string, so the message is re-resolved on every render if
-  // the locale changes.
-  const [titleFieldError, setTitleFieldError] = useState<FieldMsg>(null);
-  const [multiTitleFieldErrors, setMultiTitleFieldErrors] = useState<
-    Partial<Record<ItemLocale, FieldMsg>>
-  >({});
-  const [districtFieldError, setDistrictFieldError] = useState<FieldMsg>(null);
-  const [photosFieldError, setPhotosFieldError] = useState<FieldMsg>(null);
+  // The client-side validation layer is *derived*, not stored: `validateForm`
+  // below runs on every render and `submitAttempted` decides whether its
+  // result is shown. Holding each message in its own `useState` (as this
+  // used to) meant nothing recomputed when a field changed, so an error
+  // stayed on screen after the giver fixed it and only cleared on the next
+  // submit — and toggling `needsTranslation` left the other mode's errors
+  // stranded on fields that were no longer rendered.
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   // On a failed validation, handleSubmit stores the first invalid field's
   // DOM id here and bumps `scrollTick` so the effect below re-runs and
   // scrolls to it — a ref rather than state for the id itself, since the
@@ -220,6 +217,18 @@ export function CreateItemForm({ districts, categories }: Props) {
     setImagesError(null);
     setBodyError(null);
     setFormError(null);
+  }
+
+  function handleNeedsTranslationChange(checked: boolean) {
+    setNeedsTranslation(checked);
+    // The two modes ask for different fields — one title or three — so a
+    // submit attempt against the old one says nothing about the new one.
+    // Without this, unchecking the box immediately flags three titles the
+    // giver has not been shown yet.
+    setSubmitAttempted(false);
+    // Back to the tab that leads the list, so the next render starts on
+    // the giver's own locale rather than wherever validation last jumped.
+    setActiveTab(locale);
   }
 
   function updatePhoto(id: string, patch: Partial<PhotoItem>) {
@@ -317,13 +326,32 @@ export function CreateItemForm({ districts, categories }: Props) {
 
   const trimmedTitle = title.trim();
 
+  // The locale tabs lead with the one the giver is already reading in —
+  // that is the language they will type first and the one that becomes
+  // `sourceLocale`, so it should not sit third behind two they may not
+  // even speak. Validation walks this same order, which is what makes
+  // "scroll to the first invalid field" mean the first one on screen.
+  const orderedLocales: readonly ItemLocale[] = [
+    locale,
+    ...ITEM_LOCALES.filter((loc) => loc !== locale),
+  ];
+
+  /** "Title (ՀԱՅ)" — every tab shows the same three labels, so each says which locale it holds. */
+  function localeFieldLabel(labelKey: string, loc: ItemLocale): string {
+    return `${t(labelKey as Parameters<typeof t>[0])} (${t(`languageSwitcher.short.${loc}`)})`;
+  }
+
   type Validation = {
     title: FieldMsg;
     multiTitle: Partial<Record<ItemLocale, FieldMsg>>;
+    multiDescription: Partial<Record<ItemLocale, FieldMsg>>;
+    multiPickupNotes: Partial<Record<ItemLocale, FieldMsg>>;
     district: FieldMsg;
     images: FieldMsg;
     firstInvalidId: string | null;
     firstInvalidLocale: ItemLocale | null;
+    /** Which tabs to mark, so an error hidden behind an inactive tab is still visible. */
+    localesWithErrors: ReadonlySet<ItemLocale>;
   };
 
   /**
@@ -333,18 +361,27 @@ export function CreateItemForm({ districts, categories }: Props) {
    * server request below fills in an "other"-category/`working`-condition
    * default when either is left unset, so the UI never nags for them.
    * Description/Pickup notes stay genuinely optional on both sides.
-   * Images get their own check — "at least one" plus "every one finished
-   * uploading," since submitting mid-upload would otherwise hit the
-   * `!photo.uploaded` throw below. Everything else the server might still
-   * reject (e.g. the multi-locale description all-or-nothing rule) is
-   * intentionally left to the existing bodyError/formError round trip
-   * rather than duplicated here.
+   *
+   * Optional does not mean unchecked in the multi-locale mode, though:
+   * the server takes description and pickup notes all-three-locales-or-
+   * none (the shape `item_translations_complete_when_active` enforces in
+   * the database), so filling only one of the three is the one remaining
+   * way a submission passes this layer and still fails server-side. That
+   * came back as a generic INVALID_BODY rendered under the Title field,
+   * which is both the wrong field and unactionable copy, so it is caught
+   * here on the specific locales that are missing.
+   *
+   * Called on every render rather than only on submit — see
+   * `submitAttempted`. It stays pure and cheap for that reason: no
+   * setState, no side effects, just a read of current state.
    */
   function validateForm(): Validation {
     let firstInvalidId: string | null = null;
     let firstInvalidLocale: ItemLocale | null = null;
+    const localesWithErrors = new Set<ItemLocale>();
 
     function claim(id: string, loc?: ItemLocale) {
+      if (loc) localesWithErrors.add(loc);
       if (firstInvalidId === null) {
         firstInvalidId = id;
         firstInvalidLocale = loc ?? null;
@@ -353,27 +390,58 @@ export function CreateItemForm({ districts, categories }: Props) {
 
     let titleMsg: FieldMsg = null;
     const multiTitleMsgs: Partial<Record<ItemLocale, FieldMsg>> = {};
+    const multiDescriptionMsgs: Partial<Record<ItemLocale, FieldMsg>> = {};
+    const multiPickupNotesMsgs: Partial<Record<ItemLocale, FieldMsg>> = {};
 
     if (needsTranslation) {
       if (trimmedTitle.length === 0) {
         titleMsg = { key: 'createItem.validation.titleRequired' };
         claim('title');
       } else if (trimmedTitle.length < TITLE_MIN_LENGTH) {
-        titleMsg = { key: 'createItem.validation.titleTooShort', params: { min: TITLE_MIN_LENGTH } };
+        titleMsg = {
+          key: 'createItem.validation.titleTooShort',
+          params: { min: TITLE_MIN_LENGTH },
+        };
         claim('title');
       }
     } else {
-      for (const loc of ITEM_LOCALES) {
-        const length = multiTitles[loc].trim().length;
-        if (length === 0) {
+      const descriptionFilled = ITEM_LOCALES.filter(
+        (loc) => multiDescriptions[loc].trim().length > 0,
+      );
+      const pickupNotesFilled = ITEM_LOCALES.filter(
+        (loc) => multiPickupNotes[loc].trim().length > 0,
+      );
+      // Partly filled is the only failing state: all three and none are
+      // both fine, which is exactly the server's rule.
+      const descriptionPartial =
+        descriptionFilled.length > 0 && descriptionFilled.length < ITEM_LOCALES.length;
+      const pickupNotesPartial =
+        pickupNotesFilled.length > 0 && pickupNotesFilled.length < ITEM_LOCALES.length;
+
+      // Locale-major, so the first field claimed is the first one on
+      // screen: each tab in turn, and title → description → pickup notes
+      // within it, matching the rendered order below.
+      for (const loc of orderedLocales) {
+        const titleLength = multiTitles[loc].trim().length;
+        if (titleLength === 0) {
           multiTitleMsgs[loc] = { key: 'createItem.validation.titleRequired' };
           claim(`title-${loc}`, loc);
-        } else if (length < TITLE_MIN_LENGTH) {
+        } else if (titleLength < TITLE_MIN_LENGTH) {
           multiTitleMsgs[loc] = {
             key: 'createItem.validation.titleTooShort',
             params: { min: TITLE_MIN_LENGTH },
           };
           claim(`title-${loc}`, loc);
+        }
+
+        if (descriptionPartial && multiDescriptions[loc].trim().length === 0) {
+          multiDescriptionMsgs[loc] = { key: 'createItem.validation.descriptionAllLocales' };
+          claim(`description-${loc}`, loc);
+        }
+
+        if (pickupNotesPartial && multiPickupNotes[loc].trim().length === 0) {
+          multiPickupNotesMsgs[loc] = { key: 'createItem.validation.pickupNotesAllLocales' };
+          claim(`pickupNotes-${loc}`, loc);
         }
       }
     }
@@ -384,9 +452,17 @@ export function CreateItemForm({ districts, categories }: Props) {
       claim('district');
     }
 
+    // "At least one" plus "every one finished uploading", since submitting
+    // mid-upload would otherwise hit the `!photo.uploaded` throw below.
     let imagesMsg: FieldMsg = null;
     if (photos.length < MIN_PHOTOS) {
       imagesMsg = { key: 'errors.imagesRequired' };
+      claim('photos-note');
+    } else if (photos.some((photo) => photo.status === 'error')) {
+      // A photo that failed never reaches 'done', so without its own branch
+      // this sat on "still uploading" forever and the giver had no way to
+      // learn that removing the failed tile is what unblocks submit.
+      imagesMsg = { key: 'createItem.validation.photosFailed' };
       claim('photos-note');
     } else if (photos.some((photo) => photo.status !== 'done')) {
       imagesMsg = { key: 'createItem.validation.photosNotReady' };
@@ -396,22 +472,28 @@ export function CreateItemForm({ districts, categories }: Props) {
     return {
       title: titleMsg,
       multiTitle: multiTitleMsgs,
+      multiDescription: multiDescriptionMsgs,
+      multiPickupNotes: multiPickupNotesMsgs,
       district: districtMsg,
       images: imagesMsg,
       firstInvalidId,
       firstInvalidLocale,
+      localesWithErrors,
     };
   }
+
+  const validation = validateForm();
+  // Nothing is flagged before the first submit — the giver should not be
+  // told a field is wrong while they are still filling the form in. After
+  // it, `validation` is recomputed on every keystroke and selection, so a
+  // message clears the moment its field is fixed.
+  const shown = submitAttempted ? validation : null;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (submitting) return;
 
-    const validation = validateForm();
-    setTitleFieldError(validation.title);
-    setMultiTitleFieldErrors(validation.multiTitle);
-    setDistrictFieldError(validation.district);
-    setPhotosFieldError(validation.images);
+    setSubmitAttempted(true);
 
     if (validation.firstInvalidId) {
       if (validation.firstInvalidLocale) setActiveTab(validation.firstInvalidLocale);
@@ -529,7 +611,7 @@ export function CreateItemForm({ districts, categories }: Props) {
           <input
             type="checkbox"
             checked={needsTranslation}
-            onChange={(event) => setNeedsTranslation(event.target.checked)}
+            onChange={(event) => handleNeedsTranslationChange(event.target.checked)}
             className="peer h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border border-neutral-300 bg-white checked:border-brand-strong checked:bg-brand-strong focus:ring-1 focus:ring-brand-strong focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
           <svg
@@ -552,7 +634,7 @@ export function CreateItemForm({ districts, categories }: Props) {
 
       {needsTranslation ? (
         <>
-          <div className="relative flex flex-col gap-1">
+          <div className="flex flex-col gap-1">
             <label htmlFor="title" className="text-sm font-medium">
               {t('createItem.title.label')}{' '}
               <span className="text-red-700" aria-hidden="true">
@@ -566,11 +648,13 @@ export function CreateItemForm({ districts, categories }: Props) {
               maxLength={TITLE_MAX_LENGTH}
               value={title}
               onChange={(event) => setTitle(event.target.value)}
+              aria-invalid={Boolean(shown?.title)}
+              aria-describedby={shown?.title ? 'title-error' : undefined}
               className="rounded border border-neutral-300 px-3 py-2 text-sm"
             />
-            {titleFieldError && (
-              <p className="absolute top-full left-0 mt-1 text-xs text-red-700">
-                {fieldMsgText(titleFieldError)}
+            {shown?.title && (
+              <p id="title-error" className="text-xs text-red-700">
+                {fieldMsgText(shown.title)}
               </p>
             )}
             {bodyError && <p className="text-sm text-red-700">{errorText(bodyError)}</p>}
@@ -611,33 +695,48 @@ export function CreateItemForm({ districts, categories }: Props) {
             role="tablist"
             aria-label={t('createItem.translation.tabsLabel')}
           >
-            {ITEM_LOCALES.map((loc) => (
-              <button
-                key={loc}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === loc}
-                onClick={() => setActiveTab(loc)}
-                className={
-                  activeTab === loc
-                    ? 'cursor-pointer rounded bg-brand px-3 py-1.5 text-sm font-medium text-neutral-900'
-                    : 'cursor-pointer rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700'
-                }
-              >
-                {t(`languageSwitcher.${loc}`)}
-              </button>
-            ))}
+            {orderedLocales.map((loc) => {
+              // A tab's fields are only in the DOM while it is active, so
+              // an error on a hidden one would otherwise be invisible —
+              // marked with a dot, not colour alone.
+              const tabHasError = shown?.localesWithErrors.has(loc) ?? false;
+              const base = 'cursor-pointer rounded px-3 py-1.5 text-sm font-medium';
+
+              return (
+                <button
+                  key={loc}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === loc}
+                  onClick={() => setActiveTab(loc)}
+                  className={
+                    activeTab === loc
+                      ? `${base} bg-brand text-neutral-900`
+                      : `${base} border ${
+                          tabHasError
+                            ? 'border-red-300 text-red-700'
+                            : 'border-neutral-300 text-neutral-700'
+                        }`
+                  }
+                >
+                  {t(`languageSwitcher.${loc}`)}
+                  {tabHasError && <span aria-hidden="true"> •</span>}
+                </button>
+              );
+            })}
           </div>
 
-          {ITEM_LOCALES.map((loc) => {
+          {orderedLocales.map((loc) => {
             if (activeTab !== loc) return null;
-            const titleErr = multiTitleFieldErrors[loc] ?? null;
+            const titleErr = shown?.multiTitle[loc] ?? null;
+            const descriptionErr = shown?.multiDescription[loc] ?? null;
+            const pickupNotesErr = shown?.multiPickupNotes[loc] ?? null;
 
             return (
               <div key={loc} role="tabpanel" className="flex flex-col gap-4">
-                <div className="relative flex flex-col gap-1">
+                <div className="flex flex-col gap-1">
                   <label htmlFor={`title-${loc}`} className="text-sm font-medium">
-                    {t('createItem.title.label')}{' '}
+                    {localeFieldLabel('createItem.title.label', loc)}{' '}
                     <span className="text-red-700" aria-hidden="true">
                       *
                     </span>
@@ -651,10 +750,12 @@ export function CreateItemForm({ districts, categories }: Props) {
                     onChange={(event) =>
                       setMultiTitles((prev) => ({ ...prev, [loc]: event.target.value }))
                     }
+                    aria-invalid={Boolean(titleErr)}
+                    aria-describedby={titleErr ? `title-${loc}-error` : undefined}
                     className="rounded border border-neutral-300 px-3 py-2 text-sm"
                   />
                   {titleErr && (
-                    <p className="absolute top-full left-0 mt-1 text-xs text-red-700">
+                    <p id={`title-${loc}-error`} className="text-xs text-red-700">
                       {fieldMsgText(titleErr)}
                     </p>
                   )}
@@ -662,7 +763,7 @@ export function CreateItemForm({ districts, categories }: Props) {
 
                 <div className="flex flex-col gap-1">
                   <label htmlFor={`description-${loc}`} className="text-sm font-medium">
-                    {t('createItem.description.label')}
+                    {localeFieldLabel('createItem.description.label', loc)}
                   </label>
                   <textarea
                     id={`description-${loc}`}
@@ -672,13 +773,20 @@ export function CreateItemForm({ districts, categories }: Props) {
                     onChange={(event) =>
                       setMultiDescriptions((prev) => ({ ...prev, [loc]: event.target.value }))
                     }
+                    aria-invalid={Boolean(descriptionErr)}
+                    aria-describedby={descriptionErr ? `description-${loc}-error` : undefined}
                     className="rounded border border-neutral-300 px-3 py-2 text-sm"
                   />
+                  {descriptionErr && (
+                    <p id={`description-${loc}-error`} className="text-xs text-red-700">
+                      {fieldMsgText(descriptionErr)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-1">
                   <label htmlFor={`pickupNotes-${loc}`} className="text-sm font-medium">
-                    {t('createItem.pickupNotes.label')}
+                    {localeFieldLabel('createItem.pickupNotes.label', loc)}
                   </label>
                   <input
                     id={`pickupNotes-${loc}`}
@@ -688,8 +796,15 @@ export function CreateItemForm({ districts, categories }: Props) {
                     onChange={(event) =>
                       setMultiPickupNotes((prev) => ({ ...prev, [loc]: event.target.value }))
                     }
+                    aria-invalid={Boolean(pickupNotesErr)}
+                    aria-describedby={pickupNotesErr ? `pickupNotes-${loc}-error` : undefined}
                     className="rounded border border-neutral-300 px-3 py-2 text-sm"
                   />
+                  {pickupNotesErr && (
+                    <p id={`pickupNotes-${loc}-error`} className="text-xs text-red-700">
+                      {fieldMsgText(pickupNotesErr)}
+                    </p>
+                  )}
                 </div>
               </div>
             );
@@ -716,7 +831,7 @@ export function CreateItemForm({ districts, categories }: Props) {
         {categoryError && <p className="text-sm text-red-700">{errorText(categoryError)}</p>}
       </div>
 
-      <div className="relative flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <label htmlFor="district" className="text-sm font-medium">
           {t('createItem.district.label')}{' '}
           <span className="text-red-700" aria-hidden="true">
@@ -733,9 +848,9 @@ export function CreateItemForm({ districts, categories }: Props) {
           groups={districtGroups}
           options={districtOptions}
         />
-        {districtFieldError && (
-          <p className="absolute top-full left-0 mt-1 text-xs text-red-700">
-            {fieldMsgText(districtFieldError)}
+        {shown?.district && (
+          <p id="district-error" className="text-xs text-red-700">
+            {fieldMsgText(shown.district)}
           </p>
         )}
         {districtError && <p className="text-sm text-red-700">{errorText(districtError)}</p>}
@@ -775,9 +890,9 @@ export function CreateItemForm({ districts, categories }: Props) {
         <p className="text-sm text-neutral-600">{t('createItem.photos.help')}</p>
         <p
           id="photos-note"
-          className={`text-xs ${photosFieldError ? 'text-red-700' : 'text-neutral-500'}`}
+          className={`text-xs ${shown?.images ? 'text-red-700' : 'text-neutral-500'}`}
         >
-          {fieldMsgText(photosFieldError ?? { key: 'errors.imagesRequired' })}
+          {fieldMsgText(shown?.images ?? { key: 'errors.imagesRequired' })}
         </p>
 
         {photos.length > 0 && (

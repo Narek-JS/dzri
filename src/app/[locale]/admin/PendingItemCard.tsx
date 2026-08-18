@@ -65,9 +65,7 @@ function descriptionKey(locale: ItemLocale): 'descriptionHy' | 'descriptionRu' |
   return 'descriptionHy';
 }
 
-function pickupNotesKey(
-  locale: ItemLocale,
-): 'pickupNotesHy' | 'pickupNotesRu' | 'pickupNotesEn' {
+function pickupNotesKey(locale: ItemLocale): 'pickupNotesHy' | 'pickupNotesRu' | 'pickupNotesEn' {
   if (locale === 'ru') return 'pickupNotesRu';
   if (locale === 'en') return 'pickupNotesEn';
   return 'pickupNotesHy';
@@ -142,9 +140,9 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
   const [descriptionDrafts, setDescriptionDrafts] = useState<Partial<Record<ItemLocale, string>>>(
     {},
   );
-  const [pickupNotesDrafts, setPickupNotesDrafts] = useState<
-    Partial<Record<ItemLocale, string>>
-  >({});
+  const [pickupNotesDrafts, setPickupNotesDrafts] = useState<Partial<Record<ItemLocale, string>>>(
+    {},
+  );
 
   const trimmedLength = reason.trim().length;
   const reasonValid = trimmedLength >= MIN_REASON_LENGTH && trimmedLength <= MAX_REASON_LENGTH;
@@ -185,8 +183,7 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
     item.needsTranslation && sourcePickupNotes !== null
       ? ITEM_LOCALES.filter(
           (loc) =>
-            textForLocale(item.pickupNotesHy, item.pickupNotesRu, item.pickupNotesEn, loc) ===
-            null,
+            textForLocale(item.pickupNotesHy, item.pickupNotesRu, item.pickupNotesEn, loc) === null,
         )
       : [];
 

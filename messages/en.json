@@ -137,7 +137,10 @@
       "titleRequired": "Title is required",
       "titleTooShort": "Title needs at least {min} characters",
       "districtRequired": "Location is required",
-      "photosNotReady": "Photos are still uploading"
+      "photosNotReady": "Photos are still uploading",
+      "photosFailed": "Remove the photos that failed to upload",
+      "descriptionAllLocales": "Fill in the description for every language, or leave it empty in all of them",
+      "pickupNotesAllLocales": "Fill in the pickup notes for every language, or leave them empty in all of them"
     },
     "submit": "Post",
     "success": {
