@@ -141,7 +141,7 @@ function AccountCluster({
                 // Same guard Combobox.tsx already applies to its Popover.Content
                 // for the equivalent reason.
                 onCloseAutoFocus={(event) => event.preventDefault()}
-                className="z-[100] flex min-w-36 flex-col gap-1 overflow-hidden rounded-md border border-neutral-200 bg-white p-1 shadow-lg"
+                className="z-[100] flex min-w-36 flex-col gap-1 overflow-hidden rounded-md border border-neutral-200 bg-white px-1 pt-2 pb-1 shadow-lg"
               >
                 {/* Filled, brand-colored, plus-icon button — the same
                     buttonClassName + PlusIcon pairing as the desktop Post
@@ -161,14 +161,18 @@ function AccountCluster({
                     below is `!`-prefixed since it must win over the
                     `md`-size classes `buttonClassName` bakes in by
                     default, which are equal-specificity plain utilities
-                    that wouldn't otherwise reliably lose to these. */}
+                    that wouldn't otherwise reliably lose to these.
+                    `!px-3` matches Log out's own `px-3` below exactly,
+                    so the "+" icon and the "Log out" label start from
+                    the same left position despite Post being a
+                    content-hugging pill and Log out a full-width row. */}
                 <DropdownMenu.Item asChild>
                   <Link
                     href="/items/new"
                     className={buttonClassName({
                       variant: postActive ? 'secondary' : 'primary',
                       className:
-                        'w-fit gap-1 !min-h-0 !px-2.5 !py-1 !text-xs outline-none select-none data-[highlighted]:brightness-95',
+                        'w-fit gap-1 !min-h-0 !px-3 !py-1 !text-xs outline-none select-none data-[highlighted]:brightness-95',
                     })}
                   >
                     <PlusIcon className="h-3 w-3" />
