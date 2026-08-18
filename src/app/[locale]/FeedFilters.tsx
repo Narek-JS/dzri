@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useState } from 'react';
 
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Combobox } from '@/components/ui/Combobox';
 import { Select } from '@/components/ui/Select';
@@ -162,15 +163,15 @@ function FilterFields({
  *
  * Below `md`, the same real-time updates would cause a disorienting page
  * jump mid-interaction on a small screen, so the three selects move into a
- * bottom drawer with local *pending* state — nothing reaches the URL until
- * the drawer's primary button is tapped. Opening the drawer seeds that
- * pending state from whatever is currently applied, so reopening it after
- * a cancel never loses the real selection.
+ * shared `BottomSheet` (vaul) with local *pending* state — nothing reaches
+ * the URL until the sheet's primary button is tapped. Opening the sheet
+ * seeds that pending state from whatever is currently applied, so
+ * reopening it after a cancel never loses the real selection.
  *
  * Applied filter state itself lives entirely in the URL, never in local
  * component state — this reads `useSearchParams()` and writes back through
  * `router.push()`, so a filtered link pasted fresh into the address bar
- * and the back button both reproduce the same list. The drawer's pending
+ * and the back button both reproduce the same list. The sheet's pending
  * state is the one deliberate exception, and it is never the source of
  * truth: Apply is the only thing that promotes it to the URL.
  */
@@ -186,24 +187,12 @@ export function FeedFilters({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const drawerTitleId = useId();
 
   const applied = readFilters(searchParams);
   const activeCount = Object.values(applied).filter((value) => value !== '').length;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pending, setPending] = useState<FilterValues>(applied);
-
-  useEffect(() => {
-    if (!drawerOpen) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setDrawerOpen(false);
-    }
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [drawerOpen]);
 
   function navigateTo(values: FilterValues) {
     const next = new URLSearchParams();
@@ -279,59 +268,35 @@ export function FeedFilters({
         </Button>
       </div>
 
-      {drawerOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={drawerTitleId}
-          className="fixed inset-0 z-50 flex items-end md:hidden"
-          onClick={() => setDrawerOpen(false)}
-        >
-          <div className="absolute inset-0 bg-neutral-900/50" aria-hidden="true" />
-          <div
-            className="relative flex max-h-[85vh] w-full flex-col gap-4 rounded-t-lg bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h2 id={drawerTitleId} className="text-base font-semibold text-neutral-900">
-                {t('feed.filters.toggle')}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(false)}
-                aria-label={t('feed.filters.close')}
-                className="cursor-pointer text-2xl leading-none text-neutral-500"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-4 overflow-y-auto">
-              <FilterFields
-                idPrefix="feed-filter-mobile"
-                values={pending}
-                onChange={(key, value) => setPending((previous) => ({ ...previous, [key]: value }))}
-                districts={districts}
-                categories={categories}
-                locale={locale}
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-3 border-t border-neutral-200 pt-4">
-              <button
-                type="button"
-                onClick={clearAll}
-                className="cursor-pointer text-sm text-brand-strong hover:underline"
-              >
-                {t('feed.filters.clearAll')}
-              </button>
-              <Button type="button" onClick={applyDrawer} className="flex-1">
-                {t('feed.filters.apply')}
-              </Button>
-            </div>
+      <BottomSheet
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        title={t('feed.filters.toggle')}
+        closeLabel={t('feed.filters.close')}
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={clearAll}
+              className="cursor-pointer text-sm text-brand-strong hover:underline"
+            >
+              {t('feed.filters.clearAll')}
+            </button>
+            <Button type="button" onClick={applyDrawer} className="flex-1">
+              {t('feed.filters.apply')}
+            </Button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <FilterFields
+          idPrefix="feed-filter-mobile"
+          values={pending}
+          onChange={(key, value) => setPending((previous) => ({ ...previous, [key]: value }))}
+          districts={districts}
+          categories={categories}
+          locale={locale}
+        />
+      </BottomSheet>
     </div>
   );
 }

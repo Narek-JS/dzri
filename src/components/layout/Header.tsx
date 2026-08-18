@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useState } from 'react';
 
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 
 import { Avatar } from '@/components/ui/Avatar';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { buttonClassName } from '@/components/ui/Button';
 import { containerClassName } from '@/components/ui/Container';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -217,14 +218,13 @@ function AccountCluster({
  * language stay reachable without opening anything (`AccountCluster`'s
  * `mobile` variant). Tapping the avatar opens a small dropdown (Post, Log
  * out) rather than a standalone Log out button in the row. What moves into
- * the bottom-sheet drawer is the nav links (Items/My items/My claims/Admin)
- * plus a second, full-width Post CTA — the row's own avatar dropdown
- * already reaches Post without opening the drawer, but the drawer keeps its
- * own copy alongside the nav links for anyone who opens it via the
- * hamburger instead. The drawer reuses FeedFilters' shape verbatim (scrim,
- * rounded-t-lg sheet, Escape-to-close, tap-outside-to-close) rather than
- * inventing a second pattern. `md` and up is the original single-row layout,
- * unchanged.
+ * the bottom sheet is the nav links (Items/My items/My claims/Admin) plus a
+ * second, full-width Post CTA — the row's own avatar dropdown already
+ * reaches Post without opening the sheet, but the sheet keeps its own copy
+ * alongside the nav links for anyone who opens it via the hamburger
+ * instead. The sheet is the same shared `BottomSheet` (vaul) FeedFilters
+ * uses below `md`, rather than a second hand-rolled drawer. `md` and up is
+ * the original single-row layout, unchanged.
  */
 export function Header() {
   const t = useTranslations();
@@ -233,7 +233,6 @@ export function Header() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const drawerTitleId = useId();
 
   const postActive = isPathActive(pathname, '/items/new');
 
@@ -262,17 +261,6 @@ export function Header() {
   function openLogoutDialog() {
     setLogoutDialogOpen(true);
   }
-
-  useEffect(() => {
-    if (!drawerOpen) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setDrawerOpen(false);
-    }
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [drawerOpen]);
 
   return (
     <header className="border-b border-neutral-200 py-2 md:py-4">
@@ -346,53 +334,28 @@ export function Header() {
         </div>
       </div>
 
-      {drawerOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={drawerTitleId}
-          className="fixed inset-0 z-50 flex items-end md:hidden"
+      <BottomSheet
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        title={t('shell.menu')}
+        closeLabel={t('feed.filters.close')}
+      >
+        <Nav variant="drawer" onNavigate={() => setDrawerOpen(false)} />
+
+        <Link
+          href="/items/new"
           onClick={() => setDrawerOpen(false)}
+          aria-current={postActive ? 'page' : undefined}
+          className={buttonClassName({
+            variant: postActive ? 'secondary' : 'primary',
+            size: 'sm',
+            className: 'w-full gap-2',
+          })}
         >
-          <div className="absolute inset-0 bg-neutral-900/50" aria-hidden="true" />
-          <div
-            className="relative flex max-h-[85vh] w-full flex-col gap-4 rounded-t-lg bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h2 id={drawerTitleId} className="text-base font-semibold text-neutral-900">
-                {t('shell.menu')}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(false)}
-                aria-label={t('feed.filters.close')}
-                className="cursor-pointer text-2xl leading-none text-neutral-500"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-4 overflow-y-auto">
-              <Nav variant="drawer" onNavigate={() => setDrawerOpen(false)} />
-
-              <Link
-                href="/items/new"
-                onClick={() => setDrawerOpen(false)}
-                aria-current={postActive ? 'page' : undefined}
-                className={buttonClassName({
-                  variant: postActive ? 'secondary' : 'primary',
-                  size: 'sm',
-                  className: 'w-full gap-2',
-                })}
-              >
-                <PlusIcon className="h-4 w-4" />
-                {t('nav.create')}
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+          <PlusIcon className="h-4 w-4" />
+          {t('nav.create')}
+        </Link>
+      </BottomSheet>
 
       <LogoutConfirmDialog
         open={logoutDialogOpen}
