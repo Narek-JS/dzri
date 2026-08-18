@@ -403,8 +403,8 @@ export function CreateItemForm({ districts, categories }: Props) {
         </p>
       )}
 
-      <label className="flex items-start gap-2 text-xs text-neutral-800 sm:text-sm">
-        <span className="relative mt-0.5 inline-flex shrink-0">
+      <label className="flex items-center gap-2 text-xs text-neutral-800 sm:text-sm">
+        <span className="relative inline-flex shrink-0">
           <input
             type="checkbox"
             checked={needsTranslation}
