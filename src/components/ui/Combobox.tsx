@@ -5,6 +5,7 @@ import { Command as CommandPrimitive, useCommandState } from 'cmdk';
 
 import {
   useId,
+  useRef,
   useState,
   type ChangeEvent,
   type FocusEvent,
@@ -247,6 +248,7 @@ export function Combobox({
   disabled,
 }: ComboboxProps) {
   const listboxId = useId();
+  const anchorRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState<string | null>(null);
 
@@ -324,11 +326,39 @@ export function Combobox({
     }
   }
 
+  /**
+   * There is no real `Popover.Trigger` here (see the doc comment above) —
+   * Radix only ever exempts an actual `Trigger` element from its own
+   * outside-interaction dismissal, so with a bare `Anchor` it has no way
+   * to know a pointerdown/focus landing back on the input is expected,
+   * not an outside interaction. On a single synchronous mouse click this
+   * never surfaces (the focus that opens the popover and the click that
+   * would be "outside" are the same event), but a touch tap on a real
+   * device — or Chromium's touch emulation — spans a wider timeline
+   * (pointerdown, touchstart, pointerup, touchend, then a *separately
+   * dispatched* compatibility mousedown/pointerdown once `Popover.Content`
+   * has already mounted), and only inside a vaul bottom sheet does that
+   * later compatibility event get picked up as a genuine outside
+   * interaction and close the popover ~20ms after it opened — confirmed
+   * with a MutationObserver on `aria-expanded` and by reproducing the same
+   * tap outside a sheet, where it doesn't happen. Guarding here rather
+   * than in BottomSheet.tsx: nothing about vaul is misbehaving, this
+   * Combobox's Anchor-not-Trigger choice is what's actually unprotected.
+   */
+  function handleInteractOutside(
+    event: CustomEvent<{ originalEvent: PointerEvent | globalThis.FocusEvent }>,
+  ) {
+    const target = event.detail.originalEvent.target;
+    if (target instanceof Node && anchorRef.current?.contains(target)) {
+      event.preventDefault();
+    }
+  }
+
   return (
     <CommandPrimitive shouldFilter={false} className="contents">
       <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange}>
         <PopoverPrimitive.Anchor asChild>
-          <div className="relative">
+          <div ref={anchorRef} className="relative">
             <ComboboxAnchorInput
               id={id}
               open={open}
@@ -366,6 +396,7 @@ export function Combobox({
             collisionPadding={10}
             onOpenAutoFocus={(event) => event.preventDefault()}
             onCloseAutoFocus={(event) => event.preventDefault()}
+            onInteractOutside={handleInteractOutside}
             className="z-[100] flex max-h-[min(520px,var(--radix-popover-content-available-height))] w-[var(--radix-popover-trigger-width)] flex-col overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg"
           >
             <div id={listboxId} className="min-h-0 overflow-y-auto p-1">

@@ -16,6 +16,16 @@ import { buildDistrictGroups } from '@/lib/districtGroups';
 import type { Category, District } from '@/lib/api/client';
 import type { ItemCondition } from '@/db/schema';
 
+/**
+ * BottomSheet's own default lower snap point (0.5) leaves the Condition
+ * field cut off behind the pinned footer — three fields plus a footer
+ * need more of the sheet's height than a couple of nav links do, so this
+ * overrides just the lower point rather than the shared default. Measured
+ * via Playwright at 375x667: 0.62 is the fraction at which all three
+ * fields' bottom edges clear the footer's top edge with a bit to spare.
+ */
+const SNAP_POINTS = [0.62, 0.9];
+
 const CONDITIONS: readonly ItemCondition[] = ['working', 'needs_repair', 'for_parts'];
 const CONDITION_LABEL_KEYS: Record<ItemCondition, string> = {
   working: 'createItem.condition.working',
@@ -284,6 +294,7 @@ export function FeedFilters({
         onOpenChange={setDrawerOpen}
         title={t('feed.filters.toggle')}
         closeLabel={t('feed.filters.close')}
+        snapPoints={SNAP_POINTS}
         footer={
           <div className="flex items-center justify-between gap-3">
             <button

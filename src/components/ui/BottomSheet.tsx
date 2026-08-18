@@ -5,13 +5,20 @@ import { Drawer } from 'vaul';
 import type { ReactNode } from 'react';
 
 /**
- * Fractions of viewport height vaul snaps to while dragging — roughly
- * half-height and near-full-height, per the brief. Order matters to vaul:
- * least-visible first. Dragging below the first (lowest) snap point closes
- * the sheet (vaul's default `dismissible` behavior), so there is no third
- * "closed" entry here.
+ * Default fractions of viewport height vaul snaps to while dragging —
+ * roughly half-height and near-full-height, per the brief. Order matters
+ * to vaul: least-visible first. Dragging below the first (lowest) snap
+ * point closes the sheet (vaul's default `dismissible` behavior), so
+ * there is no third "closed" entry here.
+ *
+ * Overridable via the `snapPoints` prop: Header.tsx's nav menu (a couple
+ * of short links plus a Post button) fits this default fine, but
+ * FeedFilters' three fields plus its pinned footer need more of the
+ * lower point to all be visible without scrolling — passing a taller
+ * value there rather than raising this shared default keeps the nav menu
+ * from picking up dead space it doesn't need.
  */
-const SNAP_POINTS = [0.5, 0.9];
+const DEFAULT_SNAP_POINTS = [0.5, 0.9];
 
 /**
  * Shared mobile bottom sheet wrapping vaul's `Drawer`, used by both the
@@ -52,6 +59,7 @@ export function BottomSheet({
   closeLabel,
   children,
   footer,
+  snapPoints = DEFAULT_SNAP_POINTS,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,9 +67,10 @@ export function BottomSheet({
   closeLabel: string;
   children: ReactNode;
   footer?: ReactNode;
+  snapPoints?: (number | string)[];
 }) {
   return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange} snapPoints={SNAP_POINTS} fadeFromIndex={0}>
+    <Drawer.Root open={open} onOpenChange={onOpenChange} snapPoints={snapPoints} fadeFromIndex={0}>
       <Drawer.Portal>
         {/* `fadeFromIndex={0}`: vaul's own default is the LAST snap point,
             meaning the overlay only fades in once the sheet reaches the
