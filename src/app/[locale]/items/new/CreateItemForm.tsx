@@ -121,23 +121,27 @@ export function CreateItemForm({ districts, categories }: Props) {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [pickupNotes, setPickupNotes] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [districtId, setDistrictId] = useState('');
   const [condition, setCondition] = useState<Condition | ''>('');
-  const [pickupNotes, setPickupNotes] = useState('');
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
 
-  // Checked (the default): the single title/description below go to
-  // titleHy/titleRu/titleEn's or descriptionHy/... equivalent for the
-  // current locale only, and needsTranslation=true asks an admin to fill
-  // the other two in during moderation (PART 2). Unchecked: `multiTitles`/
-  // `multiDescriptions` hold all three locales directly and nothing is
-  // left for an admin to do.
+  // Checked (the default): the single title/description/pickup notes below
+  // go to titleHy/titleRu/titleEn's or descriptionHy/... or
+  // pickupNotesHy/... equivalent for the current locale only, and
+  // needsTranslation=true asks an admin to fill the other two in during
+  // moderation (PART 2). Unchecked: `multiTitles`/`multiDescriptions`/
+  // `multiPickupNotes` hold all three locales directly and nothing is left
+  // for an admin to do.
   const [needsTranslation, setNeedsTranslation] = useState(true);
   const [multiTitles, setMultiTitles] = useState<Record<ItemLocale, string>>({
     ...EMPTY_LOCALIZED_TEXT,
   });
   const [multiDescriptions, setMultiDescriptions] = useState<Record<ItemLocale, string>>({
+    ...EMPTY_LOCALIZED_TEXT,
+  });
+  const [multiPickupNotes, setMultiPickupNotes] = useState<Record<ItemLocale, string>>({
     ...EMPTY_LOCALIZED_TEXT,
   });
   const [activeTab, setActiveTab] = useState<ItemLocale>(locale);
@@ -445,6 +449,9 @@ export function CreateItemForm({ districts, categories }: Props) {
             descriptionHy: locale === 'hy' ? description.trim() || undefined : undefined,
             descriptionRu: locale === 'ru' ? description.trim() || undefined : undefined,
             descriptionEn: locale === 'en' ? description.trim() || undefined : undefined,
+            pickupNotesHy: locale === 'hy' ? pickupNotes.trim() || undefined : undefined,
+            pickupNotesRu: locale === 'ru' ? pickupNotes.trim() || undefined : undefined,
+            pickupNotesEn: locale === 'en' ? pickupNotes.trim() || undefined : undefined,
           }
         : {
             titleHy: multiTitles.hy.trim(),
@@ -453,6 +460,9 @@ export function CreateItemForm({ districts, categories }: Props) {
             descriptionHy: multiDescriptions.hy.trim() || undefined,
             descriptionRu: multiDescriptions.ru.trim() || undefined,
             descriptionEn: multiDescriptions.en.trim() || undefined,
+            pickupNotesHy: multiPickupNotes.hy.trim() || undefined,
+            pickupNotesRu: multiPickupNotes.ru.trim() || undefined,
+            pickupNotesEn: multiPickupNotes.en.trim() || undefined,
           };
 
       // Category and Condition aren't required in the UI, but the server
@@ -469,7 +479,6 @@ export function CreateItemForm({ districts, categories }: Props) {
         categoryId: resolvedCategoryId,
         districtId: Number(districtId),
         condition: resolvedCondition,
-        pickupNotes: pickupNotes.trim() || undefined,
         images,
       });
 
@@ -580,6 +589,20 @@ export function CreateItemForm({ districts, categories }: Props) {
               className="rounded border border-neutral-300 px-3 py-2 text-sm"
             />
           </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="pickupNotes" className="text-sm font-medium">
+              {t('createItem.pickupNotes.label')}
+            </label>
+            <input
+              id="pickupNotes"
+              type="text"
+              maxLength={PICKUP_NOTES_MAX_LENGTH}
+              value={pickupNotes}
+              onChange={(event) => setPickupNotes(event.target.value)}
+              className="rounded border border-neutral-300 px-3 py-2 text-sm"
+            />
+          </div>
         </>
       ) : (
         <div className="flex flex-col gap-3">
@@ -648,6 +671,22 @@ export function CreateItemForm({ districts, categories }: Props) {
                     value={multiDescriptions[loc]}
                     onChange={(event) =>
                       setMultiDescriptions((prev) => ({ ...prev, [loc]: event.target.value }))
+                    }
+                    className="rounded border border-neutral-300 px-3 py-2 text-sm"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor={`pickupNotes-${loc}`} className="text-sm font-medium">
+                    {t('createItem.pickupNotes.label')}
+                  </label>
+                  <input
+                    id={`pickupNotes-${loc}`}
+                    type="text"
+                    maxLength={PICKUP_NOTES_MAX_LENGTH}
+                    value={multiPickupNotes[loc]}
+                    onChange={(event) =>
+                      setMultiPickupNotes((prev) => ({ ...prev, [loc]: event.target.value }))
                     }
                     className="rounded border border-neutral-300 px-3 py-2 text-sm"
                   />
@@ -725,20 +764,6 @@ export function CreateItemForm({ districts, categories }: Props) {
           ))}
         </div>
       </fieldset>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor="pickupNotes" className="text-sm font-medium">
-          {t('createItem.pickupNotes.label')}
-        </label>
-        <input
-          id="pickupNotes"
-          type="text"
-          maxLength={PICKUP_NOTES_MAX_LENGTH}
-          value={pickupNotes}
-          onChange={(event) => setPickupNotes(event.target.value)}
-          className="rounded border border-neutral-300 px-3 py-2 text-sm"
-        />
-      </div>
 
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">

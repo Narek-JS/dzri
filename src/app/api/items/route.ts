@@ -115,6 +115,7 @@ const ITEM_LOCALES = ['hy', 'ru', 'en'] as const;
 
 const titleField = z.string().trim().min(3).max(100).nullish();
 const descriptionField = z.string().trim().max(2000).nullish();
+const pickupNotesField = z.string().trim().max(300).nullish();
 
 /**
  * Structural validation only for the keys. Image count and key ownership are
@@ -128,8 +129,9 @@ const descriptionField = z.string().trim().max(2000).nullish();
  * "INVALID_DIMENSION" for a client that sends a negative height — that is a
  * malformed body.
  *
- * Title/description are per-locale (`titleHy`/`titleRu`/`titleEn`,
- * `descriptionHy`/`descriptionRu`/`descriptionEn`), mirroring the
+ * Title/description/pickup notes are per-locale (`titleHy`/`titleRu`/
+ * `titleEn`, `descriptionHy`/`descriptionRu`/`descriptionEn`,
+ * `pickupNotesHy`/`pickupNotesRu`/`pickupNotesEn`), mirroring the
  * `title_hy`/`title_ru`/`title_en` columns. `needsTranslation` and
  * `sourceLocale` come straight off CreateItemForm's checkbox (PART 2): the
  * `superRefine` below is what stops a half-filled multi-locale submission —
@@ -152,7 +154,9 @@ const createItemSchema = z
     categoryId: z.number().int().positive(),
     districtId: z.number().int().positive(),
     condition: z.enum(['working', 'needs_repair', 'for_parts']),
-    pickupNotes: z.string().trim().max(300).nullish(),
+    pickupNotesHy: pickupNotesField,
+    pickupNotesRu: pickupNotesField,
+    pickupNotesEn: pickupNotesField,
     images: z.array(itemImageSchema),
   })
   .superRefine((body, ctx) => {
@@ -161,6 +165,11 @@ const createItemSchema = z
       hy: body.descriptionHy,
       ru: body.descriptionRu,
       en: body.descriptionEn,
+    };
+    const pickupNotesByLocale = {
+      hy: body.pickupNotesHy,
+      ru: body.pickupNotesRu,
+      en: body.pickupNotesEn,
     };
     const filled = (value: string | null | undefined) => Boolean(value && value.length > 0);
 
@@ -184,6 +193,15 @@ const createItemSchema = z
             message:
               'a description outside sourceLocale is not allowed when needsTranslation is true',
             path: ['descriptionHy'],
+          });
+          return;
+        }
+        if (locale !== body.sourceLocale && filled(pickupNotesByLocale[locale])) {
+          ctx.addIssue({
+            code: 'custom',
+            message:
+              'pickup notes outside sourceLocale is not allowed when needsTranslation is true',
+            path: ['pickupNotesHy'],
           });
           return;
         }
@@ -211,6 +229,17 @@ const createItemSchema = z
           code: 'custom',
           message: 'description must be filled in all three locales or none',
           path: ['descriptionHy'],
+        });
+      }
+
+      const pickupNotesFlags = ITEM_LOCALES.map((locale) => filled(pickupNotesByLocale[locale]));
+      const pickupNotesAllFilled = pickupNotesFlags.every(Boolean);
+      const pickupNotesNoneFilled = pickupNotesFlags.every((flag) => !flag);
+      if (!pickupNotesAllFilled && !pickupNotesNoneFilled) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'pickup notes must be filled in all three locales or none',
+          path: ['pickupNotesHy'],
         });
       }
     }
@@ -260,7 +289,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       categoryId: parsed.data.categoryId,
       districtId: parsed.data.districtId,
       condition: parsed.data.condition,
-      pickupNotes: orNull(parsed.data.pickupNotes),
+      pickupNotesHy: orNull(parsed.data.pickupNotesHy),
+      pickupNotesRu: orNull(parsed.data.pickupNotesRu),
+      pickupNotesEn: orNull(parsed.data.pickupNotesEn),
       images: parsed.data.images,
     });
 

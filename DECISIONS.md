@@ -989,3 +989,19 @@ gap — a migration written under the assumption `categories` would be
 empty, patched once to survive with rows left in it, but not re-audited
 for every later statement that assumption had been quietly load-bearing
 for.
+
+### 2026-08-18 — Pickup notes split into per-locale columns, mirroring title/description
+
+`pickup_notes` was the one remaining free-text field still on a single
+column; it is now `pickup_notes_hy`/`_ru`/`_en`, following the exact same
+optional, all-three-or-none convention `item_translations_complete_when_
+active` already enforces for description, filled the same way through
+`needsTranslation`/`sourceLocale` and completed by an admin during
+`approveItem` when a translation is missing. Migration
+`0006_add_pickup_notes_locales.sql` backfills the old column's value into
+`source_locale`'s new column, then — for rows already `active`, which the
+constraint's all-or-none clause covers immediately and which have no real
+translation to recover for their other two locales — duplicates that same
+text into the other two rather than leaving them unable to satisfy a
+constraint they legitimately satisfied a moment before, the same reasoning
+`0004_wild_bishop` used backfilling title/description.

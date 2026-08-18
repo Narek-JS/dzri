@@ -268,7 +268,8 @@
         "heading": "Բացակայող թարգմանություններ",
         "hint": "Անհրաժեշտ է հաստատելու համար",
         "titleLabel": "Վերնագիր՝ {language}",
-        "descriptionLabel": "Նկարագրություն՝ {language}"
+        "descriptionLabel": "Նկարագրություն՝ {language}",
+        "pickupNotesLabel": "Նշումներ վերցնելու մասին՝ {language}"
       }
     }
   },

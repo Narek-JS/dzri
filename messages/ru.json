@@ -268,7 +268,8 @@
         "heading": "Отсутствующие переводы",
         "hint": "Нужно заполнить, чтобы одобрить",
         "titleLabel": "Заголовок: {language}",
-        "descriptionLabel": "Описание: {language}"
+        "descriptionLabel": "Описание: {language}",
+        "pickupNotesLabel": "Заметки о получении: {language}"
       }
     }
   },

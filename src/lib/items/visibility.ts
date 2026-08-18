@@ -44,7 +44,9 @@ export type VisibleItem = {
   descriptionEn: string | null;
   sourceLocale: ItemLocale;
   condition: ItemCondition;
-  pickupNotes: string | null;
+  pickupNotesHy: string | null;
+  pickupNotesRu: string | null;
+  pickupNotesEn: string | null;
   status: ItemStatus;
   rejectionReason: string | null;
   createdAt: Date;
@@ -109,7 +111,9 @@ export async function getItemForViewer(
       descriptionEn: items.descriptionEn,
       sourceLocale: items.sourceLocale,
       condition: items.condition,
-      pickupNotes: items.pickupNotes,
+      pickupNotesHy: items.pickupNotesHy,
+      pickupNotesRu: items.pickupNotesRu,
+      pickupNotesEn: items.pickupNotesEn,
       status: items.status,
       rejectionReason: items.rejectionReason,
       createdAt: items.createdAt,
@@ -193,7 +197,9 @@ export async function getItemForViewer(
       // only ever writes one of the three locales into it.
       sourceLocale: row.sourceLocale as ItemLocale,
       condition: row.condition,
-      pickupNotes: row.pickupNotes,
+      pickupNotesHy: row.pickupNotesHy,
+      pickupNotesRu: row.pickupNotesRu,
+      pickupNotesEn: row.pickupNotesEn,
       status: row.status,
       rejectionReason: row.rejectionReason,
       createdAt: row.createdAt,

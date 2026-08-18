@@ -268,7 +268,8 @@
         "heading": "Missing translations",
         "hint": "Required before this can be approved",
         "titleLabel": "Title: {language}",
-        "descriptionLabel": "Description: {language}"
+        "descriptionLabel": "Description: {language}",
+        "pickupNotesLabel": "Pickup notes: {language}"
       }
     }
   },

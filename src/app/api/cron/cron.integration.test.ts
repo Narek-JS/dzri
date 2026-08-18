@@ -217,7 +217,9 @@ describe.skipIf(!hasDatabase)('cron sweep', () => {
         categoryId,
         districtId,
         condition: 'working',
-        pickupNotes: null,
+        pickupNotesHy: null,
+        pickupNotesRu: null,
+        pickupNotesEn: null,
         images: [
           {
             key: `uploads/${userId}/seed.jpg`,

@@ -23,12 +23,13 @@ const CONDITION_LABEL_KEYS: Record<ItemCondition, string> = {
 const MIN_REASON_LENGTH = 5;
 const MAX_REASON_LENGTH = 500;
 
-/** API.md: title is 3–100 chars, description max 2000 — the same rule POST
- * /api/items enforces, enforced here too for the same reason as the reject
- * reason above. */
+/** API.md: title is 3–100 chars, description max 2000, pickup notes max
+ * 300 — the same rule POST /api/items enforces, enforced here too for the
+ * same reason as the reject reason above. */
 const TITLE_MIN_LENGTH = 3;
 const TITLE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 2000;
+const PICKUP_NOTES_MAX_LENGTH = 300;
 
 const ITEM_LOCALES: readonly ItemLocale[] = ['hy', 'ru', 'en'];
 
@@ -62,6 +63,14 @@ function descriptionKey(locale: ItemLocale): 'descriptionHy' | 'descriptionRu' |
   if (locale === 'ru') return 'descriptionRu';
   if (locale === 'en') return 'descriptionEn';
   return 'descriptionHy';
+}
+
+function pickupNotesKey(
+  locale: ItemLocale,
+): 'pickupNotesHy' | 'pickupNotesRu' | 'pickupNotesEn' {
+  if (locale === 'ru') return 'pickupNotesRu';
+  if (locale === 'en') return 'pickupNotesEn';
+  return 'pickupNotesHy';
 }
 
 type Props = {
@@ -133,6 +142,9 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
   const [descriptionDrafts, setDescriptionDrafts] = useState<Partial<Record<ItemLocale, string>>>(
     {},
   );
+  const [pickupNotesDrafts, setPickupNotesDrafts] = useState<
+    Partial<Record<ItemLocale, string>>
+  >({});
 
   const trimmedLength = reason.trim().length;
   const reasonValid = trimmedLength >= MIN_REASON_LENGTH && trimmedLength <= MAX_REASON_LENGTH;
@@ -143,6 +155,12 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
     item.descriptionHy,
     item.descriptionRu,
     item.descriptionEn,
+    item.sourceLocale,
+  );
+  const sourcePickupNotes = textForLocale(
+    item.pickupNotesHy,
+    item.pickupNotesRu,
+    item.pickupNotesEn,
     item.sourceLocale,
   );
 
@@ -160,6 +178,17 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
             textForLocale(item.descriptionHy, item.descriptionRu, item.descriptionEn, loc) === null,
         )
       : [];
+  // Same rule as description: only the source pickup notes need a home in
+  // the other locales — an item posted with no pickup notes at all has
+  // nothing to translate.
+  const missingPickupNotesLocales =
+    item.needsTranslation && sourcePickupNotes !== null
+      ? ITEM_LOCALES.filter(
+          (loc) =>
+            textForLocale(item.pickupNotesHy, item.pickupNotesRu, item.pickupNotesEn, loc) ===
+            null,
+        )
+      : [];
 
   const translationsComplete =
     !item.needsTranslation ||
@@ -170,6 +199,10 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
       missingDescriptionLocales.every((loc) => {
         const length = (descriptionDrafts[loc] ?? '').trim().length;
         return length > 0 && length <= DESCRIPTION_MAX_LENGTH;
+      }) &&
+      missingPickupNotesLocales.every((loc) => {
+        const length = (pickupNotesDrafts[loc] ?? '').trim().length;
+        return length > 0 && length <= PICKUP_NOTES_MAX_LENGTH;
       }));
 
   function openReject() {
@@ -200,6 +233,9 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
     }
     for (const loc of missingDescriptionLocales) {
       translations[descriptionKey(loc)] = (descriptionDrafts[loc] ?? '').trim();
+    }
+    for (const loc of missingPickupNotesLocales) {
+      translations[pickupNotesKey(loc)] = (pickupNotesDrafts[loc] ?? '').trim();
     }
     onApprove(translations);
   }
@@ -260,12 +296,12 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
         <p className="text-sm whitespace-pre-wrap text-neutral-800">{sourceDescription}</p>
       )}
 
-      {item.pickupNotes && (
+      {sourcePickupNotes && (
         <div className="flex flex-col gap-1">
           <span className="text-sm font-medium text-neutral-700">
             {t('itemDetail.pickupNotes.label')}
           </span>
-          <p className="text-sm text-neutral-800">{item.pickupNotes}</p>
+          <p className="text-sm text-neutral-800">{sourcePickupNotes}</p>
         </div>
       )}
 
@@ -286,7 +322,9 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
       </div>
 
       {item.needsTranslation &&
-        (missingTitleLocales.length > 0 || missingDescriptionLocales.length > 0) && (
+        (missingTitleLocales.length > 0 ||
+          missingDescriptionLocales.length > 0 ||
+          missingPickupNotesLocales.length > 0) && (
           <div className="flex flex-col gap-3 rounded border border-neutral-300 bg-brand-tint p-3">
             <div className="flex flex-col gap-0.5">
               <span className="text-sm font-medium text-neutral-900">
@@ -338,6 +376,34 @@ export function PendingItemCard({ item, now, busy, errorCode, onApprove, onRejec
                   value={descriptionDrafts[loc] ?? ''}
                   onChange={(event) =>
                     setDescriptionDrafts((previous) => ({ ...previous, [loc]: event.target.value }))
+                  }
+                  disabled={busy}
+                  required
+                  className="rounded border border-neutral-300 px-3 py-2 text-sm disabled:opacity-50"
+                />
+              </div>
+            ))}
+
+            {missingPickupNotesLocales.map((loc) => (
+              <div key={`pickup-notes-${loc}`} className="flex flex-col gap-1">
+                <label
+                  htmlFor={`translate-pickup-notes-${item.id}-${loc}`}
+                  className="text-sm font-medium text-neutral-800"
+                >
+                  {t('admin.queue.translate.pickupNotesLabel', {
+                    language: t(`languageSwitcher.${loc}`),
+                  })}
+                </label>
+                <textarea
+                  id={`translate-pickup-notes-${item.id}-${loc}`}
+                  rows={3}
+                  maxLength={PICKUP_NOTES_MAX_LENGTH}
+                  value={pickupNotesDrafts[loc] ?? ''}
+                  onChange={(event) =>
+                    setPickupNotesDrafts((previous) => ({
+                      ...previous,
+                      [loc]: event.target.value,
+                    }))
                   }
                   disabled={busy}
                   required

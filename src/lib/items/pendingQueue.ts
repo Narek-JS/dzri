@@ -25,7 +25,9 @@ export type PendingQueueItem = {
   needsTranslation: boolean;
   sourceLocale: ItemLocale;
   condition: ItemCondition;
-  pickupNotes: string | null;
+  pickupNotesHy: string | null;
+  pickupNotesRu: string | null;
+  pickupNotesEn: string | null;
   createdAt: Date;
   images: string[];
   district: { slug: string; nameHy: string; nameRu: string; nameEn: string };
@@ -85,7 +87,9 @@ export async function getPendingQueue(cursor: Date | null): Promise<PendingQueue
       needsTranslation: items.needsTranslation,
       sourceLocale: items.sourceLocale,
       condition: items.condition,
-      pickupNotes: items.pickupNotes,
+      pickupNotesHy: items.pickupNotesHy,
+      pickupNotesRu: items.pickupNotesRu,
+      pickupNotesEn: items.pickupNotesEn,
       createdAt: items.createdAt,
       district: {
         slug: districts.slug,
@@ -175,7 +179,9 @@ export async function getPendingQueue(cursor: Date | null): Promise<PendingQueue
       // database one.
       sourceLocale: row.sourceLocale as ItemLocale,
       condition: row.condition,
-      pickupNotes: row.pickupNotes,
+      pickupNotesHy: row.pickupNotesHy,
+      pickupNotesRu: row.pickupNotesRu,
+      pickupNotesEn: row.pickupNotesEn,
       createdAt: row.createdAt,
       images: imagesByItem.get(row.id) ?? [],
       district: row.district,

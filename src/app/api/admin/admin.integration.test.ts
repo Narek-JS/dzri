@@ -232,8 +232,9 @@ describe.skipIf(!hasDatabase)('admin API', () => {
    * moderation flow and the cron sweep reach other states.
    *
    * `needsTranslation: true` leaves `titleRu`/`titleEn`/`descriptionRu`/
-   * `descriptionEn` null, the same half-filled shape a real translation
-   * request lands in — callers that ask for this must leave `status` at its
+   * `descriptionEn`/`pickupNotesRu`/`pickupNotesEn` null, the same
+   * half-filled shape a real translation request lands in — callers that
+   * ask for this must leave `status` at its
    * `pending_review` default, since forcing straight to `active` would trip
    * `item_translations_complete_when_active` exactly as it would for a real
    * unapproved item.
@@ -258,7 +259,9 @@ describe.skipIf(!hasDatabase)('admin API', () => {
         categoryId,
         districtId,
         condition: 'working',
-        pickupNotes: '3-րդ հարկ',
+        pickupNotesHy: '3-րդ հարկ',
+        pickupNotesRu: needsTranslation ? null : '3-րդ հարկ',
+        pickupNotesEn: needsTranslation ? null : '3-րդ հարկ',
         images: [
           {
             key: ownedKey(userId, 'seed.jpg'),

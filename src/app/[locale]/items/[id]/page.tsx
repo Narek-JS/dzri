@@ -157,10 +157,11 @@ export default async function ItemDetailPage({
   const postedAt = format.dateTime(item.createdAt, { dateStyle: 'long' });
 
   // Public (`active`) views never need the fallback — item_translations_
-  // complete_when_active guarantees every title column and description
-  // column (all three or none) is filled. It exists for isPrivateView: the
-  // owner reading their own pending_review or rejected listing, where only
-  // item.sourceLocale's column is guaranteed to hold anything.
+  // complete_when_active guarantees every title column and description/
+  // pickup-notes column (each all three or none) is filled. It exists for
+  // isPrivateView: the owner reading their own pending_review or rejected
+  // listing, where only item.sourceLocale's column is guaranteed to hold
+  // anything.
   const title = resolveLocalizedText(
     { hy: item.titleHy, ru: item.titleRu, en: item.titleEn },
     item.sourceLocale,
@@ -168,6 +169,11 @@ export default async function ItemDetailPage({
   );
   const description = resolveLocalizedText(
     { hy: item.descriptionHy, ru: item.descriptionRu, en: item.descriptionEn },
+    item.sourceLocale,
+    locale,
+  );
+  const pickupNotes = resolveLocalizedText(
+    { hy: item.pickupNotesHy, ru: item.pickupNotesRu, en: item.pickupNotesEn },
     item.sourceLocale,
     locale,
   );
@@ -248,10 +254,10 @@ export default async function ItemDetailPage({
 
       {description && <p className="text-sm whitespace-pre-wrap text-neutral-800">{description}</p>}
 
-      {item.pickupNotes && (
+      {pickupNotes && (
         <div className="flex flex-col gap-1">
           <span className="text-sm font-medium">{t('itemDetail.pickupNotes.label')}</span>
-          <p className="text-sm text-neutral-800">{item.pickupNotes}</p>
+          <p className="text-sm text-neutral-800">{pickupNotes}</p>
         </div>
       )}
 

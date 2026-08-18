@@ -54,7 +54,9 @@ export type CreateItemInput = {
   categoryId: number;
   districtId: number;
   condition: ItemCondition;
-  pickupNotes: string | null;
+  pickupNotesHy: string | null;
+  pickupNotesRu: string | null;
+  pickupNotesEn: string | null;
   /** Ordered: index 0 is the thumbnail, and the array order is gallery order. */
   images: CreateItemImage[];
 };
@@ -181,7 +183,9 @@ export async function createItem(
       needsTranslation: input.needsTranslation,
       sourceLocale: input.sourceLocale,
       condition: input.condition,
-      pickupNotes: input.pickupNotes,
+      pickupNotesHy: input.pickupNotesHy,
+      pickupNotesRu: input.pickupNotesRu,
+      pickupNotesEn: input.pickupNotesEn,
       // Never hardcode 'active' — pre-moderation must be able to hold it.
       status,
     }),

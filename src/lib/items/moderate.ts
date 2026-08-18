@@ -23,7 +23,7 @@ import { items } from '@/db/schema';
 export type ModerationResult =
   { ok: true } | { ok: false; code: 'INVALID_STATUS_TRANSITION' | 'TRANSLATIONS_REQUIRED' };
 
-/** The missing locales' title/description, keyed exactly like the item's own columns. */
+/** The missing locales' title/description/pickup notes, keyed exactly like the item's own columns. */
 export type ApproveTranslations = {
   titleHy?: string;
   titleRu?: string;
@@ -31,6 +31,9 @@ export type ApproveTranslations = {
   descriptionHy?: string;
   descriptionRu?: string;
   descriptionEn?: string;
+  pickupNotesHy?: string;
+  pickupNotesRu?: string;
+  pickupNotesEn?: string;
 };
 
 /**
@@ -71,6 +74,9 @@ export async function approveItem(
       descriptionHy: items.descriptionHy,
       descriptionRu: items.descriptionRu,
       descriptionEn: items.descriptionEn,
+      pickupNotesHy: items.pickupNotesHy,
+      pickupNotesRu: items.pickupNotesRu,
+      pickupNotesEn: items.pickupNotesEn,
     })
     .from(items)
     .where(eq(items.id, itemId))
@@ -114,6 +120,27 @@ export async function approveItem(
       if (item.descriptionEn === null) {
         if (!translations?.descriptionEn) return { ok: false, code: 'TRANSLATIONS_REQUIRED' };
         fill.descriptionEn = translations.descriptionEn;
+      }
+    }
+
+    // Pickup notes only needs filling in when the source locale actually has
+    // one — an item posted with no pickup notes needs none translated, and
+    // item_translations_complete_when_active allows all three to stay null
+    // just as readily as all three filled.
+    const hasSourcePickupNotes =
+      item.pickupNotesHy !== null || item.pickupNotesRu !== null || item.pickupNotesEn !== null;
+    if (hasSourcePickupNotes) {
+      if (item.pickupNotesHy === null) {
+        if (!translations?.pickupNotesHy) return { ok: false, code: 'TRANSLATIONS_REQUIRED' };
+        fill.pickupNotesHy = translations.pickupNotesHy;
+      }
+      if (item.pickupNotesRu === null) {
+        if (!translations?.pickupNotesRu) return { ok: false, code: 'TRANSLATIONS_REQUIRED' };
+        fill.pickupNotesRu = translations.pickupNotesRu;
+      }
+      if (item.pickupNotesEn === null) {
+        if (!translations?.pickupNotesEn) return { ok: false, code: 'TRANSLATIONS_REQUIRED' };
+        fill.pickupNotesEn = translations.pickupNotesEn;
       }
     }
   }
