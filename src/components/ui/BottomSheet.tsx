@@ -20,12 +20,11 @@ const SNAP_POINTS = [0.5, 0.9];
  * project's one-pattern convention, same reasoning as the shared Combobox
  * and Select components.
  *
- * `handleOnly` restricts vaul's own drag-to-move/drag-to-dismiss gesture to
- * the pill `Drawer.Handle` rendered below, rather than the whole sheet
- * body — both callers can have scrollable content (the nav's link list,
- * the filters' Combobox/Select fields), and without this a touch-drag
- * meant to scroll that content would instead be read as a drag on the
- * sheet itself.
+ * The whole sheet body is a drag surface (see the `Drawer.Content` comment
+ * below for why `handleOnly` isn't used for this instead) — both callers
+ * can have interactive content (the nav's links, the filters'
+ * Combobox/Select fields), and `data-vaul-no-drag` on those regions keeps
+ * a tap there from being misread as a drag on the sheet.
  *
  * `md:hidden` on the portal-rendered pieces (not the trigger, which callers
  * render themselves) keeps this entirely inert above the mobile breakpoint
@@ -49,14 +48,16 @@ export function BottomSheet({
   footer?: ReactNode;
 }) {
   return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange} snapPoints={SNAP_POINTS} handleOnly>
+    <Drawer.Root open={open} onOpenChange={onOpenChange} snapPoints={SNAP_POINTS} fadeFromIndex={0}>
       <Drawer.Portal>
-        {/* vaul's default `fadeFromIndex` (the last snap point, unset here
-            so it falls back to that) fades this in only once the sheet
-            reaches the taller snap point — no scrim at the half-height
-            "peek" state. That's vaul's own default for a multi-snap-point
-            drawer, left as-is per the brief rather than forcing a constant
-            scrim to match the old single-height drawer. */}
+        {/* `fadeFromIndex={0}`: vaul's own default is the LAST snap point,
+            meaning the overlay only fades in once the sheet reaches the
+            tallest one — no dimming at the lower, resting-open snap point.
+            This app wants a dimmed backdrop as soon as the sheet opens, at
+            either snap point, so the fade is anchored to the first
+            (lowest) point instead: confirmed against
+            node_modules/vaul/dist/index.mjs's `snapToPoint`, both snap
+            points resolve to opacity `1` at rest with this setting. */}
         <Drawer.Overlay className="fixed inset-0 z-50 bg-neutral-900/50 md:hidden" />
         {/* `h-[90vh]`, a real height, not `max-h-[90vh]`: vaul's numeric
             `snapPoints` translate this element by a *fraction of the
@@ -71,6 +72,16 @@ export function BottomSheet({
             of content length; the inner content area below still scrolls
             via its own `overflow-y-auto` if content exceeds it. */}
         <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 flex h-[90vh] flex-col rounded-t-lg bg-white shadow-lg outline-none md:hidden">
+          {/* No `handleOnly` here: that restricted vaul's own drag-start to
+              the small centered pill only, which is narrower than users
+              expect ("grab the sheet from anywhere near the top"). Instead
+              the whole `Drawer.Content` is a drag surface (vaul's
+              default), and the specific regions that must stay
+              click-only — the scrollable field list, the footer's
+              buttons, and the close button — are opted out individually
+              via `data-vaul-no-drag`, the attribute vaul's own `shouldDrag`
+              checks (confirmed in node_modules/vaul/dist/index.mjs) before
+              turning a press on/inside that element into a drag. */}
           <Drawer.Handle className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-neutral-300" />
 
           <div className="flex items-center justify-between px-4 pt-3">
@@ -79,6 +90,7 @@ export function BottomSheet({
             </Drawer.Title>
             <Drawer.Close
               type="button"
+              data-vaul-no-drag
               aria-label={closeLabel}
               className="cursor-pointer text-2xl leading-none text-neutral-500"
             >
@@ -90,6 +102,7 @@ export function BottomSheet({
               — the content area when there's no footer, the footer itself
               otherwise — so it's never applied twice. */}
           <div
+            data-vaul-no-drag
             className={`flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 ${
               footer ? '' : 'pb-[max(1rem,env(safe-area-inset-bottom))]'
             }`}
@@ -98,7 +111,10 @@ export function BottomSheet({
           </div>
 
           {footer && (
-            <div className="border-t border-neutral-200 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div
+              data-vaul-no-drag
+              className="border-t border-neutral-200 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            >
               {footer}
             </div>
           )}
