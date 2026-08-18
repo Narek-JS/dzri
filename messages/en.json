@@ -217,8 +217,7 @@
       "category": { "label": "Category", "all": "All categories" },
       "condition": { "label": "Condition", "all": "Any condition" },
       "clearAll": "Clear all",
-      "apply": "Apply filters",
-      "close": "Close"
+      "apply": "Apply filters"
     },
     "empty": {
       "noItems": {

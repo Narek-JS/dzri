@@ -293,7 +293,6 @@ export function FeedFilters({
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         title={t('feed.filters.toggle')}
-        closeLabel={t('feed.filters.close')}
         snapPoints={SNAP_POINTS}
         footer={
           <div className="flex items-center justify-between gap-3">

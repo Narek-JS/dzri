@@ -334,12 +334,7 @@ export function Header() {
         </div>
       </div>
 
-      <BottomSheet
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        title={t('shell.menu')}
-        closeLabel={t('feed.filters.close')}
-      >
+      <BottomSheet open={drawerOpen} onOpenChange={setDrawerOpen} title={t('shell.menu')}>
         <Nav variant="drawer" onNavigate={() => setDrawerOpen(false)} />
 
         <Link
