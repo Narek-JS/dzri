@@ -51,6 +51,17 @@ function readFilters(searchParams: URLSearchParams): FilterValues {
  * one place that renders a `<Select>` against reference data, not two.
  * `idPrefix` keeps ids unique since both instances are in the DOM at once
  * (the desktop row is only hidden via CSS below `md`).
+ *
+ * Each field wrapper is `md:flex-1` rather than a bare `flex-1`: at `md`
+ * and up these three divs are children of a horizontal row (`FeedFilters`'
+ * desktop container below), where `flex-1` makes them equal-width columns.
+ * Below `md` they're stacked children of `BottomSheet`'s own vertical,
+ * genuinely-tall (`h-[90vh]`) content column instead — an unqualified
+ * `flex-1` there stretched each wrapper to a third of that column's full
+ * height, with the label+input anchored at its top, which read as huge,
+ * evenly-spaced gaps between fields. Mobile doesn't need flex-grow at
+ * all: it just stacks at natural height, gap-4 (from BottomSheet's own
+ * content wrapper) apart.
  */
 function FilterFields({
   idPrefix,
@@ -94,7 +105,7 @@ function FilterFields({
 
   return (
     <>
-      <div className="flex flex-1 flex-col gap-1">
+      <div className="flex flex-col gap-1 md:flex-1">
         <label htmlFor={`${idPrefix}-district`} className="text-sm font-medium text-neutral-800">
           {t('feed.filters.district.label')}
         </label>
@@ -112,7 +123,7 @@ function FilterFields({
         />
       </div>
 
-      <div className="flex flex-1 flex-col gap-1">
+      <div className="flex flex-col gap-1 md:flex-1">
         <label htmlFor={`${idPrefix}-category`} className="text-sm font-medium text-neutral-800">
           {t('feed.filters.category.label')}
         </label>
@@ -130,7 +141,7 @@ function FilterFields({
         />
       </div>
 
-      <div className="flex flex-1 flex-col gap-1">
+      <div className="flex flex-col gap-1 md:flex-1">
         <label htmlFor={`${idPrefix}-condition`} className="text-sm font-medium text-neutral-800">
           {t('feed.filters.condition.label')}
         </label>
