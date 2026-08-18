@@ -21,7 +21,7 @@ import type { ItemCondition } from '@/db/schema';
  * field cut off behind the pinned footer — three fields plus a footer
  * need more of the sheet's height than a couple of nav links do, so this
  * overrides just the lower point rather than the shared default. Measured
- * via Playwright at 375x667: 0.62 is the fraction at which all three
+ * via Playwright at 375x667: 0.55 is the fraction at which all three
  * fields' bottom edges clear the footer's top edge with a bit to spare.
  */
 const SNAP_POINTS = [0.55, 0.9];
