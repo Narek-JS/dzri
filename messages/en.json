@@ -133,6 +133,12 @@
         "generic": "This photo could not be uploaded"
       }
     },
+    "validation": {
+      "titleRequired": "Title is required",
+      "titleTooShort": "Title needs at least {min} characters",
+      "districtRequired": "Location is required",
+      "photosNotReady": "Photos are still uploading"
+    },
     "submit": "Post",
     "success": {
       "title": "Listing submitted",

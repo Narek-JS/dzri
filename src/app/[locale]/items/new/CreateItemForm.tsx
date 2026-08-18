@@ -97,6 +97,11 @@ function photoErrorKey(code: string): string {
   }
 }
 
+// An i18n key plus any interpolation params for a client-validation
+// message — `t()`'s own param type is awkward to spell outside a `t(...)`
+// call site, so this narrows to what these messages actually need.
+type FieldMsg = { key: string; params?: Record<string, string | number> } | null;
+
 type Props = { districts: District[]; categories: Category[] };
 
 /**
@@ -141,6 +146,25 @@ export function CreateItemForm({ districts, categories }: Props) {
   const [bodyError, setBodyError] = useState<ApiErrorCode | null>(null);
   const [formError, setFormError] = useState<ApiErrorCode | null>(null);
 
+  // Client-side validation layer, checked on submit — separate from the
+  // ApiErrorCode states above, which only ever come from the server. Each
+  // holds an i18n key (plus any interpolation params) rather than a
+  // translated string, so the message is re-resolved on every render if
+  // the locale changes.
+  const [titleFieldError, setTitleFieldError] = useState<FieldMsg>(null);
+  const [multiTitleFieldErrors, setMultiTitleFieldErrors] = useState<
+    Partial<Record<ItemLocale, FieldMsg>>
+  >({});
+  const [districtFieldError, setDistrictFieldError] = useState<FieldMsg>(null);
+  const [photosFieldError, setPhotosFieldError] = useState<FieldMsg>(null);
+  // On a failed validation, handleSubmit stores the first invalid field's
+  // DOM id here and bumps `scrollTick` so the effect below re-runs and
+  // scrolls to it — a ref rather than state for the id itself, since the
+  // effect only needs to read it once (not re-render on it), and doing the
+  // scroll as a plain read avoids setState-in-effect cascading renders.
+  const scrollTargetRef = useRef<string | null>(null);
+  const [scrollTick, setScrollTick] = useState(0);
+
   // Lazily created once and reused for the component's lifetime, so photos
   // added across several selections still share one bounded queue rather
   // than each getting its own.
@@ -166,8 +190,19 @@ export function CreateItemForm({ districts, categories }: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    if (scrollTick === 0 || scrollTargetRef.current === null) return;
+    document
+      .getElementById(scrollTargetRef.current)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [scrollTick]);
+
   function errorText(code: ApiErrorCode): string {
     return t(apiErrorMessageKey(code) as Parameters<typeof t>[0]);
+  }
+
+  function fieldMsgText(msg: NonNullable<FieldMsg>): string {
+    return t(msg.key as Parameters<typeof t>[0], msg.params);
   }
 
   function clearErrors() {
@@ -272,52 +307,114 @@ export function CreateItemForm({ districts, categories }: Props) {
   });
 
   const trimmedTitle = title.trim();
-  const singleLocaleTextValid =
-    trimmedTitle.length >= TITLE_MIN_LENGTH && trimmedTitle.length <= TITLE_MAX_LENGTH;
 
-  // Every locale's title is required, length-checked the same as the single
-  // input above. Description is optional, but per-locale, all-or-nothing —
-  // matching item_translations_complete_when_active exactly (PART 1) means
-  // a submission that passes this can never come back TRANSLATIONS_REQUIRED
-  // or fail the DB constraint.
-  const multiTitlesValid = ITEM_LOCALES.every((loc) => {
-    const length = multiTitles[loc].trim().length;
-    return length >= TITLE_MIN_LENGTH && length <= TITLE_MAX_LENGTH;
-  });
-  const multiDescriptionLengths = ITEM_LOCALES.map((loc) => multiDescriptions[loc].trim().length);
-  const multiDescriptionsValid =
-    multiDescriptionLengths.every((length) => length === 0) ||
-    multiDescriptionLengths.every((length) => length > 0 && length <= DESCRIPTION_MAX_LENGTH);
-  const multiLocaleTextValid = multiTitlesValid && multiDescriptionsValid;
+  type Validation = {
+    title: FieldMsg;
+    multiTitle: Partial<Record<ItemLocale, FieldMsg>>;
+    district: FieldMsg;
+    images: FieldMsg;
+    firstInvalidId: string | null;
+    firstInvalidLocale: ItemLocale | null;
+  };
 
-  const textValid = needsTranslation ? singleLocaleTextValid : multiLocaleTextValid;
+  /**
+   * Title and Location are the only fields required in the UI (asterisked
+   * labels); Category/Description/Condition/Pickup notes are optional and
+   * left entirely to the server. Images get their own check — "at least
+   * one" plus "every one finished uploading," since submitting mid-upload
+   * would otherwise hit the `!photo.uploaded` throw below. Everything else
+   * server-side Zod/DB constraints might still reject (e.g. the
+   * multi-locale description all-or-nothing rule) is intentionally left
+   * to that existing bodyError/formError round trip rather than
+   * duplicated here.
+   */
+  function validateForm(): Validation {
+    let firstInvalidId: string | null = null;
+    let firstInvalidLocale: ItemLocale | null = null;
 
-  const allPhotosDone = photos.length > 0 && photos.every((photo) => photo.status === 'done');
-  const anyUploadInFlight = photos.some(
-    (photo) => photo.status === 'preparing' || photo.status === 'uploading',
-  );
-  const canSubmit =
-    !submitting &&
-    !anyUploadInFlight &&
-    allPhotosDone &&
-    photos.length >= MIN_PHOTOS &&
-    photos.length <= MAX_PHOTOS &&
-    textValid &&
-    categoryId !== '' &&
-    districtId !== '' &&
-    condition !== '';
+    function claim(id: string, loc?: ItemLocale) {
+      if (firstInvalidId === null) {
+        firstInvalidId = id;
+        firstInvalidLocale = loc ?? null;
+      }
+    }
+
+    let titleMsg: FieldMsg = null;
+    const multiTitleMsgs: Partial<Record<ItemLocale, FieldMsg>> = {};
+
+    if (needsTranslation) {
+      if (trimmedTitle.length === 0) {
+        titleMsg = { key: 'createItem.validation.titleRequired' };
+        claim('title');
+      } else if (trimmedTitle.length < TITLE_MIN_LENGTH) {
+        titleMsg = { key: 'createItem.validation.titleTooShort', params: { min: TITLE_MIN_LENGTH } };
+        claim('title');
+      }
+    } else {
+      for (const loc of ITEM_LOCALES) {
+        const length = multiTitles[loc].trim().length;
+        if (length === 0) {
+          multiTitleMsgs[loc] = { key: 'createItem.validation.titleRequired' };
+          claim(`title-${loc}`, loc);
+        } else if (length < TITLE_MIN_LENGTH) {
+          multiTitleMsgs[loc] = {
+            key: 'createItem.validation.titleTooShort',
+            params: { min: TITLE_MIN_LENGTH },
+          };
+          claim(`title-${loc}`, loc);
+        }
+      }
+    }
+
+    let districtMsg: FieldMsg = null;
+    if (districtId === '') {
+      districtMsg = { key: 'createItem.validation.districtRequired' };
+      claim('district');
+    }
+
+    let imagesMsg: FieldMsg = null;
+    if (photos.length < MIN_PHOTOS) {
+      imagesMsg = { key: 'errors.imagesRequired' };
+      claim('photos-note');
+    } else if (photos.some((photo) => photo.status !== 'done')) {
+      imagesMsg = { key: 'createItem.validation.photosNotReady' };
+      claim('photos-note');
+    }
+
+    return {
+      title: titleMsg,
+      multiTitle: multiTitleMsgs,
+      district: districtMsg,
+      images: imagesMsg,
+      firstInvalidId,
+      firstInvalidLocale,
+    };
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (submitting) return;
+
+    const validation = validateForm();
+    setTitleFieldError(validation.title);
+    setMultiTitleFieldErrors(validation.multiTitle);
+    setDistrictFieldError(validation.district);
+    setPhotosFieldError(validation.images);
+
+    if (validation.firstInvalidId) {
+      if (validation.firstInvalidLocale) setActiveTab(validation.firstInvalidLocale);
+      scrollTargetRef.current = validation.firstInvalidId;
+      setScrollTick((tick) => tick + 1);
+      return;
+    }
 
     clearErrors();
     setSubmitting(true);
     try {
       const images: CreateItemImage[] = photos.map((photo) => {
         if (!photo.uploaded) {
-          // canSubmit already requires every photo to be 'done', which is
-          // only ever set alongside `uploaded` — this is unreachable.
+          // validateForm() already requires every photo to be 'done', which
+          // is only ever set alongside `uploaded` — this is unreachable.
           throw new Error('Cannot submit: a photo finished without upload data');
         }
         return {
@@ -431,9 +528,12 @@ export function CreateItemForm({ districts, categories }: Props) {
 
       {needsTranslation ? (
         <>
-          <div className="flex flex-col gap-1">
+          <div className="relative flex flex-col gap-1">
             <label htmlFor="title" className="text-sm font-medium">
-              {t('createItem.title.label')}
+              {t('createItem.title.label')}{' '}
+              <span className="text-red-700" aria-hidden="true">
+                *
+              </span>
             </label>
             <input
               id="title"
@@ -443,8 +543,12 @@ export function CreateItemForm({ districts, categories }: Props) {
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               className="rounded border border-neutral-300 px-3 py-2 text-sm"
-              required
             />
+            {titleFieldError && (
+              <p className="absolute top-full left-0 mt-1 text-xs text-red-700">
+                {fieldMsgText(titleFieldError)}
+              </p>
+            )}
             {bodyError && <p className="text-sm text-red-700">{errorText(bodyError)}</p>}
           </div>
 
@@ -487,46 +591,55 @@ export function CreateItemForm({ districts, categories }: Props) {
             ))}
           </div>
 
-          {ITEM_LOCALES.map(
-            (loc) =>
-              activeTab === loc && (
-                <div key={loc} role="tabpanel" className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor={`title-${loc}`} className="text-sm font-medium">
-                      {t('createItem.title.label')}
-                    </label>
-                    <input
-                      id={`title-${loc}`}
-                      type="text"
-                      minLength={TITLE_MIN_LENGTH}
-                      maxLength={TITLE_MAX_LENGTH}
-                      value={multiTitles[loc]}
-                      onChange={(event) =>
-                        setMultiTitles((prev) => ({ ...prev, [loc]: event.target.value }))
-                      }
-                      className="rounded border border-neutral-300 px-3 py-2 text-sm"
-                      required
-                    />
-                  </div>
+          {ITEM_LOCALES.map((loc) => {
+            if (activeTab !== loc) return null;
+            const titleErr = multiTitleFieldErrors[loc] ?? null;
 
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor={`description-${loc}`} className="text-sm font-medium">
-                      {t('createItem.description.label')}
-                    </label>
-                    <textarea
-                      id={`description-${loc}`}
-                      rows={4}
-                      maxLength={DESCRIPTION_MAX_LENGTH}
-                      value={multiDescriptions[loc]}
-                      onChange={(event) =>
-                        setMultiDescriptions((prev) => ({ ...prev, [loc]: event.target.value }))
-                      }
-                      className="rounded border border-neutral-300 px-3 py-2 text-sm"
-                    />
-                  </div>
+            return (
+              <div key={loc} role="tabpanel" className="flex flex-col gap-4">
+                <div className="relative flex flex-col gap-1">
+                  <label htmlFor={`title-${loc}`} className="text-sm font-medium">
+                    {t('createItem.title.label')}{' '}
+                    <span className="text-red-700" aria-hidden="true">
+                      *
+                    </span>
+                  </label>
+                  <input
+                    id={`title-${loc}`}
+                    type="text"
+                    minLength={TITLE_MIN_LENGTH}
+                    maxLength={TITLE_MAX_LENGTH}
+                    value={multiTitles[loc]}
+                    onChange={(event) =>
+                      setMultiTitles((prev) => ({ ...prev, [loc]: event.target.value }))
+                    }
+                    className="rounded border border-neutral-300 px-3 py-2 text-sm"
+                  />
+                  {titleErr && (
+                    <p className="absolute top-full left-0 mt-1 text-xs text-red-700">
+                      {fieldMsgText(titleErr)}
+                    </p>
+                  )}
                 </div>
-              ),
-          )}
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor={`description-${loc}`} className="text-sm font-medium">
+                    {t('createItem.description.label')}
+                  </label>
+                  <textarea
+                    id={`description-${loc}`}
+                    rows={4}
+                    maxLength={DESCRIPTION_MAX_LENGTH}
+                    value={multiDescriptions[loc]}
+                    onChange={(event) =>
+                      setMultiDescriptions((prev) => ({ ...prev, [loc]: event.target.value }))
+                    }
+                    className="rounded border border-neutral-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+            );
+          })}
 
           {bodyError && <p className="text-sm text-red-700">{errorText(bodyError)}</p>}
         </div>
@@ -549,9 +662,12 @@ export function CreateItemForm({ districts, categories }: Props) {
         {categoryError && <p className="text-sm text-red-700">{errorText(categoryError)}</p>}
       </div>
 
-      <div className="flex flex-col gap-1">
+      <div className="relative flex flex-col gap-1">
         <label htmlFor="district" className="text-sm font-medium">
-          {t('createItem.district.label')}
+          {t('createItem.district.label')}{' '}
+          <span className="text-red-700" aria-hidden="true">
+            *
+          </span>
         </label>
         <Combobox
           id="district"
@@ -563,6 +679,11 @@ export function CreateItemForm({ districts, categories }: Props) {
           groups={districtGroups}
           options={districtOptions}
         />
+        {districtFieldError && (
+          <p className="absolute top-full left-0 mt-1 text-xs text-red-700">
+            {fieldMsgText(districtFieldError)}
+          </p>
+        )}
         {districtError && <p className="text-sm text-red-700">{errorText(districtError)}</p>}
       </div>
 
@@ -579,7 +700,6 @@ export function CreateItemForm({ districts, categories }: Props) {
                   checked={condition === value}
                   onChange={() => setCondition(value)}
                   className="peer h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-full border border-neutral-300 bg-white checked:border-brand-strong focus:ring-1 focus:ring-brand-strong focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                  required
                 />
                 <span className="pointer-events-none absolute inset-0 hidden items-center justify-center peer-checked:flex">
                   <span className="h-2 w-2 rounded-full bg-brand-strong" />
@@ -608,6 +728,12 @@ export function CreateItemForm({ districts, categories }: Props) {
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">{t('createItem.photos.label')}</span>
         <p className="text-sm text-neutral-600">{t('createItem.photos.help')}</p>
+        <p
+          id="photos-note"
+          className={`text-xs ${photosFieldError ? 'text-red-700' : 'text-neutral-500'}`}
+        >
+          {fieldMsgText(photosFieldError ?? { key: 'errors.imagesRequired' })}
+        </p>
 
         {photos.length > 0 && (
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -650,8 +776,7 @@ export function CreateItemForm({ districts, categories }: Props) {
 
       <button
         type="submit"
-        disabled={!canSubmit}
-        className="cursor-pointer rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
+        className="cursor-pointer rounded bg-brand px-4 py-2 text-sm font-medium text-neutral-900"
       >
         {t('createItem.submit')}
       </button>
