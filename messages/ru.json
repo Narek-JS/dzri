@@ -136,9 +136,7 @@
     "validation": {
       "titleRequired": "Название обязательно",
       "titleTooShort": "Название должно содержать не менее {min} символов",
-      "categoryRequired": "Категория обязательна",
       "districtRequired": "Район обязателен",
-      "conditionRequired": "Состояние обязательно",
       "photosNotReady": "Фото ещё загружаются"
     },
     "submit": "Разместить",

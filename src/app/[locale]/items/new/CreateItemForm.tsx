@@ -55,6 +55,11 @@ const CONDITION_LABEL_KEYS: Record<Condition, string> = {
   needs_repair: 'createItem.condition.needsRepair',
   for_parts: 'createItem.condition.forParts',
 };
+// Matches the `condition` column's own default (schema.sql) — applied here
+// when the giver leaves Condition unselected, since it's not required in
+// the UI.
+const DEFAULT_CONDITION: Condition = 'working';
+const OTHER_CATEGORY_SLUG = 'other';
 
 type LocalizedRef = { nameHy: string; nameRu: string; nameEn: string };
 
@@ -155,9 +160,7 @@ export function CreateItemForm({ districts, categories }: Props) {
   const [multiTitleFieldErrors, setMultiTitleFieldErrors] = useState<
     Partial<Record<ItemLocale, FieldMsg>>
   >({});
-  const [categoryFieldError, setCategoryFieldError] = useState<FieldMsg>(null);
   const [districtFieldError, setDistrictFieldError] = useState<FieldMsg>(null);
-  const [conditionFieldError, setConditionFieldError] = useState<FieldMsg>(null);
   const [photosFieldError, setPhotosFieldError] = useState<FieldMsg>(null);
   // On a failed validation, handleSubmit stores the first invalid field's
   // DOM id here and bumps `scrollTick` so the effect below re-runs and
@@ -313,30 +316,25 @@ export function CreateItemForm({ districts, categories }: Props) {
   type Validation = {
     title: FieldMsg;
     multiTitle: Partial<Record<ItemLocale, FieldMsg>>;
-    category: FieldMsg;
     district: FieldMsg;
-    condition: FieldMsg;
     images: FieldMsg;
     firstInvalidId: string | null;
     firstInvalidLocale: ItemLocale | null;
   };
 
   /**
-   * Title, Category, Location and Condition are all required by the
-   * server's Zod schema (`categoryId`/`condition` have no `.nullish()`
-   * fallback, same as title/district) — so all four are asterisked and
-   * checked here too. A submission missing any of them used to sail
-   * through this client layer and only fail server-side with a generic
-   * INVALID_BODY, which rendered as `bodyError` right under the Title
-   * field (its JSX position, unrelated to which field was actually
-   * wrong) and read like a bogus "Title is required" error even with a
-   * valid title. Description/Pickup notes stay genuinely optional on
-   * both sides. Images get their own check — "at least one" plus "every
-   * one finished uploading," since submitting mid-upload would otherwise
-   * hit the `!photo.uploaded` throw below. Everything else the server
-   * might still reject (e.g. the multi-locale description all-or-nothing
-   * rule) is intentionally left to that existing bodyError/formError
-   * round trip rather than duplicated here.
+   * Title, Location and Photos are the only fields required in the UI
+   * (asterisked labels) — Category and Condition are required by the
+   * server's Zod schema too, but rather than block submit on them, the
+   * server request below fills in an "other"-category/`working`-condition
+   * default when either is left unset, so the UI never nags for them.
+   * Description/Pickup notes stay genuinely optional on both sides.
+   * Images get their own check — "at least one" plus "every one finished
+   * uploading," since submitting mid-upload would otherwise hit the
+   * `!photo.uploaded` throw below. Everything else the server might still
+   * reject (e.g. the multi-locale description all-or-nothing rule) is
+   * intentionally left to the existing bodyError/formError round trip
+   * rather than duplicated here.
    */
   function validateForm(): Validation {
     let firstInvalidId: string | null = null;
@@ -376,22 +374,10 @@ export function CreateItemForm({ districts, categories }: Props) {
       }
     }
 
-    let categoryMsg: FieldMsg = null;
-    if (categoryId === '') {
-      categoryMsg = { key: 'createItem.validation.categoryRequired' };
-      claim('category');
-    }
-
     let districtMsg: FieldMsg = null;
     if (districtId === '') {
       districtMsg = { key: 'createItem.validation.districtRequired' };
       claim('district');
-    }
-
-    let conditionMsg: FieldMsg = null;
-    if (condition === '') {
-      conditionMsg = { key: 'createItem.validation.conditionRequired' };
-      claim('condition');
     }
 
     let imagesMsg: FieldMsg = null;
@@ -406,9 +392,7 @@ export function CreateItemForm({ districts, categories }: Props) {
     return {
       title: titleMsg,
       multiTitle: multiTitleMsgs,
-      category: categoryMsg,
       district: districtMsg,
-      condition: conditionMsg,
       images: imagesMsg,
       firstInvalidId,
       firstInvalidLocale,
@@ -422,9 +406,7 @@ export function CreateItemForm({ districts, categories }: Props) {
     const validation = validateForm();
     setTitleFieldError(validation.title);
     setMultiTitleFieldErrors(validation.multiTitle);
-    setCategoryFieldError(validation.category);
     setDistrictFieldError(validation.district);
-    setConditionFieldError(validation.condition);
     setPhotosFieldError(validation.images);
 
     if (validation.firstInvalidId) {
@@ -473,13 +455,20 @@ export function CreateItemForm({ districts, categories }: Props) {
             descriptionEn: multiDescriptions.en.trim() || undefined,
           };
 
+      // Category and Condition aren't required in the UI, but the server
+      // still requires both — default silently to "other"/`working` rather
+      // than block submit on fields the giver may not have an opinion on.
+      const otherCategory = categories.find((category) => category.slug === OTHER_CATEGORY_SLUG);
+      const resolvedCategoryId = categoryId !== '' ? Number(categoryId) : (otherCategory?.id ?? 0);
+      const resolvedCondition: Condition = condition !== '' ? condition : DEFAULT_CONDITION;
+
       const result = await api.items.create({
         ...textFields,
         needsTranslation,
         sourceLocale: locale,
-        categoryId: Number(categoryId),
+        categoryId: resolvedCategoryId,
         districtId: Number(districtId),
-        condition: condition as Condition,
+        condition: resolvedCondition,
         pickupNotes: pickupNotes.trim() || undefined,
         images,
       });
@@ -671,12 +660,9 @@ export function CreateItemForm({ districts, categories }: Props) {
         </div>
       )}
 
-      <div className="relative flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <label htmlFor="category" className="text-sm font-medium">
-          {t('createItem.category.label')}{' '}
-          <span className="text-red-700" aria-hidden="true">
-            *
-          </span>
+          {t('createItem.category.label')}
         </label>
         <Combobox
           id="category"
@@ -688,11 +674,6 @@ export function CreateItemForm({ districts, categories }: Props) {
           groups={categoryGroups}
           options={categoryOptions}
         />
-        {categoryFieldError && (
-          <p className="absolute top-full left-0 mt-1 text-xs text-red-700">
-            {fieldMsgText(categoryFieldError)}
-          </p>
-        )}
         {categoryError && <p className="text-sm text-red-700">{errorText(categoryError)}</p>}
       </div>
 
@@ -721,13 +702,8 @@ export function CreateItemForm({ districts, categories }: Props) {
         {districtError && <p className="text-sm text-red-700">{errorText(districtError)}</p>}
       </div>
 
-      <fieldset id="condition" className="relative flex flex-col gap-2">
-        <legend className="text-sm font-medium">
-          {t('createItem.condition.label')}{' '}
-          <span className="text-red-700" aria-hidden="true">
-            *
-          </span>
-        </legend>
+      <fieldset id="condition" className="flex flex-col gap-2">
+        <legend className="text-sm font-medium">{t('createItem.condition.label')}</legend>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 sm:mt-0">
           {CONDITIONS.map((value) => (
             <label key={value} className="flex items-center gap-1.5 text-sm whitespace-nowrap">
@@ -748,11 +724,6 @@ export function CreateItemForm({ districts, categories }: Props) {
             </label>
           ))}
         </div>
-        {conditionFieldError && (
-          <p className="absolute top-full left-0 mt-1 text-xs text-red-700">
-            {fieldMsgText(conditionFieldError)}
-          </p>
-        )}
       </fieldset>
 
       <div className="flex flex-col gap-1">
@@ -770,7 +741,12 @@ export function CreateItemForm({ districts, categories }: Props) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">{t('createItem.photos.label')}</span>
+        <span className="text-sm font-medium">
+          {t('createItem.photos.label')}{' '}
+          <span className="text-red-700" aria-hidden="true">
+            *
+          </span>
+        </span>
         <p className="text-sm text-neutral-600">{t('createItem.photos.help')}</p>
         <p
           id="photos-note"

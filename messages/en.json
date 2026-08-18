@@ -136,9 +136,7 @@
     "validation": {
       "titleRequired": "Title is required",
       "titleTooShort": "Title needs at least {min} characters",
-      "categoryRequired": "Category is required",
       "districtRequired": "Location is required",
-      "conditionRequired": "Condition is required",
       "photosNotReady": "Photos are still uploading"
     },
     "submit": "Post",
