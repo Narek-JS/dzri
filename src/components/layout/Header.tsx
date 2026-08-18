@@ -141,24 +141,52 @@ function AccountCluster({
                 // Same guard Combobox.tsx already applies to its Popover.Content
                 // for the equivalent reason.
                 onCloseAutoFocus={(event) => event.preventDefault()}
-                className="z-[100] min-w-36 overflow-hidden rounded-md border border-neutral-200 bg-white p-1 shadow-lg"
+                className="z-[100] flex min-w-36 flex-col gap-1 overflow-hidden rounded-md border border-neutral-200 bg-white p-1 shadow-lg"
               >
+                {/* Filled, brand-colored, plus-icon button — the same
+                    buttonClassName + PlusIcon pairing as the desktop Post
+                    CTA and the mobile nav sheet's own Post link below, so
+                    "Post" reads as the primary action here too rather
+                    than as a fourth plain menu row. `data-[highlighted]`
+                    (Radix's keyboard-nav state) gets its own brightness
+                    shift since the fill means the original
+                    bg-brand-tint highlight treatment no longer applies
+                    cleanly on top of it. */}
                 <DropdownMenu.Item asChild>
                   <Link
                     href="/items/new"
-                    className="block cursor-pointer rounded px-3 py-2 text-sm text-neutral-900 outline-none select-none data-[highlighted]:bg-brand-tint data-[highlighted]:text-brand-strong"
+                    className={buttonClassName({
+                      variant: postActive ? 'secondary' : 'primary',
+                      size: 'sm',
+                      className: 'w-full gap-2 outline-none select-none data-[highlighted]:brightness-95',
+                    })}
                   >
+                    <PlusIcon className="h-4 w-4" />
                     {t('nav.create')}
                   </Link>
                 </DropdownMenu.Item>
                 {/* Only opens the confirm dialog Header already renders —
                     see the doc comment above AccountCluster. Radix closes
                     the menu itself once onSelect returns, so this doesn't
-                    need to call setOpen/close anything by hand. */}
+                    need to call setOpen/close anything by hand.
+                    `buttonClassName({ variant: 'ghost' })` is the same
+                    subdued text style the desktop instance already uses
+                    for its own standalone Log out button — deliberately
+                    unfilled so it reads as secondary next to Post above.
+                    `data-[disabled]` (not buttonClassName's own
+                    `disabled:` variants, which target the native
+                    `:disabled` pseudo-class) is what actually reflects
+                    the `disabled` prop here: this Item has no `asChild`
+                    wrapping a real `<button>`, so Radix sets its own
+                    data attribute instead of the DOM one. */}
                 <DropdownMenu.Item
                   onSelect={onRequestLogout}
                   disabled={loggingOut}
-                  className="cursor-pointer rounded px-3 py-2 text-sm text-neutral-900 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-brand-tint data-[highlighted]:text-brand-strong"
+                  className={buttonClassName({
+                    variant: 'ghost',
+                    className:
+                      'w-full justify-start px-3 py-2 outline-none select-none data-[highlighted]:underline data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+                  })}
                 >
                   {t('session.logout')}
                 </DropdownMenu.Item>
