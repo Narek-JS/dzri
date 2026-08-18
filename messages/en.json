@@ -102,8 +102,11 @@
     "internal": "Unexpected error"
   },
   "createItem": {
-    "title": { "label": "Title" },
-    "description": { "label": "Description" },
+    "title": { "label": "Title", "placeholder": "Wooden bookshelf" },
+    "description": {
+      "label": "Description",
+      "placeholder": "Size, condition, and anything worth knowing before pickup"
+    },
     "translation": {
       "checkboxLabel": "Let the admin translate this into the other languages",
       "tabsLabel": "Languages"
@@ -116,7 +119,7 @@
       "needsRepair": "Needs repair",
       "forParts": "For parts"
     },
-    "pickupNotes": { "label": "Pickup notes" },
+    "pickupNotes": { "label": "Pickup notes", "placeholder": "3rd floor, no lift" },
     "photos": {
       "label": "Photos",
       "help": "The first photo is the listing thumbnail. Add 1 to 6 photos.",

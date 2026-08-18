@@ -648,6 +648,7 @@ export function CreateItemForm({ districts, categories }: Props) {
               maxLength={TITLE_MAX_LENGTH}
               value={title}
               onChange={(event) => setTitle(event.target.value)}
+              placeholder={t('createItem.title.placeholder')}
               aria-invalid={Boolean(shown?.title)}
               aria-describedby={shown?.title ? 'title-error' : undefined}
               className="rounded border border-neutral-300 px-3 py-2 text-sm"
@@ -670,7 +671,8 @@ export function CreateItemForm({ districts, categories }: Props) {
               maxLength={DESCRIPTION_MAX_LENGTH}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              className="rounded border border-neutral-300 px-3 py-2 text-sm"
+              placeholder={t('createItem.description.placeholder')}
+              className="resize-none rounded border border-neutral-300 px-3 py-2 text-sm"
             />
           </div>
 
@@ -684,6 +686,7 @@ export function CreateItemForm({ districts, categories }: Props) {
               maxLength={PICKUP_NOTES_MAX_LENGTH}
               value={pickupNotes}
               onChange={(event) => setPickupNotes(event.target.value)}
+              placeholder={t('createItem.pickupNotes.placeholder')}
               className="rounded border border-neutral-300 px-3 py-2 text-sm"
             />
           </div>
@@ -754,6 +757,7 @@ export function CreateItemForm({ districts, categories }: Props) {
                     onChange={(event) =>
                       setMultiTitles((prev) => ({ ...prev, [loc]: event.target.value }))
                     }
+                    placeholder={t('createItem.title.placeholder')}
                     aria-invalid={Boolean(titleErr)}
                     aria-describedby={titleErr ? `title-${loc}-error` : undefined}
                     className="rounded border border-neutral-300 px-3 py-2 text-sm"
@@ -780,9 +784,10 @@ export function CreateItemForm({ districts, categories }: Props) {
                     onChange={(event) =>
                       setMultiDescriptions((prev) => ({ ...prev, [loc]: event.target.value }))
                     }
+                    placeholder={t('createItem.description.placeholder')}
                     aria-invalid={Boolean(descriptionErr)}
                     aria-describedby={descriptionErr ? `description-${loc}-error` : undefined}
-                    className="rounded border border-neutral-300 px-3 py-2 text-sm"
+                    className="resize-none rounded border border-neutral-300 px-3 py-2 text-sm"
                   />
                   {descriptionErr && (
                     <p
@@ -806,6 +811,7 @@ export function CreateItemForm({ districts, categories }: Props) {
                     onChange={(event) =>
                       setMultiPickupNotes((prev) => ({ ...prev, [loc]: event.target.value }))
                     }
+                    placeholder={t('createItem.pickupNotes.placeholder')}
                     aria-invalid={Boolean(pickupNotesErr)}
                     aria-describedby={pickupNotesErr ? `pickupNotes-${loc}-error` : undefined}
                     className="rounded border border-neutral-300 px-3 py-2 text-sm"
