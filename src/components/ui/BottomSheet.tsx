@@ -58,7 +58,19 @@ export function BottomSheet({
             drawer, left as-is per the brief rather than forcing a constant
             scrim to match the old single-height drawer. */}
         <Drawer.Overlay className="fixed inset-0 z-50 bg-neutral-900/50 md:hidden" />
-        <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90vh] flex-col rounded-t-lg bg-white shadow-lg outline-none md:hidden">
+        {/* `h-[90vh]`, a real height, not `max-h-[90vh]`: vaul's numeric
+            `snapPoints` translate this element by a *fraction of the
+            viewport* (e.g. 50% of screen height for the 0.5 point),
+            assuming the element itself is already that tall — the reveal
+            comes from sliding a fixed-height box up/down, not from the box
+            growing to fit content. With only a max-height, this box sizes
+            to its (short) content instead, so the translate for a shorter
+            snap point pushed it entirely below the viewport: the sheet
+            mounted with `data-state="open"` but was never actually
+            visible on screen. A real height keeps the box tall regardless
+            of content length; the inner content area below still scrolls
+            via its own `overflow-y-auto` if content exceeds it. */}
+        <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 flex h-[90vh] flex-col rounded-t-lg bg-white shadow-lg outline-none md:hidden">
           <Drawer.Handle className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-neutral-300" />
 
           <div className="flex items-center justify-between px-4 pt-3">
