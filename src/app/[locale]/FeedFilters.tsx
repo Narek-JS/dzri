@@ -24,7 +24,7 @@ import type { ItemCondition } from '@/db/schema';
  * via Playwright at 375x667: 0.62 is the fraction at which all three
  * fields' bottom edges clear the footer's top edge with a bit to spare.
  */
-const SNAP_POINTS = [0.62, 0.9];
+const SNAP_POINTS = [0.55, 0.9];
 
 const CONDITIONS: readonly ItemCondition[] = ['working', 'needs_repair', 'for_parts'];
 const CONDITION_LABEL_KEYS: Record<ItemCondition, string> = {
