@@ -566,19 +566,25 @@ export function CreateItemForm({ districts, categories }: Props) {
         {districtError && <p className="text-sm text-red-700">{errorText(districtError)}</p>}
       </div>
 
-      <fieldset className="flex flex-col gap-1">
+      <fieldset className="flex flex-col gap-2">
         <legend className="text-sm font-medium">{t('createItem.condition.label')}</legend>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
           {CONDITIONS.map((value) => (
-            <label key={value} className="flex items-center gap-1.5 text-sm">
-              <input
-                type="radio"
-                name="condition"
-                value={value}
-                checked={condition === value}
-                onChange={() => setCondition(value)}
-                required
-              />
+            <label key={value} className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <span className="relative inline-flex shrink-0">
+                <input
+                  type="radio"
+                  name="condition"
+                  value={value}
+                  checked={condition === value}
+                  onChange={() => setCondition(value)}
+                  className="peer h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-full border border-neutral-300 bg-white checked:border-brand-strong focus:ring-1 focus:ring-brand-strong focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  required
+                />
+                <span className="pointer-events-none absolute inset-0 hidden items-center justify-center peer-checked:flex">
+                  <span className="h-2 w-2 rounded-full bg-brand-strong" />
+                </span>
+              </span>
               {t(CONDITION_LABEL_KEYS[value] as Parameters<typeof t>[0])}
             </label>
           ))}

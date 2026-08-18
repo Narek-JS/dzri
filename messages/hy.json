@@ -113,8 +113,8 @@
     "condition": {
       "label": "Վիճակ",
       "working": "Աշխատում է",
-      "needsRepair": "Կարիք ունի վերանորոգման",
-      "forParts": "Պահեստամասերի համար"
+      "needsRepair": "Նորոգման կարիք",
+      "forParts": "Պահեստամասերի"
     },
     "pickupNotes": { "label": "Նշումներ վերցնելու մասին" },
     "photos": {
