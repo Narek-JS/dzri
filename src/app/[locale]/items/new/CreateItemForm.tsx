@@ -869,9 +869,17 @@ export function CreateItemForm({ districts, categories }: Props) {
         {districtError && <p className="text-sm text-red-700">{errorText(districtError)}</p>}
       </div>
 
-      <fieldset id="condition" className="flex flex-col gap-2">
-        <legend className="text-sm font-medium">{t('createItem.condition.label')}</legend>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 sm:mt-0">
+      {/*
+       * The spacing under the label is the legend's own margin, not the
+       * fieldset's `gap`: a <legend> is laid out by the fieldset rather than
+       * as a flex child, so a gap on the parent never reaches it and left
+       * the radios sitting flush against the label on desktop. `mb-2` here
+       * replaces the `mt-2 sm:mt-0` the radio row used to carry, which only
+       * ever fixed the mobile half of that.
+       */}
+      <fieldset id="condition" className="flex flex-col">
+        <legend className="mb-2 text-sm font-medium">{t('createItem.condition.label')}</legend>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
           {CONDITIONS.map((value) => (
             <label key={value} className="flex items-center gap-1.5 text-sm whitespace-nowrap">
               <span className="relative inline-flex shrink-0">
