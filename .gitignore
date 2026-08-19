@@ -49,3 +49,5 @@ next-env.d.ts
 
 .env.neon-production
 .env.vercel-production
+.env.prod-full
+.env.vercel-r2-check
