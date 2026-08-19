@@ -1,0 +1,57 @@
+name: admin-digest
+
+# Once-a-day nudge so the solo admin does not let the moderation queue go
+# stale unnoticed. Vercel Hobby cron already fires once a day, but the
+# schedule lives here instead so it matches sweep.yml's shape and reuses
+# the same CRON_SECRET rather than introducing a second cron path.
+#
+# Needs the same repository secret sweep.yml uses, Settings → Secrets and
+# variables → Actions → Secrets: CRON_SECRET, the same value as the
+# CRON_SECRET env var on Vercel.
+#
+# The URL is not a secret and is not stored as one. It defaults to
+# production; to point a fork or a preview deployment somewhere else, set a
+# repository *variable* (same page, Variables tab) named DIGEST_URL.
+
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  # So it can be run by hand from the Actions tab — to check the queue right
+  # now, or to confirm the secret still matches after a rotation.
+  workflow_dispatch:
+
+concurrency:
+  group: admin-digest
+  cancel-in-progress: false
+
+jobs:
+  admin-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Call the admin-digest endpoint
+        env:
+          DIGEST_URL: ${{ vars.DIGEST_URL || 'https://dzri.am/api/cron/admin-digest' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "CRON_SECRET is not set as a repository secret — see the comment at the top of this workflow." >&2
+            exit 1
+          fi
+
+          # --fail-with-body so a non-2xx exits non-zero *and* still prints what
+          # came back. A wrong secret is a 404, deliberately indistinguishable
+          # from a bad path by status alone, so the body is the only clue.
+          # --retry covers a cold serverless function or a Neon wake-up.
+          curl --silent --show-error --fail-with-body \
+               --retry 3 --retry-delay 10 --retry-all-errors \
+               --max-time 120 \
+               --header "Authorization: Bearer ${CRON_SECRET}" \
+               "${DIGEST_URL}"
+
+          # The response body is the only visibility into whether an email
+          # went out; curl does not end it with a newline.
+          echo
