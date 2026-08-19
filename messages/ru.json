@@ -158,7 +158,10 @@
       "photoAlt": "Фото «{title}»",
       "photoThumbnailAlt": "Фото {index}",
       "openFullSize": "Посмотреть в полном размере",
-      "close": "Закрыть"
+      "close": "Закрыть",
+      "previous": "Предыдущее фото",
+      "next": "Следующее фото",
+      "counter": "{current} / {total}"
     },
     "banner": {
       "pendingReview": {

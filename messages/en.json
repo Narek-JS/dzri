@@ -158,7 +158,10 @@
       "photoAlt": "Photo of {title}",
       "photoThumbnailAlt": "Photo {index}",
       "openFullSize": "View full size",
-      "close": "Close"
+      "close": "Close",
+      "previous": "Previous photo",
+      "next": "Next photo",
+      "counter": "{current} / {total}"
     },
     "banner": {
       "pendingReview": {

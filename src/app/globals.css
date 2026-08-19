@@ -34,6 +34,18 @@
 }
 
 @layer base {
+  html {
+    /*
+     * Kills the ~300ms double-tap-to-zoom gesture (and its delayed-click
+     * side effect) declaratively, rather than with a listener. This is the
+     * "double tap" half of the anti-zoom setup; the two-finger pinch is
+     * PinchZoomGuard.tsx (Safari ignores the viewport meta for that), and
+     * plain page zoom is `maximumScale: 1` on the `viewport` export in
+     * [locale]/layout.tsx (Safari does honour that one, for zoom-on-focus).
+     */
+    touch-action: manipulation;
+  }
+
   body {
     font-family: var(--font-sans);
   }

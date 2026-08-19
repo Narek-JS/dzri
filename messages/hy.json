@@ -161,7 +161,10 @@
       "photoAlt": "{title} իրի նկար",
       "photoThumbnailAlt": "{index}-րդ նկար",
       "openFullSize": "Դիտել ամբողջական չափով",
-      "close": "Փակել"
+      "close": "Փակել",
+      "previous": "Նախորդ նկարը",
+      "next": "Հաջորդ նկարը",
+      "counter": "{current} / {total}"
     },
     "banner": {
       "pendingReview": {
