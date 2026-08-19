@@ -8,6 +8,7 @@ import { notFound } from 'next/navigation';
 import '../globals.css';
 import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
+import { LanguagePicker } from '@/components/layout/LanguagePicker';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { routing } from '@/i18n/routing';
 import { getSession, getSessionProfile } from '@/lib/auth/session';
@@ -138,6 +139,7 @@ export default async function LocaleLayout({
                 : null
             }
           >
+            <LanguagePicker />
             <Header />
             <div className="flex flex-1 flex-col">{children}</div>
             <Footer />

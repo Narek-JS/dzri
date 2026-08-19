@@ -18,6 +18,9 @@
       "en": "EN"
     }
   },
+  "languagePicker": {
+    "title": "Ընտրեք ձեր լեզուն"
+  },
   "nav": {
     "feed": "Իրեր",
     "create": "Տեղադրել",

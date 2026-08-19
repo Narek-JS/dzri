@@ -18,6 +18,9 @@
       "en": "EN"
     }
   },
+  "languagePicker": {
+    "title": "Choose your language"
+  },
   "nav": {
     "feed": "Items",
     "create": "Post",

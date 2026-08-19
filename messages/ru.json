@@ -18,6 +18,9 @@
       "en": "EN"
     }
   },
+  "languagePicker": {
+    "title": "Выберите ваш язык"
+  },
   "nav": {
     "feed": "Вещи",
     "create": "Разместить",
