@@ -357,7 +357,10 @@ export function CreateItemForm({ districts, categories }: Props) {
         titleMsg = { key: 'createItem.validation.titleRequired' };
         claim('title');
       } else if (trimmedTitle.length < TITLE_MIN_LENGTH) {
-        titleMsg = { key: 'createItem.validation.titleTooShort', params: { min: TITLE_MIN_LENGTH } };
+        titleMsg = {
+          key: 'createItem.validation.titleTooShort',
+          params: { min: TITLE_MIN_LENGTH },
+        };
         claim('title');
       }
     } else {
@@ -682,6 +685,7 @@ export function CreateItemForm({ districts, categories }: Props) {
           id="category"
           value={categoryId}
           onValueChange={setCategoryId}
+          label={t('createItem.category.label')}
           placeholder={t('createItem.category.placeholder')}
           searchPlaceholder={t('combobox.search')}
           emptyText={t('combobox.noResults')}
@@ -707,6 +711,7 @@ export function CreateItemForm({ districts, categories }: Props) {
           id="district"
           value={districtId}
           onValueChange={setDistrictId}
+          label={t('createItem.district.label')}
           placeholder={t('createItem.district.placeholder')}
           searchPlaceholder={t('combobox.search')}
           emptyText={t('combobox.noResults')}

@@ -21,6 +21,26 @@ import type { ReactNode } from 'react';
 const DEFAULT_SNAP_POINTS = [0.5, 0.9];
 
 /**
+ * How tall `Drawer.Content` itself is. See the `h-[90vh]`-not-`max-h`
+ * note on the element below for why it is a real height.
+ */
+const SHEET_HEIGHT_CLASS = 'h-[90vh]';
+
+/**
+ * How much of that block is on screen at the current snap point.
+ * `--snap-point-height` is vaul's own variable, written onto
+ * `Drawer.Content`'s inline style as the pixel offset the sheet is
+ * translated down by (confirmed in node_modules/vaul/dist/index.mjs, and
+ * measured live: 298.8px at the 0.55 snap on a 664px-tall viewport, i.e.
+ * `(1 - 0.55) * 664`). The block spans 90vh anchored to the bottom and is
+ * then pushed down by that offset, so exactly `90vh - offset` of it is
+ * ever visible. The `0px` fallback covers a caller that passes no snap
+ * points at all, where vaul never sets the variable and the whole block
+ * is on screen.
+ */
+const VISIBLE_HEIGHT_CLASS = 'max-h-[calc(90vh-var(--snap-point-height,0px))]';
+
+/**
  * Shared mobile bottom sheet wrapping vaul's `Drawer`, used by both the
  * hamburger nav menu (Header.tsx) and the filters panel (FeedFilters.tsx)
  * rather than each hand-rolling its own overlay/drag mechanics — this
@@ -107,7 +127,10 @@ export function BottomSheet({
     }
     unhide();
     const observer = new MutationObserver(unhide);
-    observer.observe(element, { attributes: true, attributeFilter: ['aria-hidden', 'data-aria-hidden'] });
+    observer.observe(element, {
+      attributes: true,
+      attributeFilter: ['aria-hidden', 'data-aria-hidden'],
+    });
     return () => observer.disconnect();
   }
 
@@ -135,7 +158,9 @@ export function BottomSheet({
             visible on screen. A real height keeps the box tall regardless
             of content length; the inner content area below still scrolls
             via its own `overflow-y-auto` if content exceeds it. */}
-        <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 flex h-[90vh] flex-col rounded-t-lg bg-white shadow-lg outline-none md:hidden">
+        <Drawer.Content
+          className={`fixed inset-x-0 bottom-0 z-50 flex ${SHEET_HEIGHT_CLASS} flex-col rounded-t-lg bg-white shadow-lg outline-none md:hidden`}
+        >
           {/* No `handleOnly` here: that restricted vaul's own drag-start to
               the small centered pill only, which is narrower than users
               expect ("grab the sheet from anywhere near the top"). Instead
@@ -149,27 +174,40 @@ export function BottomSheet({
               at all, see the comment above. There's no explicit close
               button — dismiss is drag-down past the lowest snap point,
               per vaul's own `dismissible` default. */}
-          <Drawer.Handle className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-neutral-300" />
+          {/* Everything visible lives in this inner column, capped at the
+              part of the 90vh block that is actually on screen — see
+              VISIBLE_HEIGHT_CLASS. Without the cap the column is the full
+              90vh and lays its children out over a region that runs off
+              the bottom of the screen: measured at 390x664, the third of
+              FeedFilters' three fields landed at y 614-652 with the pinned
+              footer starting at 595, so it was drawn underneath the footer
+              and could not be tapped at all. `max-h`, not `h`: vaul only
+              rewrites `--snap-point-height` once a snap *settles*, so a
+              fixed height would leave a stale gap for the length of every
+              drag, while a cap simply stops applying early. */}
+          <div className={`flex min-h-0 flex-1 flex-col ${VISIBLE_HEIGHT_CLASS}`}>
+            <Drawer.Handle className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-neutral-300" />
 
-          <div className="px-4 pt-3">
-            <Drawer.Title className="text-base font-semibold text-neutral-900">
-              {title}
-            </Drawer.Title>
-          </div>
+            <div className="shrink-0 px-4 pt-3">
+              <Drawer.Title className="text-base font-semibold text-neutral-900">
+                {title}
+              </Drawer.Title>
+            </div>
 
-          {/* Safe-area padding lands on whichever section is visually
-              last. With no footer that's this content area; with a
-              footer, the footer (its own fixed bar below) takes the
-              safe-area padding instead, and this area gets a flat, more
-              generous `pb-28` so its last scrolled-to item clears the
-              footer bar rather than sitting behind it. */}
-          <div
-            data-vaul-no-drag
-            className={`flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 ${
-              footer ? 'pb-28' : 'pb-[max(1rem,env(safe-area-inset-bottom))]'
-            }`}
-          >
-            {children}
+            {/* Safe-area padding lands on whichever section is visually
+                last. With no footer that's this content area; with a
+                footer, the footer (its own fixed bar below) takes the
+                safe-area padding instead, and this area gets a flat, more
+                generous `pb-28` so its last scrolled-to item clears the
+                footer bar rather than sitting behind it. */}
+            <div
+              data-vaul-no-drag
+              className={`flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 ${
+                footer ? 'pb-28' : 'pb-[max(1rem,env(safe-area-inset-bottom))]'
+              }`}
+            >
+              {children}
+            </div>
           </div>
         </Drawer.Content>
 

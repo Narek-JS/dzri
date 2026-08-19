@@ -211,7 +211,8 @@
   },
   "combobox": {
     "search": "Փնտրել…",
-    "noResults": "Ոչինչ չի գտնվել"
+    "noResults": "Ոչինչ չի գտնվել",
+    "close": "Փակել"
   },
   "districts": {
     "yerevan": "Երևան",

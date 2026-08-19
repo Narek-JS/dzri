@@ -989,3 +989,78 @@ gap — a migration written under the assumption `categories` would be
 empty, patched once to survive with rows left in it, but not re-audited
 for every later statement that assumption had been quietly load-bearing
 for.
+
+### 2026-08-19 — Combobox gets a separate mobile presentation
+
+Below Tailwind's `md`, `Combobox` (District and Category) no longer
+renders a type-in-the-trigger input plus a Radix Popover. The field is a
+button showing the current selection, and tapping it opens a full-screen
+Radix `Dialog` with the search box inside the panel and the options in
+its own scroll area. Desktop is untouched — same input, same popover,
+same cmdk wiring; `useIsMobile` (a `useSyncExternalStore` over
+`matchMedia`, server snapshot `false`) picks between the two.
+
+Two separate defects forced this, and neither was fixable in the popover.
+
+The first: **the options could not be scrolled at all** when the popover
+was opened from inside the mobile filters sheet. A popover is portalled
+to `document.body`, and `BottomSheet` is vaul over a Radix modal dialog,
+whose `Overlay` wraps the page in `react-remove-scroll` with the drawer
+content as its only registered shard. That library installs a
+non-passive document `touchmove` listener that `preventDefault()`s every
+touch scroll whose target is neither inside the lock nor inside a shard
+(`shouldPrevent` in
+node_modules/react-remove-scroll/dist/es2015/SideEffect.js, the
+`shouldStop = shardNodes.length > 0 ? … : !noIsolation` branch), and a
+body-portalled popover is exactly that. There is no attribute or prop
+that exempts one — but only the *last* lock on that module's
+`lockStack` is active, so a nested modal that installs its own lock
+takes over. Radix `Dialog` installs one unconditionally. Radix `Popover`
+only installs one under `modal`, and `modal` also traps focus inside the
+content, which is where the old trigger — an `Anchor` sibling, not a
+child — could never be. So the fix had to be a dialog, not a flag.
+
+The second: **the trigger being a text input was the wrong control for a
+thumb.** Tapping the field raised the software keyboard over the list it
+had just opened, and browsers offered their own autofill on top of the
+options — Chrome reads a field's label and placeholder as heuristics,
+and "District"/"Region"/"Category" read as an address form to it, so it
+covered real options with the user's saved street address. That is what
+made the control feel like it was "suggesting remembered values". A
+button trigger has neither problem; the panel's search box carries
+`NO_AUTOFILL_PROPS` (`autocomplete="off"` plus the documented 1Password
+/ LastPass / generic opt-outs, since `autocomplete="off"` alone does not
+stop Chrome's address heuristics) and deliberately does *not* take focus
+on open, so the keyboard only appears if the user asks for it.
+
+Both `Combobox` call sites now pass a `label`, which titles the panel —
+a full-screen panel covers the label the user just tapped.
+
+### 2026-08-19 — BottomSheet caps its content column to the visible sheet
+
+`Drawer.Content` is a rigid `h-[90vh]` block anchored to the bottom and
+translated *down* by the active snap point's offset, so at any snap
+short of fully open a large part of it is below the viewport. Its
+children were laid out over that whole 90vh, which meant content past
+the fold was simply drawn off-screen with nothing to scroll: measured at
+390x664, FeedFilters' third field (Condition) landed at y 614-652 with
+the pinned footer starting at 595 — underneath the footer, untappable,
+with no way to reach it short of dragging to the taller snap point.
+
+The visible slice is exactly `90vh - offset`, and vaul already publishes
+that offset as `--snap-point-height` on `Drawer.Content`'s inline style.
+An inner column capped at `calc(90vh - var(--snap-point-height, 0px))`
+therefore ends at the screen edge, which lets the existing
+`overflow-y-auto` on the content area actually engage. `max-height`, not
+`height`: vaul only rewrites the variable once a snap *settles*, so a
+fixed height would hold a stale gap open for the length of every drag,
+while a cap just stops applying early. The `0px` fallback covers a
+caller that passes no snap points, where the variable is never set.
+
+`FeedFilters`' own lower snap point moves 0.55 → 0.7 on top of that.
+0.55 was measured at 375x667 and did not generalise. Solving
+`0.9vh - (1 - s)vh - 53px (header) >= 346px (the three fields and their
+padding)` at 390x664 gives s >= 0.70. Viewports shorter than ~664px
+still need a scroll to reach the last field; the cap above is what makes
+that scroll exist, so nothing is unreachable at any height — the snap
+number is only about not needing it on a typical phone.

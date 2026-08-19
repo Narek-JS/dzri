@@ -211,7 +211,8 @@
   },
   "combobox": {
     "search": "Поиск…",
-    "noResults": "Ничего не найдено"
+    "noResults": "Ничего не найдено",
+    "close": "Закрыть"
   },
   "districts": {
     "yerevan": "Ереван",

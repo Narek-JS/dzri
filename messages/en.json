@@ -211,7 +211,8 @@
   },
   "combobox": {
     "search": "Search…",
-    "noResults": "No matches"
+    "noResults": "No matches",
+    "close": "Close"
   },
   "districts": {
     "yerevan": "Yerevan",
