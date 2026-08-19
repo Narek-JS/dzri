@@ -1,0 +1,44 @@
+[
+  {
+    "images": ["item-1-image-1.png", "item-1-image-2.png", "item-1-image-3.png"],
+    "title": {
+      "hy": "Շինարարական մնացորդներ՝ արմատուր և փայտ",
+      "ru": "Строительные остатки: арматура и доски",
+      "en": "Leftover building materials — rebar and wood"
+    },
+    "description": {
+      "hy": "Շինարարությունից մնացած նյութերի խումբ՝ մետաղյա արմատուրի ձողեր, մետաղյա ցանց, փայտի կտորներ և թիթեղի կտորներ։ Բոլորը վերցված են մեկ պահեստից, քանակը՝ մոտավորապես նկարներում երևացողի չափով։ Հարմար է փոքր վերանորոգման կամ շինարարական աշխատանքների համար։",
+      "ru": "Набор оставшихся после стройки материалов: металлические арматурные прутья, сетка, обрезки досок и куски листового металла. Всё хранилось в одном сарае, количество — примерно как видно на фото. Подойдёт для небольшого ремонта или строительных работ.",
+      "en": "A batch of leftover construction materials — steel rebar rods, wire mesh, wood offcuts, and sheet metal pieces. All stored together in one shed; the quantity is roughly what's shown in the photos. Useful for a small repair or building project."
+    },
+    "category": "Leftover Building Materials",
+    "district": "Arabkir",
+    "condition": "working",
+    "pickupNotes": {
+      "hy": "Մի քանի կտոր է, տեղափոխման համար մեքենա կպահանջվի։",
+      "ru": "Материала несколько единиц, для перевозки нужна машина.",
+      "en": "Several pieces — you'll need a vehicle to take it all."
+    }
+  },
+  {
+    "images": ["item-2-image-1.png", "item-2-image-2.png"],
+    "title": {
+      "hy": "Մետաղյա խողովակ",
+      "ru": "Металлическая труба",
+      "en": "Metal pipe"
+    },
+    "description": {
+      "hy": "Հաստ պատերով մետաղյա խողովակ, մոտ 3 մետր երկարությամբ։ Մի կողմը ներկված է բաց մոխրագույնով, մյուս մասը՝ մերկ մետաղ՝ մակերեսային ժանգով։ Հարմար է որպես սյուն, ցանկապատի հենարան կամ այլ շինարարական կիրառության համար։",
+      "ru": "Толстостенная металлическая труба длиной около 3 метров. Одна часть окрашена в светло-серый цвет, другая — голая, с поверхностной ржавчиной. Подойдёт как столб, опора для забора или для другого применения на стройке.",
+      "en": "Thick-walled metal pipe, roughly 3 meters long. One section is painted light gray, the rest is bare metal with surface rust. Works as a post, a fence support, or for other building uses."
+    },
+    "category": "Leftover Building Materials",
+    "district": "Arabkir",
+    "condition": "working",
+    "pickupNotes": {
+      "hy": "Երկար է, տեղափոխման համար պետք է մեծ մեքենա։",
+      "ru": "Длинная, для перевозки нужна большая машина.",
+      "en": "Long — you'll need a large vehicle to move it."
+    }
+  }
+]

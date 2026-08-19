@@ -43,6 +43,13 @@
       "when": 1786997179536,
       "tag": "0005_workable_cammi",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787076056543,
+      "tag": "0006_add_pickup_notes_locales",
+      "breakpoints": true
     }
   ]
 }

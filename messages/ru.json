@@ -102,8 +102,11 @@
     "internal": "Непредвиденная ошибка"
   },
   "createItem": {
-    "title": { "label": "Заголовок" },
-    "description": { "label": "Описание" },
+    "title": { "label": "Заголовок", "placeholder": "Деревянный книжный шкаф" },
+    "description": {
+      "label": "Описание",
+      "placeholder": "Размер, состояние и всё, что стоит знать до приезда"
+    },
     "translation": {
       "checkboxLabel": "Пусть администратор переведёт это на другие языки",
       "tabsLabel": "Языки"
@@ -116,7 +119,7 @@
       "needsRepair": "Требует ремонта",
       "forParts": "На запчасти"
     },
-    "pickupNotes": { "label": "Заметки о получении" },
+    "pickupNotes": { "label": "Заметки о получении", "placeholder": "3-й этаж, лифта нет" },
     "photos": {
       "label": "Фотографии",
       "help": "Первое фото становится превью объявления. Добавьте от 1 до 6 фотографий.",
@@ -136,10 +139,11 @@
     "validation": {
       "titleRequired": "Название обязательно",
       "titleTooShort": "Название должно содержать не менее {min} символов",
-      "categoryRequired": "Категория обязательна",
       "districtRequired": "Район обязателен",
-      "conditionRequired": "Состояние обязательно",
-      "photosNotReady": "Фото ещё загружаются"
+      "photosNotReady": "Фото ещё загружаются",
+      "photosFailed": "Удалите фотографии, которые не загрузились",
+      "descriptionAllLocales": "Заполните описание на всех языках или оставьте пустым на всех",
+      "pickupNotesAllLocales": "Заполните заметки на всех языках или оставьте пустыми на всех"
     },
     "submit": "Разместить",
     "success": {
@@ -271,7 +275,8 @@
         "heading": "Отсутствующие переводы",
         "hint": "Нужно заполнить, чтобы одобрить",
         "titleLabel": "Заголовок: {language}",
-        "descriptionLabel": "Описание: {language}"
+        "descriptionLabel": "Описание: {language}",
+        "pickupNotesLabel": "Заметки о получении: {language}"
       }
     }
   },

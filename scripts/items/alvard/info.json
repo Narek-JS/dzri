@@ -1,0 +1,18 @@
+[
+  {
+    "images": ["item-1-image-1.png"],
+    "title": {
+      "hy": "Հին գորգ՝ վարդագույն նախշով",
+      "ru": "Старый ковёр с розовым узором",
+      "en": "Vintage rug with a pink pattern"
+    },
+    "description": {
+      "hy": "Ձեռագործ նախշով բրդյա գորգ, վարդագույն ֆոնի վրա կապույտ ու սպիտակ մոտիվներով։ Օգտագործված է, գույները մի փոքր խամրել են, եզրերին տեղ-տեղ մաշվածություն ու թելի բացվածք կա, բայց ամբողջական է և կարելի է շարունակել օգտագործել հատակին փռելով։",
+      "ru": "Шерстяной ковёр с ручным узором на розовом фоне, с синими и белыми мотивами. Ковёр в использованном состоянии — краски немного выцвели, по краям местами потёрлась бахрома, но он целый и его можно и дальше стелить на пол.",
+      "en": "Wool rug with a hand-loomed pattern on a pink field, with blue and white motifs. It's a used rug — the colors have faded a bit and the edges show some fringe wear in places, but it's whole and still fine to put down on a floor."
+    },
+    "category": "Rugs & Textiles",
+    "district": "Kentron",
+    "condition": "working"
+  }
+]

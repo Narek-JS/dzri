@@ -1,0 +1,23 @@
+[
+  {
+    "images": ["item-1-image-1.png", "item-1-image-2.png", "item-1-image-3.png"],
+    "title": {
+      "hy": "Էմալապատ պողպատե լոգարան",
+      "ru": "Стальная эмалированная ванна",
+      "en": "Enameled steel bathtub"
+    },
+    "description": {
+      "hy": "Ստանդարտ չափսի պողպատե լոգարան՝ սպիտակ էմալապատմամբ։ Ներսի էմալը ամբողջական է և փայլուն, բայց եզրերին ու անկյուններում կան ժանգի բծեր ու էմալի պատառոտումներ, որտեղ երևում է մետաղը։ Այժմ պահվում է բակում, այլ լոգարանների կույտի վրա։",
+      "ru": "Стальная ванна стандартного размера с белой эмалью. Внутренняя поверхность цела и блестит, но по краям и на углах есть пятна ржавчины и сколы эмали, где виден металл. Сейчас стоит во дворе, поверх стопки других ванн.",
+      "en": "Standard-size steel bathtub with white enamel. The interior is intact and glossy, but the rim and corners have rust spots and chipped enamel where the metal shows through. Currently sitting outdoors on top of a stack of other tubs."
+    },
+    "category": "Plumbing",
+    "district": "Erebuni",
+    "condition": "working",
+    "pickupNotes": {
+      "hy": "Ծանր է, տեղափոխման համար օգնություն կպահանջվի։",
+      "ru": "Тяжёлая, для переноски понадобится помощь.",
+      "en": "Heavy — you'll need help carrying it."
+    }
+  }
+]

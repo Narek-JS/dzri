@@ -55,12 +55,12 @@ export const items = pgTable(
       .references(() => districts.id),
 
     /**
-     * Per-locale title/description, mirroring `districts`/`categories`'
-     * `name_hy`/`name_ru`/`name_en` convention. Nullable at the column level —
-     * only `sourceLocale`'s column is guaranteed filled at creation; the other
-     * two are filled by an admin during moderation when `needsTranslation` is
-     * true. `itemTranslationsCompleteWhenActive` below is what forbids an
-     * `active` item from having any of the three missing.
+     * Per-locale title/description/pickup notes, mirroring `districts`/
+     * `categories`' `name_hy`/`name_ru`/`name_en` convention. Nullable at the
+     * column level — only `sourceLocale`'s column is guaranteed filled at
+     * creation; the other two are filled by an admin during moderation when
+     * `needsTranslation` is true. `itemTranslationsCompleteWhenActive` below
+     * is what forbids an `active` item from having any of the three missing.
      */
     titleHy: text('title_hy'),
     titleRu: text('title_ru'),
@@ -73,9 +73,10 @@ export const items = pgTable(
     /** Which locale the giver actually typed in. Always filled, unlike the two above. */
     sourceLocale: text('source_locale').notNull().default('hy'),
     condition: itemCondition('condition').notNull().default('working'),
-    /** "3rd floor, no lift, bring a friend" */
-    pickupNotes: text('pickup_notes'),
-
+    /** "3rd floor, no lift, bring a friend" — same all-or-none-per-locale convention as description. */
+    pickupNotesHy: text('pickup_notes_hy'),
+    pickupNotesRu: text('pickup_notes_ru'),
+    pickupNotesEn: text('pickup_notes_en'),
     status: itemStatus('status').notNull().default('active'),
     reservedFor: uuid('reserved_for').references(() => users.id),
     /** auto-release deadline */
@@ -137,10 +138,10 @@ export const items = pgTable(
     ),
 
     // An item cannot go live missing a translation. Once `active`, all three
-    // titles must be filled, and description is all-three-or-none — the
-    // giver's own locale is always the one filled first, so "all or none"
-    // and "the other two follow the source" are the same condition in
-    // practice (DECISIONS.md).
+    // titles must be filled, and description/pickup notes are each
+    // all-three-or-none — the giver's own locale is always the one filled
+    // first, so "all or none" and "the other two follow the source" are the
+    // same condition in practice (DECISIONS.md).
     check(
       'item_translations_complete_when_active',
       sql`${table.status} <> 'active' or (
@@ -148,6 +149,10 @@ export const items = pgTable(
         and (
           (${table.descriptionHy} is null and ${table.descriptionRu} is null and ${table.descriptionEn} is null)
           or (${table.descriptionHy} is not null and ${table.descriptionRu} is not null and ${table.descriptionEn} is not null)
+        )
+        and (
+          (${table.pickupNotesHy} is null and ${table.pickupNotesRu} is null and ${table.pickupNotesEn} is null)
+          or (${table.pickupNotesHy} is not null and ${table.pickupNotesRu} is not null and ${table.pickupNotesEn} is not null)
         )
       )`,
     ),

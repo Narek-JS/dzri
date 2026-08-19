@@ -279,7 +279,9 @@ export type ItemDetail = {
    */
   sourceLocale: ItemLocale;
   condition: ItemCondition;
-  pickupNotes: string | null;
+  pickupNotesHy: string | null;
+  pickupNotesRu: string | null;
+  pickupNotesEn: string | null;
   status: ItemStatus;
   createdAt: string;
   expiresAt: string;
@@ -309,12 +311,13 @@ export type CreateItemImage = {
 
 /**
  * Either shape CreateItemForm can produce (PART 2): `needsTranslation: true`
- * with only `sourceLocale`'s title/description filled, or `false` with all
- * three locales' titles filled (description follows the same per-locale
- * all-or-nothing rule, but stays optional overall). The route's
- * `superRefine` (src/app/api/items/route.ts) is what actually enforces
- * this — these fields are all individually optional here because either
- * shape leaves two of the three locale fields absent.
+ * with only `sourceLocale`'s title/description/pickup notes filled, or
+ * `false` with all three locales' titles filled (description and pickup
+ * notes each follow the same per-locale all-or-nothing rule, but stay
+ * optional overall). The route's `superRefine` (src/app/api/items/route.ts)
+ * is what actually enforces this — these fields are all individually
+ * optional here because either shape leaves two of the three locale fields
+ * absent.
  */
 export type CreateItemBody = {
   titleHy?: string | null;
@@ -328,7 +331,9 @@ export type CreateItemBody = {
   categoryId: number;
   districtId: number;
   condition: ItemCondition;
-  pickupNotes?: string | null;
+  pickupNotesHy?: string | null;
+  pickupNotesRu?: string | null;
+  pickupNotesEn?: string | null;
   images: CreateItemImage[];
 };
 
@@ -449,7 +454,9 @@ export type PendingItem = {
   needsTranslation: boolean;
   sourceLocale: ItemLocale;
   condition: ItemCondition;
-  pickupNotes: string | null;
+  pickupNotesHy: string | null;
+  pickupNotesRu: string | null;
+  pickupNotesEn: string | null;
   createdAt: string;
   images: string[];
   district: DistrictRef;
@@ -460,10 +467,11 @@ export type PendingItem = {
 export type PendingItemsResponse = { items: PendingItem[]; nextCursor: string | null };
 
 /**
- * The missing locales' title/description, sent only when the item's
- * `needsTranslation` is true — `approveItem` (src/lib/items/moderate.ts)
- * ignores this entirely when it's false, so a caller with nothing to fill
- * in can omit the body exactly as before this endpoint took one.
+ * The missing locales' title/description/pickup notes, sent only when the
+ * item's `needsTranslation` is true — `approveItem`
+ * (src/lib/items/moderate.ts) ignores this entirely when it's false, so a
+ * caller with nothing to fill in can omit the body exactly as before this
+ * endpoint took one.
  */
 export type ApproveItemTranslations = {
   titleHy?: string;
@@ -472,6 +480,9 @@ export type ApproveItemTranslations = {
   descriptionHy?: string;
   descriptionRu?: string;
   descriptionEn?: string;
+  pickupNotesHy?: string;
+  pickupNotesRu?: string;
+  pickupNotesEn?: string;
 };
 
 export type ApproveItemResponse = { id: string; status: 'active' };

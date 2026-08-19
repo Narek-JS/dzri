@@ -1,0 +1,18 @@
+[
+  {
+    "images": ["item-1-image-1.png", "item-1-image-2.png", "item-1-image-3.png"],
+    "title": {
+      "hy": "Ծալովի ներքնակներ (կուրպեչե)",
+      "ru": "Стёганые матрасы, сложенные стопкой",
+      "en": "Folded quilted floor mattresses"
+    },
+    "description": {
+      "hy": "Մի քանի հաստ, կարած ներքնակ (կուրպեչե), ծալված իրար վրա։ Երեսպատումը գունավոր է՝ պեյզլի և գծավոր նախշերով գործվածքից։ Օգտագործվում են հատակին նստելու կամ պառկելու համար։ Վիճակը լավ է, նկատելի քայքայում չկա։",
+      "ru": "Несколько толстых стёганых матрасов (курпече), сложенных стопкой друг на друга. Обивка цветная — с узором пейсли и в полоску. Используются для сидения или сна на полу. Состояние хорошее, заметных повреждений нет.",
+      "en": "Several thick quilted floor mattresses, stacked on top of each other. The covers are patterned fabric — paisley and striped designs. Traditionally used for sitting or sleeping on the floor. Good condition, no visible damage."
+    },
+    "category": "Rugs & Textiles",
+    "district": "Kanaker-Zeytun",
+    "condition": "working"
+  }
+]

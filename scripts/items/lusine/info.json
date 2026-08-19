@@ -1,0 +1,18 @@
+[
+  {
+    "images": ["item-1-image-1.png"],
+    "title": {
+      "hy": "Ալոե վերա, տնկարանով",
+      "ru": "Алоэ вера в горшке",
+      "en": "Potted aloe vera"
+    },
+    "description": {
+      "hy": "Փոքր ալոե վերայի թուփ, տնկված գունավոր տնկարանի մեջ։ Տերևները թարմ են ու մսոտ, բնորոշ ատամնավոր եզրերով։ Հարմար է լուսավոր պատուհանագոգի կամ սեղանի համար։",
+      "ru": "Небольшой куст алоэ вера в цветном горшке. Листья свежие и мясистые, с характерными зубчатыми краями. Подойдёт для светлого подоконника или стола.",
+      "en": "A small aloe vera plant in a colorful pot. The leaves are fresh and fleshy with the plant's typical serrated edges. Good for a bright windowsill or table."
+    },
+    "category": "Plants",
+    "district": "Shengavit",
+    "condition": "working"
+  }
+]

@@ -8,6 +8,7 @@ import { approveItem } from '@/lib/items/moderate';
 
 const titleField = z.string().trim().min(3).max(100).optional();
 const descriptionField = z.string().trim().max(2000).optional();
+const pickupNotesField = z.string().trim().max(300).optional();
 
 /**
  * The missing locales' translations, when the item's `needsTranslation` is
@@ -23,6 +24,9 @@ const approveTranslationsSchema = z.object({
   descriptionHy: descriptionField,
   descriptionRu: descriptionField,
   descriptionEn: descriptionField,
+  pickupNotesHy: pickupNotesField,
+  pickupNotesRu: pickupNotesField,
+  pickupNotesEn: pickupNotesField,
 });
 
 /**
