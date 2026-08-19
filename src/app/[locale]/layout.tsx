@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 
 import { hasLocale } from 'next-intl';
 import { NextIntlClientProvider } from 'next-intl';
@@ -9,6 +9,7 @@ import '../globals.css';
 import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
 import { LanguagePicker } from '@/components/layout/LanguagePicker';
+import { PinchZoomGuard } from '@/components/layout/PinchZoomGuard';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { routing } from '@/i18n/routing';
 import { getSession, getSessionProfile } from '@/lib/auth/session';
@@ -41,6 +42,28 @@ import { manrope, notoSans, notoSansArmenian } from '@/lib/fonts';
  * as `ƒ Dynamic`, so no real static optimization is lost.
  */
 export const dynamic = 'force-dynamic';
+
+/**
+ * Pins the page at 1:1 and asks for zoom to be off. Next emits
+ * `width=device-width, initial-scale=1` by default and nothing else, which
+ * leaves pinch-zoom, double-tap zoom and iOS's zoom-on-focus all live.
+ *
+ * Chrome and Firefox for Android honour `userScalable: false` outright.
+ * Safari on iOS does not — see PinchZoomGuard, which covers the pinch — but
+ * it does honour `maximumScale: 1` for the automatic zoom when a field
+ * smaller than 16px takes focus, and the app's inputs are `text-sm` (14px),
+ * so every form on a phone would otherwise jump the page on first tap.
+ *
+ * This is a WCAG 1.4.4 trade-off made on purpose: the layout is already
+ * fluid down to phone widths, and OS-level display zoom and Safari's own
+ * page-zoom control are untouched by any of it.
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 /** OG locale tags (`language_TERRITORY`) for the three routing.locales. */
 const OG_LOCALES: Record<(typeof routing.locales)[number], string> = {
@@ -139,6 +162,7 @@ export default async function LocaleLayout({
                 : null
             }
           >
+            <PinchZoomGuard />
             <LanguagePicker />
             <Header />
             <div className="flex flex-1 flex-col">{children}</div>

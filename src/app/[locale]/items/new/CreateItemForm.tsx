@@ -841,6 +841,7 @@ export function CreateItemForm({ districts, categories }: Props) {
           id="category"
           value={categoryId}
           onValueChange={setCategoryId}
+          label={t('createItem.category.label')}
           placeholder={t('createItem.category.placeholder')}
           searchPlaceholder={t('combobox.search')}
           emptyText={t('combobox.noResults')}
@@ -861,6 +862,7 @@ export function CreateItemForm({ districts, categories }: Props) {
           id="district"
           value={districtId}
           onValueChange={setDistrictId}
+          label={t('createItem.district.label')}
           placeholder={t('createItem.district.placeholder')}
           searchPlaceholder={t('combobox.search')}
           emptyText={t('combobox.noResults')}

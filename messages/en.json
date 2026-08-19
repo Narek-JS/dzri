@@ -161,7 +161,10 @@
       "photoAlt": "Photo of {title}",
       "photoThumbnailAlt": "Photo {index}",
       "openFullSize": "View full size",
-      "close": "Close"
+      "close": "Close",
+      "previous": "Previous photo",
+      "next": "Next photo",
+      "counter": "{current} / {total}"
     },
     "banner": {
       "pendingReview": {
@@ -218,7 +221,8 @@
   },
   "combobox": {
     "search": "Search…",
-    "noResults": "No matches"
+    "noResults": "No matches",
+    "close": "Close"
   },
   "districts": {
     "yerevan": "Yerevan",

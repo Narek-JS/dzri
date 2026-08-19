@@ -18,13 +18,22 @@ import type { ItemCondition } from '@/db/schema';
 
 /**
  * BottomSheet's own default lower snap point (0.5) leaves the Condition
- * field cut off behind the pinned footer — three fields plus a footer
- * need more of the sheet's height than a couple of nav links do, so this
- * overrides just the lower point rather than the shared default. Measured
- * via Playwright at 375x667: 0.55 is the fraction at which all three
- * fields' bottom edges clear the footer's top edge with a bit to spare.
+ * field cut off — three fields plus a footer need more of the sheet's
+ * height than a couple of nav links do, so this overrides just the lower
+ * point rather than the shared default.
+ *
+ * Was 0.55, measured at 375x667. That measurement did not generalise: on
+ * a 390x664 viewport the Condition field landed at y 614-652 with the
+ * pinned footer starting at 595, i.e. drawn *underneath* the footer and
+ * impossible to tap. Solving `0.9vh - (1 - s)vh - 53px(header) >= 346px
+ * (the three fields plus their padding)` for that viewport gives
+ * s >= 0.70, which is what this now is. Shorter viewports than ~664px
+ * still need a scroll to reach the last field — BottomSheet caps its own
+ * content column to the on-screen part of the sheet, so that scroll
+ * exists and nothing is unreachable at any height; this number is only
+ * about not needing it on a typical phone.
  */
-const SNAP_POINTS = [0.55, 0.9];
+const SNAP_POINTS = [0.7, 0.9];
 
 const CONDITIONS: readonly ItemCondition[] = ['working', 'needs_repair', 'for_parts'];
 const CONDITION_LABEL_KEYS: Record<ItemCondition, string> = {
@@ -123,6 +132,7 @@ function FilterFields({
           id={`${idPrefix}-district`}
           value={values.district}
           onValueChange={(value) => onChange('district', value)}
+          label={t('feed.filters.district.label')}
           searchPlaceholder={t('combobox.search')}
           emptyText={t('combobox.noResults')}
           groups={districtGroups}
@@ -141,6 +151,7 @@ function FilterFields({
           id={`${idPrefix}-category`}
           value={values.category}
           onValueChange={(value) => onChange('category', value)}
+          label={t('feed.filters.category.label')}
           searchPlaceholder={t('combobox.search')}
           emptyText={t('combobox.noResults')}
           groups={categoryGroups}
