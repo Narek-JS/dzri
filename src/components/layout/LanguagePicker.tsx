@@ -54,6 +54,17 @@ function isLocale(value: string): value is Locale {
   return (locales as readonly string[]).includes(value);
 }
 
+/**
+ * BottomSheet's own default (`[0.5, 0.9]`, in BottomSheet.tsx) is sized for
+ * FeedFilters' three fields plus a pinned footer — this sheet is just a
+ * title and one row of three flag cards, which left roughly a third of the
+ * sheet as dead space below the cards. A single, shorter snap point (~30%
+ * less than the default 0.5) fits the actual content instead; there is
+ * nothing here worth dragging up to reveal, so a second, taller point
+ * would only reintroduce the same empty space.
+ */
+const SNAP_POINTS = [0.35];
+
 function LanguageOptions({
   activeLocale,
   onChoose,
@@ -201,7 +212,12 @@ export function LanguagePicker() {
   }
 
   return (
-    <BottomSheet open={open} onOpenChange={handleDismiss} title={t('title')}>
+    <BottomSheet
+      open={open}
+      onOpenChange={handleDismiss}
+      title={t('title')}
+      snapPoints={SNAP_POINTS}
+    >
       <LanguageOptions activeLocale={activeLocale} onChoose={handleChoose} />
     </BottomSheet>
   );
