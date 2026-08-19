@@ -376,7 +376,7 @@ export function Header() {
         </div>
       </div>
 
-      <BottomSheet open={drawerOpen} onOpenChange={setDrawerOpen} title={t('shell.menu')}>
+      <BottomSheet snapPoints={[0.42, 0.9]} open={drawerOpen} onOpenChange={setDrawerOpen} title={t('shell.menu')}>
         <Nav variant="drawer" onNavigate={() => setDrawerOpen(false)} />
 
         <Link
