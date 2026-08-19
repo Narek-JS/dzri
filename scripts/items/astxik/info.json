@@ -1,0 +1,18 @@
+[
+  {
+    "images": ["item-1-image-1.png", "item-1-image-2.png", "item-1-image-3.png"],
+    "title": {
+      "hy": "Փափուկ պահարան-նստարան",
+      "ru": "Мягкий пуф-сундук",
+      "en": "Upholstered storage ottoman"
+    },
+    "description": {
+      "hy": "Երկարավուն փափուկ նստարան՝ պահեստային արկղով ներսում և ապակե տափանման կոճակներով երեսպատմամբ։ Ոտքերը՝ քրոմապատ մետաղյա։ Գործածված է, գործվածքի վրա մաշվածության հետքեր կան, բայց կառուցվածքը ամուր է, կափարիչը լավ է փակվում ու բացվում։",
+      "ru": "Мягкая продолговатая скамья со встроенным ящиком для хранения и стёганой обивкой со стразами-пуговицами. Ножки хромированные металлические. В использованном состоянии — на ткани заметны следы носки, но конструкция крепкая, крышка открывается и закрывается нормально.",
+      "en": "A long upholstered bench with a storage compartment inside and tufted fabric with rhinestone-style buttons. Chrome metal legs. Used condition — the fabric shows wear, but the frame is solid and the lid opens and closes fine."
+    },
+    "category": "Furniture",
+    "district": "Malatia-Sebastia",
+    "condition": "working"
+  }
+]

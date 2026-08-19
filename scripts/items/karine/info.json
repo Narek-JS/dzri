@@ -1,0 +1,39 @@
+[
+  {
+    "images": ["item-1-image-1.png", "item-1-image-2.png", "item-1-image-3.png"],
+    "title": {
+      "hy": "Չորացած հաց՝ պարկերով",
+      "ru": "Сушёный хлеб в мешках",
+      "en": "Dried bread, bagged"
+    },
+    "description": {
+      "hy": "Մի քանի պարկ չորացած հացի կտորներ՝ տարբեր տեսակի (լավաշ, բոքոն, սև հաց)։ Հավաքված է անասունների կերակրման համար։ Հացը չոր է և պահեստավորված, պատրաստ վերցնելու։",
+      "ru": "Несколько мешков сушёных кусков хлеба разного вида (лаваш, булки, чёрный хлеб). Собрано для кормления скота. Хлеб сухой, хранится в мешках, готов к вывозу.",
+      "en": "Several bags of dried bread pieces — different kinds (lavash, rolls, dark bread). Collected for animal feed. The bread is dry and bagged, ready to take."
+    },
+    "category": "Other",
+    "district": "Nor Nork",
+    "condition": "working",
+    "pickupNotes": {
+      "hy": "Մի քանի պարկ է, մեկ այցով վերցնել հնարավոր չէ առանց մեքենայի։",
+      "ru": "Несколько мешков, без машины за один раз не вывезти.",
+      "en": "Several bags — you'll want a vehicle to take them all at once."
+    }
+  },
+  {
+    "images": ["item-2-image-1.png", "item-2-image-2.png", "item-2-image-3.png"],
+    "title": {
+      "hy": "Ալոե վերա, մեծ թուփ",
+      "ru": "Алоэ вера, крупный куст",
+      "en": "Aloe vera, large plant"
+    },
+    "description": {
+      "hy": "Երկու հասունացած ալոե վերայի թուփ, բարձր ցողուններով և մսոտ, փշոտ եզրերով տերևներով։ Առողջ են, մի քանի տերևների ծայրեր փոքր-ինչ չորացած են, ինչը սովորական է այս տեսակի համար։ Աճում են ընդհանուր տնկարանում։",
+      "ru": "Два взрослых куста алоэ вера с высокими стеблями и мясистыми, зубчатыми по краю листьями. Растения здоровые, у нескольких листьев подсохли кончики — это обычное дело для алоэ. Растут в одном горшке.",
+      "en": "Two mature aloe vera plants with tall stems and thick, serrated-edge leaves. Healthy plants — a few leaf tips are slightly dried, which is normal for aloe. Growing together in one pot."
+    },
+    "category": "Plants",
+    "district": "Nor Nork",
+    "condition": "working"
+  }
+]

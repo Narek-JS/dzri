@@ -1,0 +1,55 @@
+[
+  {
+    "images": ["item-1-image-1.png"],
+    "title": {
+      "hy": "Երեք-տեղանոց բազմոց, տուֆթինգով",
+      "ru": "Трёхместный диван с каретной стяжкой",
+      "en": "Tufted three-seat sofa"
+    },
+    "description": {
+      "hy": "Չեսթերֆիլդ տիպի բազմոց՝ գլանաձև թևքերով և կոճակավոր տուֆթինգով երեսպատմամբ։ Կառուցվածքը ամուր է, բայց գործվածքը շատ կեղտոտված է՝ մուգ բծերով, քանի որ պահվել է բաց տարածքում։ Անհրաժեշտ կլինի մաքրում կամ վերաերեսպատում։",
+      "ru": "Диван в стиле честерфилд с валикообразными подлокотниками и стёганой обивкой на пуговицах. Каркас крепкий, но ткань сильно загрязнена тёмными пятнами — диван хранился на улице. Понадобится чистка или новая обивка.",
+      "en": "Chesterfield-style sofa with rolled arms and button-tufted upholstery. The frame is solid, but the fabric is heavily soiled with dark stains from being stored outdoors. Will need cleaning or reupholstering."
+    },
+    "category": "Furniture",
+    "district": "Ajapnyak",
+    "condition": "working",
+    "pickupNotes": {
+      "hy": "Ծանր է, երկու հոգու կպահանջվի տեղափոխման համար։",
+      "ru": "Тяжёлый, для переноски нужны два человека.",
+      "en": "Heavy — you'll need two people to carry it."
+    }
+  },
+  {
+    "images": ["item-2-image-1.png", "item-2-image-2.png"],
+    "title": {
+      "hy": "Երկու համապատասխան բազկաթոռ",
+      "ru": "Два одинаковых кресла",
+      "en": "Matching pair of armchairs"
+    },
+    "description": {
+      "hy": "Երկու միանման բազկաթոռ՝ մանանեխագույն երեսպատմամբ, կլորավուն թևքերով։ Օգտագործված են, գործվածքի վրա փոշի ու մաշվածության հետքեր կան, բայց նստելու համար պիտանի են, հենքը ամուր է։",
+      "ru": "Два одинаковых кресла с горчично-жёлтой обивкой и округлыми подлокотниками. Использовались — на ткани пыль и следы износа, но сидеть удобно, каркас крепкий.",
+      "en": "Two matching armchairs with mustard-yellow upholstery and rounded arms. Used — the fabric has dust and wear marks, but they're still comfortable to sit in and the frames are solid."
+    },
+    "category": "Furniture",
+    "district": "Ajapnyak",
+    "condition": "working"
+  },
+  {
+    "images": ["item-3-image-1.png", "item-3-image-2.png"],
+    "title": {
+      "hy": "Երկտեղանոց բազմոց՝ երկգույն երեսպատմամբ",
+      "ru": "Двухместный диван с двухцветной обивкой",
+      "en": "Two-tone loveseat"
+    },
+    "description": {
+      "hy": "Կարճ, երկտեղանոց բազմոց՝ վարդագույն և բեժ գույների համադրությամբ երեսպատմամբ, թևքերին ու թիկունքին՝ մետաղյա փայլուն եզրագծով։ Կառուցվածքը ամուր է, գործվածքի վրա կեղտի ու մաշվածության հետքեր կան։",
+      "ru": "Небольшой двухместный диван с обивкой в розово-бежевой гамме, с блестящей металлической окантовкой на подлокотниках и спинке. Конструкция крепкая, на ткани есть следы грязи и износа.",
+      "en": "A small two-seat sofa with pink-and-beige two-tone upholstery and a shiny metal trim along the arms and back. Solid frame, with visible dirt and wear on the fabric."
+    },
+    "category": "Furniture",
+    "district": "Ajapnyak",
+    "condition": "working"
+  }
+]

@@ -1,0 +1,39 @@
+[
+  {
+    "images": ["item-1-image-1.png", "item-1-image-2.png"],
+    "title": {
+      "hy": "Մետաղյա ցանցավոր վահանակ",
+      "ru": "Металлическая сетчатая панель",
+      "en": "Expanded metal mesh panel"
+    },
+    "description": {
+      "hy": "Ուղղանկյուն մետաղյա ցանցավոր վահանակ (ընդարձակված մետաղաթիթեղ)՝ շրջանակով։ Մակերեսին ամբողջովին ժանգ կա, բայց կառուցվածքը ամուր է։ Հարմար է որպես ցանկապատի մաս, դարպասի լցոնում կամ պաշտպանիչ ցանց։",
+      "ru": "Прямоугольная металлическая сетчатая панель (просечно-вытяжной лист) в раме. Поверхность полностью покрыта ржавчиной, но конструкция крепкая. Подойдёт как часть забора, заполнение калитки или защитная решётка.",
+      "en": "A rectangular expanded-metal mesh panel in a frame. The surface is fully rusted, but the structure is solid. Works as part of a fence, gate infill, or a protective grille."
+    },
+    "category": "Leftover Building Materials",
+    "district": "Nork-Marash",
+    "condition": "working"
+  },
+  {
+    "images": ["item-2-image-1.png", "item-2-image-2.png", "item-2-image-3.png"],
+    "title": {
+      "hy": "Հին ոտնակով կարի մեքենայի սեղան",
+      "ru": "Старый стол швейной машины с ножным приводом",
+      "en": "Antique treadle sewing machine table"
+    },
+    "description": {
+      "hy": "Փայտյա սեղան՝ ոտնակով աշխատող կարի մեքենայի ձուլածո երկաթե հենքով և երկու կողքի դարակով։ Փայտը մուգ է ու փոշոտված, պահվել է դրսում՝ խճաքարերի վրա։ Ոտնակի կաշվե փոխանցող գոտին քայքայված ու անջատված է։ Կարի մեքենայի գլուխը փակ վիճակում է, նկարներից երևում է միայն սեղանն ու ոտնակի մեխանիզմը։",
+      "ru": "Деревянный стол швейной машины с ножным приводом на чугунной станине, с двумя боковыми ящиками. Дерево тёмное и пыльное, стол хранился на улице на щебне. Кожаный приводной ремень изношен и отсоединён. Голова швейной машины закрыта — на фото виден только стол и механизм привода.",
+      "en": "A wooden sewing table with a cast-iron treadle base and two side drawers. The wood is dark and dusty from being stored outside on gravel. The leather drive belt is worn and disconnected. The sewing machine head is closed — the photos show only the table and treadle mechanism."
+    },
+    "category": "Sewing Machines",
+    "district": "Nork-Marash",
+    "condition": "needs_repair",
+    "pickupNotes": {
+      "hy": "Ծանր է, տեղափոխման համար պետք է օգնական։",
+      "ru": "Тяжёлый, для переноски нужен помощник.",
+      "en": "Heavy — bring help to carry it."
+    }
+  }
+]

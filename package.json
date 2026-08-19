@@ -18,7 +18,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx --env-file-if-exists=.env.local --env-file-if-exists=.env src/db/seed.ts",
     "db:make-admin": "tsx --env-file-if-exists=.env.local --env-file-if-exists=.env src/db/makeAdmin.ts",
-    "db:seed-friends": "tsx --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/seed-friends.ts"
+    "db:seed-friends": "tsx --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/seed-friends.ts",
+    "db:seed-items": "tsx --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/seed-items.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1100.0",
@@ -38,6 +39,7 @@
     "next-intl": "^4.13.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "sharp": "^0.34.5",
     "vaul": "^1.1.2",
     "zod": "^4.4.3"
   },
