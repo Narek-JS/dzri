@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { requireUser } from '@/lib/auth/session';
 import { apiError } from '@/lib/http';
 import { approveClaim } from '@/lib/claims/transitions';
+import { sendPushToUser } from '@/lib/push';
 
 /**
  * POST /api/claims/[id]/approve — the giver picks this person.
@@ -40,6 +41,23 @@ export async function POST(
   const result = await approveClaim(id, user.id);
   if (!result.ok) {
     return apiError(result.code);
+  }
+
+  // Never lets a push failure change this response — sendPushToUser already
+  // swallows its own errors, but the try/catch is the belt to that suspenders
+  // in case a future edit there ever changes that contract.
+  try {
+    // No per-user locale stored yet, so Armenian-only copy is an explicit
+    // simplification for this pass (see the push-notifications prompt).
+    await sendPushToUser(result.claimantId, {
+      title: result.itemTitleHy
+        ? `«${result.itemTitleHy}»-ը ամրագրված է ձեզ համար`
+        : 'Ամրագրված է ձեզ համար',
+      body: 'Հայտատուն ընտրել է ձեզ։ Հեռախոսահամարը հասանելի է ձեր հայտերի էջում։',
+      data: { url: '/my/claims' },
+    });
+  } catch (error) {
+    console.error('Failed to send claim-approved push notification', error);
   }
 
   return NextResponse.json(

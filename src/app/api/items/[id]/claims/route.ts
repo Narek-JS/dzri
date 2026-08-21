@@ -6,6 +6,7 @@ import { requireUser } from '@/lib/auth/session';
 import { apiError, readJson } from '@/lib/http';
 import { MAX_CLAIM_MESSAGE_LENGTH, createClaim } from '@/lib/claims/create';
 import { getClaimsForOwner } from '@/lib/claims/forOwner';
+import { sendPushToUser } from '@/lib/push';
 import {
   claimCreatePerIp,
   claimCreatePerUser,
@@ -75,6 +76,23 @@ export async function POST(
   const result = await createClaim({ itemId: id, userId: user.id, message });
   if (!result.ok) {
     return apiError(result.code);
+  }
+
+  // Never lets a push failure change this response — sendPushToUser already
+  // swallows its own errors, but the try/catch is the belt to that suspenders
+  // in case a future edit there ever changes that contract.
+  try {
+    // No per-user locale stored yet, so Armenian-only copy is an explicit
+    // simplification for this pass (see the push-notifications prompt).
+    await sendPushToUser(result.itemOwnerId, {
+      title: 'Նոր հայտ',
+      body: result.itemTitleHy
+        ? `«${result.itemTitleHy}»-ի համար նոր հայտ կա։`
+        : 'Ձեր իրի համար նոր հայտ կա։',
+      data: { url: `/items/${id}/claims` },
+    });
+  } catch (error) {
+    console.error('Failed to send claim-created push notification', error);
   }
 
   return NextResponse.json(

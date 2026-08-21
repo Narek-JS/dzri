@@ -148,6 +148,19 @@ const CLAIM_CREATE_PER_IP: LimiterSpec = {
 };
 
 /**
+ * Push registration isn't on CLAUDE.md's required list, but every other
+ * authenticated write endpoint in this codebase is limited, so this matches
+ * that pattern. A modest budget: a device re-registers its token on every
+ * app open, not on every request.
+ */
+const PUSH_REGISTER_PER_USER: LimiterSpec = {
+  prefix: 'push:register:user',
+  tokens: 20,
+  window: '1 h',
+  windowMs: 60 * 60 * 1000,
+};
+
+/**
  * The public feed is anonymous and indexable, so its only budget is per-IP.
  * Set high on purpose (DECISIONS.md-style reasoning in the route): a stranger
  * off a TikTok link scrolling the feed must never be throttled, while a script
@@ -237,6 +250,7 @@ export const itemCreatePerIp = (): Limiter => getLimiter(ITEM_CREATE_PER_IP);
 export const claimCreatePerUser = (): Limiter => getLimiter(CLAIM_CREATE_PER_USER);
 export const claimCreatePerIp = (): Limiter => getLimiter(CLAIM_CREATE_PER_IP);
 export const feedPerIp = (): Limiter => getLimiter(FEED_PER_IP);
+export const pushRegisterPerUser = (): Limiter => getLimiter(PUSH_REGISTER_PER_USER);
 
 /**
  * Vercel sets `x-forwarded-for`; the left-most entry is the client. The

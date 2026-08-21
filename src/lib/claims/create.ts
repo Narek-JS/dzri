@@ -16,7 +16,8 @@ export type CreateClaimInput = {
 export type CreateClaimErrorCode = 'ITEM_NOT_FOUND' | 'CANNOT_CLAIM_OWN_ITEM' | 'ALREADY_CLAIMED';
 
 export type CreateClaimResult =
-  { ok: true; id: string } | { ok: false; code: CreateClaimErrorCode };
+  | { ok: true; id: string; itemOwnerId: string; itemTitleHy: string | null }
+  | { ok: false; code: CreateClaimErrorCode };
 
 /**
  * Postgres unique-violation SQLSTATE. Drizzle wraps the driver error in a
@@ -55,7 +56,7 @@ function isUniqueViolation(error: unknown): boolean {
  */
 export async function createClaim(input: CreateClaimInput): Promise<CreateClaimResult> {
   const [item] = await db
-    .select({ userId: items.userId })
+    .select({ userId: items.userId, titleHy: items.titleHy })
     .from(items)
     .where(
       and(eq(items.id, input.itemId), eq(items.status, 'active'), gt(items.expiresAt, sql`now()`)),
@@ -75,7 +76,7 @@ export async function createClaim(input: CreateClaimInput): Promise<CreateClaimR
       .values({ itemId: input.itemId, userId: input.userId, message: input.message })
       .returning({ id: claims.id });
 
-    return { ok: true, id: created.id };
+    return { ok: true, id: created.id, itemOwnerId: item.userId, itemTitleHy: item.titleHy };
   } catch (error) {
     if (isUniqueViolation(error)) {
       return { ok: false, code: 'ALREADY_CLAIMED' };

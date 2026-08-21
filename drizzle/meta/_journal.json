@@ -50,6 +50,13 @@
       "when": 1787076056543,
       "tag": "0006_add_pickup_notes_locales",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787300609404,
+      "tag": "0007_lumpy_unus",
+      "breakpoints": true
     }
   ]
 }

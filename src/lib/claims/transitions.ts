@@ -33,7 +33,15 @@ export type ClaimActionErrorCode = 'CLAIM_NOT_FOUND' | 'INVALID_STATUS_TRANSITIO
 export type ClaimActionResult = { ok: true } | { ok: false; code: ClaimActionErrorCode };
 
 export type ApproveClaimResult =
-  | { ok: true; reservedUntil: Date; giverPhone: string; claimantPhone: string }
+  | {
+      ok: true;
+      reservedUntil: Date;
+      giverPhone: string;
+      claimantPhone: string;
+      claimantId: string;
+      itemId: string;
+      itemTitleHy: string | null;
+    }
   | { ok: false; code: ClaimActionErrorCode };
 
 /**
@@ -45,6 +53,7 @@ type ClaimContext = {
   status: ClaimStatus;
   claimantId: string;
   itemId: string;
+  itemTitleHy: string | null;
   ownerId: string;
 };
 
@@ -54,6 +63,7 @@ async function loadClaim(claimId: string): Promise<ClaimContext | null> {
       status: claims.status,
       claimantId: claims.userId,
       itemId: items.id,
+      itemTitleHy: items.titleHy,
       ownerId: items.userId,
     })
     .from(claims)
@@ -196,6 +206,9 @@ export async function approveClaim(claimId: string, actorId: string): Promise<Ap
     reservedUntil,
     giverPhone: phones.giver,
     claimantPhone: phones.claimant,
+    claimantId: claim.claimantId,
+    itemId: claim.itemId,
+    itemTitleHy: claim.itemTitleHy,
   };
 }
 
