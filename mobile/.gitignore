@@ -1,5 +1,9 @@
 node_modules/
 
+# Unused PWA output from `npx @capacitor/assets generate`
+icons/
+www/manifest.json
+
 # iOS build artifacts (the Xcode project itself is tracked)
 ios/App/Pods/
 ios/App/build/
