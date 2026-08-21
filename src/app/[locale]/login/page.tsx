@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/Label';
 import { useRouter } from '@/i18n/navigation';
 import { ApiClientError, api, apiErrorMessageKey } from '@/lib/api/client';
 import { MAX_PHONE_INPUT_LENGTH } from '@/lib/phone';
+import { registerDevice } from '@/lib/push/registerDevice';
 import { resolveSafeNext } from '@/lib/safeNext';
 
 import type { ApiErrorCode } from '@/lib/http';
@@ -90,6 +91,11 @@ export default function LoginPage() {
    * the destination page until a full reload.
    */
   function completeSignIn() {
+    // Only ever called after a successful verify, so this is the one place
+    // in the app that both knows a session now exists and runs exactly
+    // once per sign-in — the earlier "ask for login lazily" principle
+    // (API.md) applies just as much to push permission.
+    registerDevice();
     router.push(safeNext);
     router.refresh();
   }

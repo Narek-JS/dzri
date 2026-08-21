@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "992993542405",
+    "project_id": "dzri-80bec",
+    "storage_bucket": "dzri-80bec.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:992993542405:android:a622c7903f88835dd6b76c",
+        "android_client_info": {
+          "package_name": "com.dzri.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFLNan6_Ovq7Z7EqyO9g1PAGg7gtLKZSg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
