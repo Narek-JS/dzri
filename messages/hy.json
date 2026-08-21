@@ -4,7 +4,8 @@
     "menu": "Ընտրացանկ",
     "bio": "Անվճար իրեր Հայաստանում։ Տեղադրիր այն, ինչ քեզ պետք չէ։ Վերցրու այն, ինչ պետք է։ dzri.am",
     "footer": {
-      "tagline": "Իրեր, որ այլևս պետք չեն, նրանց, ում պետք են։"
+      "tagline": "Իրեր, որ այլևս պետք չեն, նրանց, ում պետք են։",
+      "privacyLink": "Գաղտնիության քաղաքականություն"
     }
   },
   "languageSwitcher": {
@@ -66,7 +67,8 @@
     "myClaims": "Իմ հայտերը",
     "itemClaims": "Հայտեր այս իրի համար",
     "admin": "Ադմին",
-    "login": "Մուտք"
+    "login": "Մուտք",
+    "privacy": "Գաղտնիության քաղաքականություն"
   },
   "notFound": {
     "title": "Չգտնվեց",
@@ -462,5 +464,47 @@
     },
     "loadMore": "Բեռնել ավելին",
     "loadingMore": "Բեռնվում է…"
+  },
+  "privacy": {
+    "lastUpdated": "Վերջին թարմացում. [to be filled: last updated date]",
+    "intro": "dzri-ն (dzri.am) անվճար իրերի փոխանակման հարթակ է Հայաստանում։ Այս էջը բացատրում է ինչ տվյալներ ենք հավաքում, ինչու, ու ինչպես ենք դրանք պաշտպանում։",
+    "collect": {
+      "heading": "Ինչ ենք հավաքում",
+      "phone": "Հեռախոսահամար (հաշվի ստեղծման ու մուտքի համար — no email, no password)",
+      "profile": "Ցուցադրվող անուն, avatar (ընտրովի)",
+      "district": "Թաղամաս (միայն district-level, ոչ ճշգրիտ location)",
+      "items": "Տեղադրած իրերի տվյալներ (անուն, նկարագրություն, նկարներ, վիճակ, վերցնելու նշումներ)",
+      "claims": "Հայտերի հաղորդագրություններ",
+      "pushToken": "Push notification token (եթե mobile app-ն ես տեղադրել)"
+    },
+    "phoneProtection": {
+      "heading": "Հեռախոսահամարի պաշտպանություն",
+      "body": "Հեռախոսահամարը երևում է մյուս կողմին միայն այն դեպքում, երբ հայտատուն ընտրված է հայտադրողի կողմից։ Ոչ մի endpoint չի բացահայտում հեռախոսահամարը այլ դեպքերում։"
+    },
+    "thirdParties": {
+      "heading": "Երրորդ կողմի ծառայություններ",
+      "messaggio": "Messaggio — SMS կոդերի առաքում",
+      "r2": "Cloudflare R2 — նկարների պահպանում",
+      "neon": "Neon — database hosting",
+      "vercel": "Vercel — application hosting",
+      "firebase": "Firebase (Google) — push notifications",
+      "resend": "Resend — email (միայն admin-ի moderation digest-ի համար, ոչ users-ի)"
+    },
+    "retention": {
+      "heading": "Պահպանման ժամկետ",
+      "body": "OTP կոդերը ջնջվում են 24 ժամ expire-վելուց հետո։ Իրերը expire են 30 օր հետո։ Հաշվի տվյալները պահվում են այնքան, որքան հաշիվը ակտիվ է։"
+    },
+    "rights": {
+      "heading": "Ձեր իրավունքները",
+      "body": "Կարող եք հարցնել ձեր տվյալների ջնջում՝ գրելով [to be filled: contact email]-ին։"
+    },
+    "cookies": {
+      "heading": "Cookies",
+      "body": "Օգտագործում ենք միայն մեկ session cookie (dzri_session), ոչ մի third-party advertising/tracking cookie։"
+    },
+    "children": {
+      "heading": "Երեխաներ",
+      "body": "dzri-ն նախատեսված չէ երեխաների համար։"
+    }
   }
 }

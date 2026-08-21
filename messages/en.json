@@ -4,7 +4,8 @@
     "menu": "Menu",
     "bio": "Free items in Armenia. Post what you don't need. Take what you need. dzri.am",
     "footer": {
-      "tagline": "Items nobody needs anymore, for whoever needs them."
+      "tagline": "Items nobody needs anymore, for whoever needs them.",
+      "privacyLink": "Privacy policy"
     }
   },
   "languageSwitcher": {
@@ -66,7 +67,8 @@
     "myClaims": "My claims",
     "itemClaims": "Claims on this item",
     "admin": "Admin",
-    "login": "Log in"
+    "login": "Log in",
+    "privacy": "Privacy policy"
   },
   "notFound": {
     "title": "Not found",
@@ -459,5 +461,47 @@
     },
     "loadMore": "Load more",
     "loadingMore": "Loading…"
+  },
+  "privacy": {
+    "lastUpdated": "Last updated: [to be filled: last updated date]",
+    "intro": "dzri (dzri.am) is a free item-swap platform in Armenia. This page explains what data we collect, why, and how we protect it.",
+    "collect": {
+      "heading": "What we collect",
+      "phone": "Phone number (for creating an account and signing in — no email, no password)",
+      "profile": "Display name, avatar (optional)",
+      "district": "District (district-level only, not a precise location)",
+      "items": "Details of items you post (title, description, photos, condition, pickup notes)",
+      "claims": "Claim messages",
+      "pushToken": "Push notification token (if you installed the mobile app)"
+    },
+    "phoneProtection": {
+      "heading": "Phone number protection",
+      "body": "Your phone number is shown to the other party only once the giver has selected that claim. No endpoint reveals a phone number in any other case."
+    },
+    "thirdParties": {
+      "heading": "Third-party services",
+      "messaggio": "Messaggio — SMS code delivery",
+      "r2": "Cloudflare R2 — photo storage",
+      "neon": "Neon — database hosting",
+      "vercel": "Vercel — application hosting",
+      "firebase": "Firebase (Google) — push notifications",
+      "resend": "Resend — email (only for the admin moderation digest, never for users)"
+    },
+    "retention": {
+      "heading": "Retention",
+      "body": "OTP codes are deleted 24 hours after they expire. Items expire after 30 days. Account data is kept for as long as the account stays active."
+    },
+    "rights": {
+      "heading": "Your rights",
+      "body": "You can request deletion of your data by writing to [to be filled: contact email]."
+    },
+    "cookies": {
+      "heading": "Cookies",
+      "body": "We use exactly one session cookie (dzri_session), and no third-party advertising or tracking cookies."
+    },
+    "children": {
+      "heading": "Children",
+      "body": "dzri is not intended for children."
+    }
   }
 }
