@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">dzri</string>
+    <string name="title_activity_main">dzri</string>
+    <string name="package_name">com.dzri.app</string>
+    <string name="custom_url_scheme">com.dzri.app</string>
+</resources>

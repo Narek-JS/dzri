@@ -1,0 +1,19 @@
+node_modules/
+
+# iOS build artifacts (the Xcode project itself is tracked)
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/
+ios/App/App/public/
+
+# Android build artifacts (the Gradle project itself is tracked)
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/captures/
+
+.DS_Store
