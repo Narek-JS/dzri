@@ -1079,3 +1079,49 @@ translation to recover for their other two locales — duplicates that same
 text into the other two rather than leaving them unable to satisfy a
 constraint they legitimately satisfied a moment before, the same reasoning
 `0004_wild_bishop` used backfilling title/description.
+
+### 2026-08-25 — Giver phone made public on the item detail page; the 2026-07-31 "hidden until approved" decision reverses for this one endpoint
+
+`GET /api/items/[id]` now always includes `giver.phone`, for any caller
+who reaches the response at all — a public viewer of an `active` item,
+the owner, or an approved/completed claimant. This is a deliberate
+interim step ahead of a planned simpler contact flow, not a change of
+mind about privacy in general: claim → wait for approval → get a number
+turned out to be more round trip than this transaction needs, and the
+2026-07-31 entry's own reasoning ("people want to know who is coming")
+was always about a name, not about withholding a phone number
+specifically. The item detail page now shows the number with a `tel:`
+link and no longer renders "I want this."
+
+Nothing else about phone handling changed. The feed
+(`GET /api/items`) still carries no user info at all — this was never in
+scope, on purpose, since a phone number sitting in a paginated public
+list is a different exposure than one behind a single detail fetch. The
+other three phone-bearing endpoints — `POST /api/claims/[id]/approve`,
+`GET /api/items/[id]/claims`, `GET /api/claims/mine` — are untouched and
+still gate on an approved claim through the status-guarded `CASE` the
+2026-08-07 entry describes. `GET /api/items/[id]` doesn't use that
+`CASE` at all: `src/lib/items/visibility.ts` now selects `users.phone`
+unconditionally (still an explicit column, joined on `items.userId`,
+never a whole-row `select()` — CLAUDE.md Rule 1), because there is no
+status left to guard on here — the function already refuses anyone who
+isn't the public, the owner, or an entitled claimant before phone is
+ever read.
+
+The claim/approve/reject system — every route under
+`/api/items/[id]/claims` and `/api/claims/[id]/*`, `GET /api/claims/mine`,
+and the owner's decision page at `/items/[id]/claims` — is fully live and
+untouched. Only the item detail page stopped linking to it: the "I want
+this" form and the owner's "View claims" banner are both gone from that
+one page. The owner's route to their decision queue still exists, from
+`/my/items` (`MyItemRow`), so the queue does not go dark, and nothing
+about approving, rejecting, completing or no-showing a claim changed
+behaviorally. Reversing this again means restoring two small UI pieces
+on one page — no data migration in either direction, and the backend was
+never in question.
+
+`items.integration.test.ts`'s phone-privacy suite is updated to match:
+it now asserts `giver.phone` is present on the detail endpoint for a
+public viewer, the owner, and an approved/completed claimant, and that
+the feed still carries none. `claims.integration.test.ts` needed no
+change — none of the endpoints it covers moved.

@@ -2,55 +2,20 @@ import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/serve
 import { notFound } from 'next/navigation';
 
 import { containerClassName } from '@/components/ui/Container';
-import { noticeClassName, Notice } from '@/components/ui/Notice';
-import { Link } from '@/i18n/navigation';
+import { Notice } from '@/components/ui/Notice';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { getSession } from '@/lib/auth/session';
 import { getItemForViewer } from '@/lib/items/visibility';
 import { resolveLocalizedText } from '@/lib/items/localizedText';
 
-import type { ItemCondition, ItemStatus } from '@/db/schema';
+import type { ItemCondition } from '@/db/schema';
 
-import { ClaimButton } from './ClaimButton';
 import { ItemGallery } from './ItemGallery';
 
 const CONDITION_LABEL_KEYS: Record<ItemCondition, string> = {
   working: 'createItem.condition.working',
   needs_repair: 'createItem.condition.needsRepair',
   for_parts: 'createItem.condition.forParts',
-};
-
-/**
- * The owner's route to `/items/[id]/claims` — the only place either phone
- * number is ever shown, so it must be reachable from every status that
- * could actually carry a claim. A claim can only ever be *created* while
- * `status = 'active'` (`createClaim`'s own guard), so `draft`,
- * `pending_review` and `rejected` are excluded on purpose: an item that has
- * never been active cannot have a claim on it, and a link to a page that is
- * guaranteed empty is clutter, not a safety net. `active`, `reserved`,
- * `given`, `expired` and `removed` can all have been active at some point,
- * so all five are covered — including the terminal ones, since claim
- * history (who was auto-rejected, who no-showed) doesn't stop being real
- * just because the listing itself is done.
- *
- * The wording changes with what's actually true on the other side of the
- * link: `active` still says "View claims" (a live decision queue);
- * `reserved` says "View pickup details" — a claim is already approved and
- * that link is the *only* route to the live handover (both phone numbers,
- * the 48-hour countdown), which is exactly the bug this fixes; everything
- * terminal (`given`, `expired`, `removed`) says "View claim history",
- * since there is nothing left to decide, only a record of what happened.
- * `reserved` alone gets the brand-tint treatment `ClaimsBoard`'s own
- * handover view uses, so the one status with a time-sensitive action
- * waiting reads as more urgent than a plain look-back — text and color
- * together, never color alone.
- */
-const CLAIMS_LINK_BY_STATUS: Partial<Record<ItemStatus, { key: string; highlight: boolean }>> = {
-  active: { key: 'itemDetail.banner.claimsLink.active', highlight: false },
-  reserved: { key: 'itemDetail.banner.claimsLink.reserved', highlight: true },
-  given: { key: 'itemDetail.banner.claimsLink.history', highlight: false },
-  expired: { key: 'itemDetail.banner.claimsLink.history', highlight: false },
-  removed: { key: 'itemDetail.banner.claimsLink.history', highlight: false },
 };
 
 type LocalizedRef = { nameHy: string; nameRu: string; nameEn: string };
@@ -110,7 +75,7 @@ function CheckIcon() {
   );
 }
 
-function ListIcon() {
+function PhoneIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -120,8 +85,11 @@ function ListIcon() {
       aria-hidden="true"
       className="h-5 w-5 shrink-0"
     >
-      <path d="M8 6h12M8 12h12M8 18h12" strokeLinecap="round" />
-      <path d="M4 6h.01M4 12h.01M4 18h.01" strokeLinecap="round" />
+      <path
+        d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 13l5 2v3a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -130,9 +98,15 @@ function ListIcon() {
  * Item detail: the page a shared link lands on. Server component — reads
  * the session, asks `getItemForViewer` (src/lib/items/visibility.ts, the
  * same function `GET /api/items/[id]` calls) who may see this item, and
- * renders `notFound()` when it refuses. Browsing this page needs no
- * account (CLAUDE.md Rule 4) — only the claim button gates on a session,
- * and only at the moment it is pressed.
+ * renders `notFound()` when it refuses. Browsing this page needs no account
+ * (CLAUDE.md Rule 4).
+ *
+ * The giver's phone is shown to whoever the page renders for at all — the
+ * visibility check above already decided that (a public viewer of an
+ * `active` item, the owner, or an approved/completed claimant), so there is
+ * no second gate here. DECISIONS.md, 2026-08-25, records why this replaced
+ * the claim-then-reveal flow the claims system (still live, just no longer
+ * linked from this page) was built around.
  */
 export default async function ItemDetailPage({
   params,
@@ -149,8 +123,7 @@ export default async function ItemDetailPage({
     notFound();
   }
 
-  const { item, isOwner, isEntitledClaimant, isPrivateView } = view;
-  const claimsLink = isOwner ? CLAIMS_LINK_BY_STATUS[item.status] : undefined;
+  const { item, isOwner, isEntitledClaimant } = view;
 
   const [t, format] = await Promise.all([getTranslations(), getFormatter()]);
 
@@ -206,29 +179,6 @@ export default async function ItemDetailPage({
         </Notice>
       )}
 
-      {claimsLink && (
-        <Link
-          href={`/items/${item.id}/claims`}
-          className={
-            claimsLink.highlight
-              ? noticeClassName({
-                  tone: 'brand',
-                  className: 'flex items-center gap-3 text-brand-strong hover:opacity-90',
-                })
-              : noticeClassName({
-                  tone: 'neutral',
-                  className:
-                    'flex items-center gap-3 text-neutral-700 hover:border-brand-strong hover:text-brand-strong',
-                })
-          }
-        >
-          <ListIcon />
-          <span className="text-sm font-medium">
-            {t(claimsLink.key as Parameters<typeof t>[0])}
-          </span>
-        </Link>
-      )}
-
       {isEntitledClaimant && (
         <Notice tone="brand" className="flex items-center gap-3 text-brand-strong">
           <CheckIcon />
@@ -265,7 +215,15 @@ export default async function ItemDetailPage({
         {t('itemDetail.postedBy', { name: item.giver.displayName, date: postedAt })}
       </p>
 
-      {!isPrivateView && <ClaimButton itemId={item.id} />}
+      <Notice tone="subtle" className="flex items-center gap-3 text-neutral-900">
+        <PhoneIcon />
+        <div className="flex flex-col">
+          <span className="text-sm text-neutral-600">{t('itemDetail.contact.label')}</span>
+          <a href={`tel:${item.giver.phone}`} className="text-lg font-semibold hover:underline">
+            {item.giver.phone}
+          </a>
+        </div>
+      </Notice>
     </main>
   );
 }

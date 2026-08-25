@@ -29,8 +29,10 @@ const PRIVATE_CACHE = 'no-store, private';
  *
  * `rejectionReason` and `ownerId`, which the shared function returns for a
  * caller that needs them, are deliberately left off this response — no
- * behaviour change from before the extraction. The phone is never selected
- * by the shared query for anyone (CLAUDE.md Rule 1).
+ * behaviour change from before the extraction. `giver.phone` rides along in
+ * `item.giver` unchanged from what the shared query returns — see
+ * DECISIONS.md, 2026-08-25, for why this endpoint always includes it while
+ * the other three phone-bearing endpoints stay gated on an approved claim.
  */
 export async function GET(
   _request: Request,

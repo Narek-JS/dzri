@@ -176,11 +176,6 @@
       "rejected": {
         "title": "Listing rejected"
       },
-      "claimsLink": {
-        "active": "View claims",
-        "reserved": "View pickup details",
-        "history": "View claim history"
-      },
       "reservedForYou": {
         "title": "Reserved for you",
         "description": "The giver picked you. Their number is on your claims page."
@@ -188,21 +183,7 @@
     },
     "pickupNotes": { "label": "Pickup notes" },
     "postedBy": "Posted by {name} · {date}",
-    "claim": {
-      "message": {
-        "label": "Message (optional)",
-        "placeholder": "Say when you can come by"
-      },
-      "submit": "I want this",
-      "success": {
-        "title": "Claim sent",
-        "description": "The giver decides who gets it. Numbers are exchanged only if they pick you."
-      },
-      "alreadyClaimed": {
-        "title": "Already asked",
-        "description": "You already asked for this item. The giver decides who gets it."
-      }
-    }
+    "contact": { "label": "Phone number" }
   },
   "common": {
     "pendingClaimCount": "{count, plural, one {# pending claim} other {# pending claims}}",

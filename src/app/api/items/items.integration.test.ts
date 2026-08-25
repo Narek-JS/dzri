@@ -50,7 +50,7 @@ type MineResponse = { items: MineItem[]; nextCursor: string | null };
 // typing lets those ride along untyped.
 type FeedItem = { id: string; createdAt: string };
 type FeedResponse = { items: FeedItem[]; nextCursor: string | null };
-type DetailResponse = { item: { id: string; status: string } };
+type DetailResponse = { item: { id: string; status: string; giver: { phone: string } } };
 
 type ApiErrorBody = { error: { code: string; message: string } };
 
@@ -214,6 +214,19 @@ describe.skipIf(!hasDatabase)('items API', () => {
     expect(response.text).not.toContain(phone); // +37477123456
     expect(response.text).not.toContain(phone.slice(1)); // 37477123456
     expect(response.text).not.toContain(phone.slice(4)); // 77123456
+  }
+
+  /**
+   * A specific phone number's value must not appear, in any form. Unlike
+   * `expectNoPhone`, this doesn't check for the word "phone" itself — for
+   * `GET /api/items/[id]` the response legitimately carries a `phone` key
+   * for the giver (DECISIONS.md, 2026-08-25); this asserts a *different*
+   * person's number never rides along with it.
+   */
+  function expectPhoneValueAbsent(text: string, phone: string): void {
+    expect(text).not.toContain(phone);
+    expect(text).not.toContain(phone.slice(1));
+    expect(text).not.toContain(phone.slice(4));
   }
 
   /** Signs a fresh user in and returns their cookie, id and phone. */
@@ -963,8 +976,8 @@ describe.skipIf(!hasDatabase)('items API', () => {
   });
 
   describe('GET /api/items/[id]', () => {
-    it('returns 200 to an anonymous caller for an active item', async () => {
-      const { userId } = await signIn();
+    it('returns 200 to an anonymous caller for an active item, including the giver phone', async () => {
+      const { userId, phone } = await signIn();
       const id = await seedItem(userId, 'active');
 
       const response = await api(`/api/items/${id}`);
@@ -973,6 +986,8 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const item = parse<DetailResponse>(response.text).item;
       expect(item.id).toBe(id);
       expect(item.status).toBe('active');
+      // DECISIONS.md, 2026-08-25: public on this endpoint now.
+      expect(item.giver.phone).toBe(phone);
     });
 
     it('returns 404 ITEM_NOT_FOUND to an anonymous caller for a pending_review item', async () => {
@@ -984,7 +999,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
       expect(parse<ApiErrorBody>(response.text).error.code).toBe('ITEM_NOT_FOUND');
     });
 
-    it('returns 200 for a pending_review item to its owner', async () => {
+    it('returns 200 for a pending_review item to its owner, including their own phone', async () => {
       const owner = await signIn();
       const id = await seedItem(owner.userId, 'pending_review');
 
@@ -994,6 +1009,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const item = parse<DetailResponse>(response.text).item;
       expect(item.id).toBe(id);
       expect(item.status).toBe('pending_review');
+      expect(item.giver.phone).toBe(owner.phone);
     });
 
     it('returns 404 for a malformed uuid in the path', async () => {
@@ -1033,7 +1049,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
       return { itemId, claimId };
     }
 
-    it('returns 200 to the approved claimant for a reserved item', async () => {
+    it('returns 200 to the approved claimant for a reserved item, including the giver phone', async () => {
       const owner = await signIn();
       const claimant = await signIn();
       const { itemId } = await reserveFor(owner, claimant);
@@ -1045,6 +1061,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
       expect(item.id).toBe(itemId);
       // The UI renders "reserved for you" off this.
       expect(item.status).toBe('reserved');
+      expect(item.giver.phone).toBe(owner.phone);
     });
 
     it('returns 404 to a rejected claimant on the same reserved item', async () => {
@@ -1098,7 +1115,7 @@ describe.skipIf(!hasDatabase)('items API', () => {
       expect(afterWithdraw.status, afterWithdraw.text).toBe(404);
     });
 
-    it('keeps access for a completed claim', async () => {
+    it('keeps access for a completed claim, and still includes the giver phone', async () => {
       const owner = await signIn();
       const claimant = await signIn();
       const { itemId, claimId } = await reserveFor(owner, claimant);
@@ -1108,10 +1125,13 @@ describe.skipIf(!hasDatabase)('items API', () => {
 
       const response = await api(`/api/items/${itemId}`, { cookie: claimant.cookie });
       expect(response.status, response.text).toBe(200);
-      expect(parse<DetailResponse>(response.text).item.status).toBe('given');
+
+      const item = parse<DetailResponse>(response.text).item;
+      expect(item.status).toBe('given');
+      expect(item.giver.phone).toBe(owner.phone);
     });
 
-    it('carries no phone key and no public cache header', async () => {
+    it("includes the giver's phone but never the claimant's own number, and stays out of the public cache", async () => {
       const owner = await signIn();
       const claimant = await signIn();
       const { itemId } = await reserveFor(owner, claimant);
@@ -1119,10 +1139,13 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const response = await api(`/api/items/${itemId}`, { cookie: claimant.cookie });
       expect(response.status, response.text).toBe(200);
 
-      // The claimant already has the giver's phone from GET /api/claims/mine.
-      // This must not become a fourth endpoint that carries one.
-      expectNoPhone(response, owner.phone);
-      expectNoPhone(response, claimant.phone);
+      // DECISIONS.md, 2026-08-25: the giver's phone is public on this
+      // endpoint now, for anyone who can view the item at all.
+      expect(parse<DetailResponse>(response.text).item.giver.phone).toBe(owner.phone);
+
+      // The claimant's own number was never part of this response and must
+      // stay that way — this endpoint only ever carries the giver's phone.
+      expectPhoneValueAbsent(response.text, claimant.phone);
 
       // A reserved item is visible to exactly one person; it must never enter
       // a shared cache.
@@ -1409,19 +1432,26 @@ describe.skipIf(!hasDatabase)('items API', () => {
     });
   });
 
-  // The non-negotiable rule (CLAUDE.md): no phone leaves either read endpoint.
+  // The feed never carries a phone (CLAUDE.md); the item detail endpoint
+  // always carries the giver's, for anyone who can view the item at all
+  // (DECISIONS.md, 2026-08-25).
   describe('phone privacy', () => {
-    it('never returns a phone number from the feed or the detail endpoint', async () => {
+    it('never returns a phone number from the feed', async () => {
       const { userId, phone } = await signIn();
-      const id = await seedItem(userId, 'active');
+      await seedItem(userId, 'active');
 
       const feed = await api(`/api/items?district=${districtSlug}`);
       expect(feed.status, feed.text).toBe(200);
       expectNoPhone(feed, phone);
+    });
+
+    it("includes the giver's phone on the item detail endpoint for a public viewer", async () => {
+      const { userId, phone } = await signIn();
+      const id = await seedItem(userId, 'active');
 
       const detail = await api(`/api/items/${id}`);
       expect(detail.status, detail.text).toBe(200);
-      expectNoPhone(detail, phone);
+      expect(parse<DetailResponse>(detail.text).item.giver.phone).toBe(phone);
     });
   });
 });

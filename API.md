@@ -28,11 +28,15 @@ the default.
 Switch on `code`. Never show `message` to a user — all user-facing copy
 is translated on the client. Codes are listed per endpoint below.
 
-**Phone numbers.** A phone number is returned by exactly three endpoints
-— `POST /api/claims/[id]/approve`, `GET /api/items/[id]/claims` and
-`GET /api/claims/mine` — and only for an approved claim. Everywhere else
-the field is absent — not null, absent. Do not write client code that
-expects a `phone` key to exist. See Rule 1 at the end.
+**Phone numbers.** A phone number is returned by four endpoints. Three
+are gated on an approved claim — `POST /api/claims/[id]/approve`,
+`GET /api/items/[id]/claims` and `GET /api/claims/mine` — where the field
+is absent unless the claim status is `approved`. The fourth,
+`GET /api/items/[id]`, is different: `giver.phone` is always present in
+its response, for anyone who can reach the response at all — see that
+endpoint's own section, and DECISIONS.md, 2026-08-25. Everywhere else the
+field is absent — not null, absent. Do not write client code that expects
+a `phone` key to exist unconditionally. See Rule 1 at the end.
 
 **Dates.** ISO 8601 strings in JSON. Cursors are ISO timestamps taken
 from the previous page's `nextCursor`.
@@ -414,14 +418,19 @@ A malformed uuid also returns 404.
     ],
     "district": { "slug": "...", "nameHy": "...", "nameRu": "...", "nameEn": "..." },
     "category": { "slug": "...", "nameHy": "...", "nameRu": "...", "nameEn": "..." },
-    "giver": { "displayName": "Անի", "avatarUrl": null }
+    "giver": { "displayName": "Անի", "avatarUrl": null, "phone": "+37477123456" }
   }
 }
 ```
 
-Never the giver's phone — not for anyone, including the owner and
-including the approved claimant. The claimant gets the number from
-`GET /api/claims/mine`; this is not a fourth phone-bearing endpoint.
+`giver.phone` is always present — for the owner and for an approved or
+completed claimant, the same as for a public viewer. The access rules
+above already decide who gets a response at all (public for an `active`
+item, the owner, an approved/completed claimant), so there is no further
+conditional on the phone itself. See DECISIONS.md, 2026-08-25, for why
+this reverses the earlier "phone hidden until approved" design for this
+one endpoint. `GET /api/claims/mine` still also carries the giver's phone
+once a claim is `approved`; that endpoint's behavior did not change.
 
 `titleHy`/`titleRu`/`titleEn`/`descriptionHy`/`descriptionRu`/`descriptionEn`
 are all six, unresolved — pick one per field for the viewer's locale,
@@ -1157,9 +1166,11 @@ A `429` may carry a `Retry-After` header, in whole seconds.
 
 ## Rules the UI must respect
 
-1. **Never assume a `phone` key exists.** It appears only on an approved
-   claim, and only in `POST /api/claims/[id]/approve`,
-   `GET /api/items/[id]/claims`, and `GET /api/claims/mine`.
+1. **Never assume a `phone` key exists, except on `GET /api/items/[id]`.**
+   On `POST /api/claims/[id]/approve`, `GET /api/items/[id]/claims`, and
+   `GET /api/claims/mine` it appears only on an approved claim.
+   `GET /api/items/[id]` is the exception: `giver.phone` is always present
+   for any caller who can view the item at all.
 
 2. **404 means 404.** Several endpoints return 404 where 403 would be
    natural — non-owner, non-admin, non-active item. That's deliberate.

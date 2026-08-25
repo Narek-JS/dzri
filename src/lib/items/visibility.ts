@@ -23,9 +23,14 @@ export type VisibleItemImage = {
 /**
  * Everything about an item a viewer who may see it at all is allowed to
  * read. `rejectionReason` and `ownerId` are here for a caller that needs
- * them — a route handler or page that is not the owner never renders
- * them — but neither is a phone, which is never selected by this query
- * for anyone (CLAUDE.md Rule 1).
+ * them — a route handler or page that is not the owner never renders them.
+ *
+ * `giver.phone` is selected explicitly, joined from `users` on
+ * `items.userId` (CLAUDE.md Rule 1: never `select()` a whole user row).
+ * Unlike the other three phone-bearing endpoints there is no claim status
+ * to gate it on here — every caller this function returns a result for has
+ * already been decided to be allowed to see the item, phone included. See
+ * DECISIONS.md, 2026-08-25.
  */
 export type VisibleItem = {
   id: string;
@@ -54,7 +59,7 @@ export type VisibleItem = {
   images: VisibleItemImage[];
   district: { slug: string; nameHy: string; nameRu: string; nameEn: string };
   category: { slug: string; nameHy: string; nameRu: string; nameEn: string };
-  giver: { displayName: string; avatarUrl: string | null };
+  giver: { displayName: string; avatarUrl: string | null; phone: string };
   ownerId: string;
 };
 
@@ -133,6 +138,7 @@ export async function getItemForViewer(
       giver: {
         displayName: users.displayName,
         avatarUrl: users.avatarUrl,
+        phone: users.phone,
       },
     })
     .from(items)
