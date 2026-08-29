@@ -1152,3 +1152,42 @@ governs the web app, where the four brand colors exist as Tailwind theme
 tokens. Android resource files have no way to reference a Tailwind token,
 so there is no non-literal way to express this color on that side of the
 repo.
+
+### 2026-08-30 — Release signing reads a gitignored properties file, absolute path on purpose
+
+`mobile/android/app/build.gradle` now has a `release` signingConfig, but the
+keystore itself, `dzri-upload.jks`, is not in the repo and never will be —
+it lives at `~/dzri-keys/` outside the checkout. The four values Gradle
+needs to sign a build (store path, store password, key alias, key password)
+come from `mobile/android/keystore.properties`, which is gitignored, read at
+configure time via a plain `Properties().load(...)`, and never committed.
+`keystore.properties.example` ships instead, with the same four keys and
+`REPLACE_ME` placeholders, so the shape of the file is documented even
+though its contents can't be. The path inside it is absolute rather than
+relative to the repo because the two machines that build this app keep the
+keystore in different places — a relative path would need to be a different
+relative path on each machine, which defeats the point of checking anything
+in at all. If `keystore.properties` is missing, `assembleDebug` still
+works — debug builds don't need it — but `bundleRelease` fails before any
+task runs, with a message pointing at the example file, rather than quietly
+producing an unsigned bundle. The naive version of that check, a `doFirst`
+hook on the `bundleRelease` task itself, does not do this: Gradle had
+already executed `packageReleaseBundle` and `signReleaseBundle` by the time
+`doFirst` ran, so the bundle existed on disk before the "missing key"
+error fired. The check has to live in `gradle.taskGraph.whenReady`, before
+the graph executes anything, to actually prevent the artifact from being
+built.
+
+`dzri-upload.jks` is an upload key, not the app signing key — Play App
+Signing holds the key that actually signs what reaches devices, and only
+ever sees what this upload key re-signs on the way in. Losing this
+keystore, or its passwords, is recoverable through Play Console's key-reset
+support flow; it is not the same failure mode as losing an app's original
+signing key back when Play let apps manage their own, which had no recovery
+path at all.
+
+`versionCode` is a plain integer with nothing in the build deriving it —
+this is version 1, upload 1, `versionCode 1` / `versionName "1.0.0"`. Every
+future Play upload needs that integer incremented by hand before
+`bundleRelease` runs again; Play rejects a re-upload at the same
+`versionCode`, and nothing here will catch the mistake before Play does.
