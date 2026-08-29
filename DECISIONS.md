@@ -1125,3 +1125,30 @@ it now asserts `giver.phone` is present on the detail endpoint for a
 public viewer, the owner, and an approved/completed claimant, and that
 the feed still carries none. `claims.integration.test.ts` needed no
 change — none of the endpoints it covers moved.
+
+### 2026-08-30 — Notification small icon is a white silhouette, tinted brand orange
+
+The Android app now ships `ic_stat_notify` as the FCM default notification
+icon instead of falling back to whatever the OS derives from the launcher
+icon (a grey circle in practice). Android 5.0+ ignores color entirely on a
+notification's small icon: every non-transparent pixel is drawn white, then
+tinted with the notification's accent color. Shipping the full-color logo
+as-is would have rendered as a solid tinted blob, not the palm-and-box mark.
+`mobile/scripts/gen-notification-icon.mjs` generates the five density
+variants from `mobile/assets/logo.svg` by preserving the source alpha
+channel exactly and forcing every pixel's RGB to pure white, so antialiased
+edges stay antialiased instead of being thresholded into jagged edges.
+
+`notification_color` in `colors.xml` is `brand` (`#E8894A`), not
+`brand-strong` (`#B4530F`). This is the same reasoning BRAND.md gives for
+picking `brand-dark` in dark mode: `brand-strong` is tuned for AA text
+contrast against a white background and disappears against a dark
+notification shade, while a tint icon is a large-shape use where the WCAG
+text-contrast rule doesn't apply.
+
+The literal hex in `colors.xml` is a deliberate exception to CLAUDE.md's
+"no raw hex anywhere in the codebase" rule, not an oversight — that rule
+governs the web app, where the four brand colors exist as Tailwind theme
+tokens. Android resource files have no way to reference a Tailwind token,
+so there is no non-literal way to express this color on that side of the
+repo.
