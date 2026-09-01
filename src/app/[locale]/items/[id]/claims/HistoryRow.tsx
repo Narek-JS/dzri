@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 
+import { resolveDisplayName } from '@/lib/displayName';
 import { relativeTimeMessage } from '@/lib/relativeTime';
 
 import type { ClaimForOwner } from '@/lib/api/client';
@@ -34,7 +35,7 @@ export function HistoryRow({ claim, now }: { claim: ClaimForOwner; now: Date }) 
 
   return (
     <li className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-500">
-      <span className="font-medium">{claim.claimant.displayName}</span>
+      <span className="font-medium">{resolveDisplayName(claim.claimant.displayName, t)}</span>
       <span className="text-xs">
         {statusKey && t(statusKey as Parameters<typeof t>[0])}
         {' · '}

@@ -1191,3 +1191,138 @@ this is version 1, upload 1, `versionCode 1` / `versionName "1.0.0"`. Every
 future Play upload needs that integer incremented by hand before
 `bundleRelease` runs again; Play rejects a re-upload at the same
 `versionCode`, and nothing here will catch the mistake before Play does.
+
+### 2026-08-30 — Account deletion is a soft delete, `deleted_at` plus three wiped columns
+
+`DELETE /api/auth/me` (Google Play requires an in-app deletion path for any
+app with account creation) does not delete the `users` row. The reasoning is
+the same one the 2026-08-08 entry gives for items, applying with more force:
+`claims.user_id` cascades, so a hard delete would silently erase every claim
+this person ever made — including completed ones another giver's own history
+still points at — and would quietly revise `user_reliability` for every
+stranger they ever transacted with. A giver tidying up their own listing
+being able to edit a stranger's reliability was already unacceptable at item
+scale; letting *account deletion* do it at person scale would be worse.
+`deleteUser` (`src/lib/users/delete.ts`) instead stamps `deleted_at`, nulls
+`phone` and `avatar_url`, sets `display_name` to the empty string, and drives
+every item and claim this person is a party to through the same transition
+helpers a route handler would use — `removeItem`, `withdrawClaim` — never a
+direct `UPDATE` on `items.status`/`claims.status` (CLAUDE.md).
+
+**`phone` is nulled, not tombstoned.** `users.phone` was `NOT NULL UNIQUE`;
+deletion needed the constraint to give somewhere, and the choice was between
+dropping `NOT NULL` and writing a fake never-reusable string into a column
+that otherwise only ever holds a real E.164 number. Null won for three
+reasons. First, honesty: `GET /api/items/[id]` still answers for a `given`
+item's entitled claimant long after the giver who gave it away is gone (the
+item is terminal and `deleteUser` never touches it), and that response's
+`giver.phone` was typed as a non-null `string` end to end — `VisibleItem` in
+`src/lib/items/visibility.ts`, `ItemDetail` in `src/lib/api/client.ts`, and a
+bare `tel:` link on the detail page. A tombstone string would have kept that
+type honest-looking while making it a lie — a `tel:` link to a number that
+was never anyone's. Null forced the type to `string | null` everywhere it
+actually flows, and the detail page now renders no contact block at all when
+it's absent, which is what "this person is gone" actually means. This is a
+narrowing of the 2026-08-25 entry's "`giver.phone` is always present"
+invariant, not a violation of it — it now holds for every giver who hasn't
+deleted their account, which was always the load-bearing case. Second, Postgres
+treats every `NULL` as distinct from every other under a unique constraint, so
+`UNIQUE` needed no change at all — any number of deleted rows can carry a null
+phone with no conflict. Third, `findUserByPhone`'s `WHERE phone = $1` can never
+match `NULL` against a real string, which is what keeps a fresh sign-in at a
+freed number from ever resolving back to the deleted row — the same property
+a tombstone would have needed a second mechanism to guarantee.
+
+**A banned user cannot reach this endpoint, and that is why nulling the
+phone is safe.** `requireUser()` already refuses a row with `is_banned`
+before this handler's body ever runs, so a banned account can never call
+`DELETE /api/auth/me` to free its own phone number and re-register clean —
+without that gate, nulling `phone` (which unconditionally frees the number,
+by design, for the reason above) would have turned deletion into a ban-evasion
+tool, which a tombstone approach would have shared exactly the same exposure
+to.
+
+**`display_name` becomes the empty string, translated at the edge by
+`resolveDisplayName`** (`src/lib/displayName.ts`), never a name baked into
+one language in the database (CLAUDE.md). The first choice was a null byte,
+picked because it is as unreachable as empty through the 2–50 char validated
+signup input (`DISPLAY_NAME_MIN_LENGTH`) — it doesn't work: Postgres rejects
+`0x00` in a `text` column outright, so the `UPDATE` fails at runtime rather
+than at review time. Empty string stores fine and is equally unreachable.
+`resolveDisplayName` is applied only where a deleted counterpart's name is
+actually reachable. `GivenView` and `HistoryRow` render only terminal claim
+statuses (`completed`, `rejected`, `withdrawn`, `no_show`), all of which
+outlive deletion; the item detail page's `postedBy` line has the same
+property for a `given` item. `MyClaimRow` renders every status through one
+shared layout — `pending`/`approved` can never belong to a deleted giver
+there either, for the same reason as `PendingClaimRow` below, but splitting
+the render path just to skip an unreachable case for two of six statuses
+would be more code than the resolver call it avoids, so it wraps
+unconditionally. It is deliberately *not* applied at all in `PendingClaimRow`
+or `HandoverView`: both only
+ever render a `pending` or `approved` claim on the giver's own item, and
+`deleteUser` withdraws exactly those two statuses for the deleting user in
+the same call that wipes their name — so a claimant showing up in either
+view can never already be deleted. Wrapping them anyway would have been
+defensive code for a state that cannot occur (CLAUDE.md). The admin pending
+queue (`PendingItemCard`) is skipped for the identical reason on the giver
+side: `pending_review` is one of `REMOVABLE_STATUSES`, so a pending item's
+giver is never a deleted user either.
+
+**A `reserved` item refuses the whole deletion outright**, with a new
+`ACCOUNT_HAS_RESERVED_ITEMS` (409). This mirrors `removeItem`'s own refusal
+on a single listing (2026-08-08): somebody was picked, everyone else was
+turned away, and they may be on their way. The alternative — silently
+letting the sweep release it later, or worse, force-releasing it as a side
+effect of an unrelated "delete my account" click — would manufacture a
+no-show for a real person without their giver ever deciding that. The giver
+has to complete the handover, mark a no-show, or wait for the sweep, and
+only then delete. This check only looks at items the user *gives*; it says
+nothing about claims they *hold*. Those are handled by broadening "pending
+claims are withdrawn" to **pending and approved**: if the deleting user is
+themselves an approved claimant on somebody else's item, leaving that
+reservation live would strand the *giver* for up to 48 hours pointed at an
+account that can never complete the handover. `withdrawClaim` already
+handles `approved → withdrawn` safely and releases the item back to `active`
+immediately, so reusing it for both statuses cost nothing extra.
+
+**`device_tokens` rows are hard-deleted**, the one deliberate exception to
+"soft delete everything." A token is a device credential, not somebody's
+transaction history — nothing points at it the way a claim points at an
+item — and a lingering row is a live push channel aimed at an account that
+no longer exists; `sendPushToUser` (`src/lib/push/index.ts`) has no reason to
+know better.
+
+**`getSession()` stays cookie-only.** The 2026-07-31 entry's entire point was
+avoiding a database round trip on every cheap read, with `requireUser()` and
+`requireAdmin()` carrying the one case that needs to be authoritative
+(`is_banned`). `deleted_at` is added to exactly those two functions (and to
+`getSessionProfile()`, which already zeroes `isAdmin` for a banned row and now
+does the same for a deleted one) rather than teaching `getSession()` to hit
+the database — reversing that boundary for this feature would have undone the
+reason it exists. `DELETE /api/auth/me` clears the session cookie on the
+device that called it, the same as logout, which handles the ordinary case
+immediately. The residual gap — a *second* device's still-valid cookie
+rendering a stale name via `getSession()` until that device's next
+authenticated request — is the same gap `is_banned` already lives with today,
+not a new one this feature introduces.
+
+Not one transaction end to end: `deleteUser` loops `removeItem` over every
+removable item and `withdrawClaim` over every pending/approved claim, each
+already its own atomic, guarded-by-`WHERE` step (2026-08-07,
+"chained on each other's writes"). A run interrupted partway — a serverless
+timeout, most plausibly — leaves a state safe to resume: some items already
+`removed`, the rest untouched, the user not yet marked deleted. Calling this
+again finishes the job, since every step is a no-op on rows it already
+touched.
+
+Rate limited at 3/user/hour, 10/IP/hour (`accountDeletePerUser`/`PerIp`,
+`src/lib/ratelimit.ts`) — not an economics budget like OTP or image upload,
+since a deletion costs nothing per call, but a circuit breaker against a
+buggy client retry-loop or a stolen session hammering an irreversible action.
+
+Migration `0008` is two plain `ALTER TABLE` statements — `DROP NOT NULL` on
+`phone`, `ADD COLUMN deleted_at` — with no enum value and nothing used before
+it's committed, so unlike the traps recorded on 2026-07-31 and 2026-08-18,
+this one applies cleanly to a fresh database in a single `db:migrate` run
+with no squashing or splitting required.

@@ -104,6 +104,10 @@ describe.skipIf(!hasDatabase)('auth API', () => {
     return api(path, { method: 'POST', body: JSON.stringify(body), cookie });
   }
 
+  function del(path: string, cookie?: string): Promise<ApiResponse> {
+    return api(path, { method: 'DELETE', cookie });
+  }
+
   /**
    * The assertion this whole file exists for. Checks both the field name
    * and the value, so neither a renamed key nor a raw number gets through.
@@ -246,6 +250,101 @@ describe.skipIf(!hasDatabase)('auth API', () => {
 
       expect(relogin.status).toBe(403);
       expect(parse<ApiErrorBody>(relogin.text).error.code).toBe('USER_BANNED');
+    });
+
+    /**
+     * `requireUser()` already gates `DELETE /api/auth/me` on `is_banned`
+     * before `deleteUser` ever runs, so a banned account cannot reach the
+     * deletion path at all. DECISIONS.md, 2026-08-30: that gate is the whole
+     * reason nulling `phone` on deletion is safe — without it, deletion would
+     * be a way to free a banned number and register again clean.
+     */
+    it('cannot delete the account, so a banned phone can never be freed this way', async () => {
+      const phone = testPhone();
+      const { cookie } = await signIn(phone);
+
+      await db.update(users).set({ isBanned: true }).where(eq(users.phone, phone));
+
+      const response = await del('/api/auth/me', cookie);
+      expect(response.status).toBe(401);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('UNAUTHORIZED');
+      expectNoPhone(response, phone);
+
+      const [row] = await db
+        .select({ deletedAt: users.deletedAt, phone: users.phone, isBanned: users.isBanned })
+        .from(users)
+        .where(eq(users.phone, phone));
+      expect(row.deletedAt).toBeNull();
+      expect(row.phone).toBe(phone);
+      expect(row.isBanned).toBe(true);
+    });
+  });
+
+  describe('DELETE /api/auth/me', () => {
+    it('rejects an anonymous caller with 401', async () => {
+      const response = await del('/api/auth/me');
+
+      expect(response.status).toBe(401);
+      expect(parse<ApiErrorBody>(response.text).error.code).toBe('UNAUTHORIZED');
+    });
+
+    /**
+     * The full loop this feature exists to close: delete, confirm the
+     * session is dead everywhere (not just to the caller's own follow-up
+     * request), confirm the phone is gone from the database rather than
+     * merely hidden from responses, and confirm the freed number can be
+     * registered again as a genuinely new account rather than resurrecting
+     * the deleted one (DECISIONS.md, 2026-08-30).
+     */
+    it('deletes the account, kills the session, and lets the phone be registered fresh', async () => {
+      const phone = testPhone();
+      const { cookie, userId } = await signIn(phone);
+
+      try {
+        const response = await del('/api/auth/me', cookie);
+        expect(response.status, response.text).toBe(200);
+        expectNoPhone(response, phone);
+
+        // The row survives (soft delete) but carries no phone any more.
+        const [row] = await db
+          .select({
+            deletedAt: users.deletedAt,
+            phone: users.phone,
+            displayName: users.displayName,
+          })
+          .from(users)
+          .where(eq(users.id, userId));
+        expect(row.deletedAt).not.toBeNull();
+        expect(row.phone).toBeNull();
+        expect(row.displayName).toBe('');
+
+        // The cookie the request itself carried is now dead.
+        const meAfter = await api('/api/auth/me', { cookie });
+        expect(meAfter.status).toBe(401);
+        expect(parse<ApiErrorBody>(meAfter.text).error.code).toBe('UNAUTHORIZED');
+        expectNoPhone(meAfter, phone);
+
+        // The freed number signs in as a brand-new account, not the old one —
+        // findUserByPhone can never match a null phone against a real string.
+        const code = '111222';
+        await seedCode(phone, code);
+        const relogin = await post('/api/auth/otp/verify', {
+          phone,
+          code,
+          displayName: 'Նոր օգտատեր',
+        });
+        expect(relogin.status, relogin.text).toBe(200);
+        expectNoPhone(relogin, phone);
+
+        const reloginBody = parse<VerifySuccess>(relogin.text);
+        expect(reloginBody.isNewUser).toBe(false);
+        expect(reloginBody.user.id).not.toBe(userId);
+      } finally {
+        // The deleted row's phone is null, not `phone` — the phone-keyed
+        // `afterEach` cleanup can only find the *new* account this test
+        // re-registers at the same number. Clean up the original row by id.
+        await db.delete(users).where(eq(users.id, userId));
+      }
     });
   });
 });

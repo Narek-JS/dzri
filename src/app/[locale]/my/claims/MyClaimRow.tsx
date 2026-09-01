@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Notice, noticeClassName } from '@/components/ui/Notice';
 import { Link } from '@/i18n/navigation';
 import { apiErrorMessageKey } from '@/lib/api/client';
+import { resolveDisplayName } from '@/lib/displayName';
 import { relativeTimeMessage } from '@/lib/relativeTime';
 
 import { canOpenItem, isWithdrawable, myClaimStatusKeys } from './claimStatusKeys';
@@ -75,6 +76,7 @@ export function MyClaimRow({
   const askedAgo = relativeTimeMessage(new Date(claim.createdAt), now);
   const statusKeys = myClaimStatusKeys(claim);
   const giverPhone = claim.giver.phone;
+  const giverName = resolveDisplayName(claim.giver.displayName, t);
   const isApproved = claim.status === 'approved';
 
   // All three columns are guaranteed non-null on a claimed item (MyClaim's
@@ -138,7 +140,7 @@ export function MyClaimRow({
         </p>
         <p className="text-sm text-neutral-700">
           {t(statusKeys.description as Parameters<typeof t>[0], {
-            name: claim.giver.displayName,
+            name: giverName,
           })}
         </p>
       </div>
@@ -146,7 +148,7 @@ export function MyClaimRow({
       {giverPhone && (
         <Notice tone="subtle" size="sm" className="flex flex-col gap-0.5">
           <span className="text-xs text-neutral-600">{t('myClaims.giverPhone.label')}</span>
-          <span className="text-sm text-neutral-900">{claim.giver.displayName}</span>
+          <span className="text-sm text-neutral-900">{giverName}</span>
           <a href={`tel:${giverPhone}`} className="text-lg font-semibold text-neutral-900">
             {giverPhone}
           </a>
@@ -167,8 +169,8 @@ export function MyClaimRow({
             </p>
             <p className="text-sm text-neutral-700">
               {isApproved
-                ? t('myClaims.withdraw.confirmApproved', { name: claim.giver.displayName })
-                : t('myClaims.withdraw.confirmPending', { name: claim.giver.displayName })}
+                ? t('myClaims.withdraw.confirmApproved', { name: giverName })
+                : t('myClaims.withdraw.confirmPending', { name: giverName })}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button

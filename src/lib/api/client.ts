@@ -89,6 +89,7 @@ const ERROR_MESSAGE_KEYS: Record<ApiErrorCode, string> = {
   CLAIM_NOT_FOUND: 'errors.notFound',
   INVALID_STATUS_TRANSITION: 'errors.invalidStatusTransition',
   TRANSLATIONS_REQUIRED: 'errors.translationsRequired',
+  ACCOUNT_HAS_RESERVED_ITEMS: 'errors.accountHasReservedItems',
   NOT_FOUND: 'errors.notFound',
   INVALID_BODY: 'errors.invalidBody',
   UNAUTHORIZED: 'errors.unauthorized',
@@ -216,6 +217,8 @@ export type MeResponse = { user: Me };
 
 export type LogoutResponse = { ok: true };
 
+export type DeleteAccountResponse = { ok: true };
+
 // ---------------------------------------------------------------------------
 // Images
 // ---------------------------------------------------------------------------
@@ -288,9 +291,17 @@ export type ItemDetail = {
   images: ItemImageDetail[];
   district: DistrictRef;
   category: CategoryRef;
-  // Never a phone — not for the owner, not for the approved claimant. See
-  // API.md and DECISIONS.md (2026-08-08, "the phone reveal is a SQL CASE").
-  giver: { displayName: string; avatarUrl: string | null };
+  /**
+   * `phone` is always present *unless the giver has deleted their account*
+   * — DECISIONS.md, 2026-08-25, narrowed by 2026-08-30. A deleted giver's
+   * `phone` is `null` in the database (`deleteUser`, src/lib/users/
+   * delete.ts) rather than a fake placeholder, so a stale `given`/`reserved`
+   * item an entitled claimant can still read never carries a number that
+   * doesn't work. `displayName` on a deleted giver is the empty-string
+   * sentinel — resolve it with `resolveDisplayName` (src/lib/displayName.ts)
+   * rather than rendering it raw.
+   */
+  giver: { displayName: string; avatarUrl: string | null; phone: string | null };
 };
 
 export type ItemDetailResponse = { item: ItemDetail };
@@ -522,6 +533,8 @@ export const api = {
     me: () => apiFetch<MeResponse>('/api/auth/me'),
 
     logout: () => apiFetch<LogoutResponse>('/api/auth/logout', { method: 'POST' }),
+
+    deleteAccount: () => apiFetch<DeleteAccountResponse>('/api/auth/me', { method: 'DELETE' }),
   },
 
   images: {

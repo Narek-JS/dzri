@@ -5,6 +5,7 @@ import { containerClassName } from '@/components/ui/Container';
 import { Notice } from '@/components/ui/Notice';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 import { getSession } from '@/lib/auth/session';
+import { resolveDisplayName } from '@/lib/displayName';
 import { getItemForViewer } from '@/lib/items/visibility';
 import { resolveLocalizedText } from '@/lib/items/localizedText';
 
@@ -107,6 +108,12 @@ function PhoneIcon() {
  * no second gate here. DECISIONS.md, 2026-08-25, records why this replaced
  * the claim-then-reveal flow the claims system (still live, just no longer
  * linked from this page) was built around.
+ *
+ * `giver.phone` can still be `null` in one case: the giver deleted their
+ * account since. A `given` item is terminal and untouched by deletion, so a
+ * claimant who completed a handover long ago can still land here — the
+ * contact block below renders nothing in that case instead of a `tel:` link
+ * to a number that no longer exists (DECISIONS.md, 2026-08-30).
  */
 export default async function ItemDetailPage({
   params,
@@ -212,18 +219,23 @@ export default async function ItemDetailPage({
       )}
 
       <p className="text-sm text-neutral-500">
-        {t('itemDetail.postedBy', { name: item.giver.displayName, date: postedAt })}
+        {t('itemDetail.postedBy', {
+          name: resolveDisplayName(item.giver.displayName, t),
+          date: postedAt,
+        })}
       </p>
 
-      <Notice tone="subtle" className="flex items-center gap-3 text-neutral-900">
-        <PhoneIcon />
-        <div className="flex flex-col">
-          <span className="text-sm text-neutral-600">{t('itemDetail.contact.label')}</span>
-          <a href={`tel:${item.giver.phone}`} className="text-lg font-semibold hover:underline">
-            {item.giver.phone}
-          </a>
-        </div>
-      </Notice>
+      {item.giver.phone && (
+        <Notice tone="subtle" className="flex items-center gap-3 text-neutral-900">
+          <PhoneIcon />
+          <div className="flex flex-col">
+            <span className="text-sm text-neutral-600">{t('itemDetail.contact.label')}</span>
+            <a href={`tel:${item.giver.phone}`} className="text-lg font-semibold hover:underline">
+              {item.giver.phone}
+            </a>
+          </div>
+        </Notice>
+      )}
     </main>
   );
 }

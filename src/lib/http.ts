@@ -33,6 +33,8 @@ export type ApiErrorCode =
   // moderation
   | 'INVALID_STATUS_TRANSITION'
   | 'TRANSLATIONS_REQUIRED'
+  // account deletion
+  | 'ACCOUNT_HAS_RESERVED_ITEMS'
   // generic
   | 'NOT_FOUND'
   | 'INVALID_BODY'
@@ -62,6 +64,7 @@ const status: Record<ApiErrorCode, number> = {
   CLAIM_NOT_FOUND: 404,
   INVALID_STATUS_TRANSITION: 409,
   TRANSLATIONS_REQUIRED: 400,
+  ACCOUNT_HAS_RESERVED_ITEMS: 409,
   NOT_FOUND: 404,
   INVALID_BODY: 400,
   UNAUTHORIZED: 401,
@@ -92,6 +95,8 @@ const message: Record<ApiErrorCode, string> = {
   INVALID_STATUS_TRANSITION:
     'The item or claim is not in a status from which this action is allowed',
   TRANSLATIONS_REQUIRED: 'Every missing locale must be translated before this item can be approved',
+  ACCOUNT_HAS_RESERVED_ITEMS:
+    'The user has an item reserved for an approved claimant; resolve it before deleting the account',
   NOT_FOUND: 'Not found',
   INVALID_BODY: 'Request body failed validation',
   UNAUTHORIZED: 'Not signed in',

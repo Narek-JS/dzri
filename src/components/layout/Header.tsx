@@ -75,6 +75,7 @@ function AccountCluster({
 
   const postActive = isPathActive(pathname, '/items/new');
   const loginActive = isPathActive(pathname, '/login');
+  const accountActive = isPathActive(pathname, '/my/account');
 
   const loginLink = (
     <Link
@@ -172,11 +173,24 @@ function AccountCluster({
                     className={buttonClassName({
                       variant: postActive ? 'secondary' : 'primary',
                       className:
-                        'w-fit gap-1 !min-h-0 !px-3 !py-1 !text-xs outline-none select-none data-[highlighted]:brightness-95',
+                        '!min-h-0 w-fit gap-1 !px-3 !py-1 !text-xs outline-none select-none data-[highlighted]:brightness-95',
                     })}
                   >
                     <PlusIcon className="h-3 w-3" />
                     {t('nav.create')}
+                  </Link>
+                </DropdownMenu.Item>
+                <DropdownMenu.Item asChild>
+                  <Link
+                    href="/my/account"
+                    aria-current={accountActive ? 'page' : undefined}
+                    className={buttonClassName({
+                      variant: 'ghost',
+                      className:
+                        'w-full justify-start px-3 py-2 outline-none select-none data-[highlighted]:underline',
+                    })}
+                  >
+                    {t('session.account')}
                   </Link>
                 </DropdownMenu.Item>
                 {/* Only opens the confirm dialog Header already renders —
@@ -199,7 +213,7 @@ function AccountCluster({
                   className={buttonClassName({
                     variant: 'ghost',
                     className:
-                      'w-full justify-start px-3 py-2 outline-none select-none data-[highlighted]:underline data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+                      'w-full justify-start px-3 py-2 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:underline',
                   })}
                 >
                   {t('session.logout')}
@@ -231,6 +245,17 @@ function AccountCluster({
           <span className="rounded bg-brand-tint px-2 py-0.5 font-medium text-brand-strong">
             {session.displayName}
           </span>
+          <Link
+            href="/my/account"
+            aria-current={accountActive ? 'page' : undefined}
+            className={
+              accountActive
+                ? 'rounded bg-brand-tint px-2 py-1 text-sm font-medium text-brand-strong'
+                : 'text-sm text-neutral-600 hover:text-brand-strong'
+            }
+          >
+            {t('session.account')}
+          </Link>
           <button
             type="button"
             onClick={onRequestLogout}
@@ -376,7 +401,12 @@ export function Header() {
         </div>
       </div>
 
-      <BottomSheet snapPoints={[0.42, 0.9]} open={drawerOpen} onOpenChange={setDrawerOpen} title={t('shell.menu')}>
+      <BottomSheet
+        snapPoints={[0.42, 0.9]}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        title={t('shell.menu')}
+      >
         <Nav variant="drawer" onNavigate={() => setDrawerOpen(false)} />
 
         <Link

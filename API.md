@@ -32,11 +32,16 @@ is translated on the client. Codes are listed per endpoint below.
 are gated on an approved claim — `POST /api/claims/[id]/approve`,
 `GET /api/items/[id]/claims` and `GET /api/claims/mine` — where the field
 is absent unless the claim status is `approved`. The fourth,
-`GET /api/items/[id]`, is different: `giver.phone` is always present in
-its response, for anyone who can reach the response at all — see that
-endpoint's own section, and DECISIONS.md, 2026-08-25. Everywhere else the
-field is absent — not null, absent. Do not write client code that expects
-a `phone` key to exist unconditionally. See Rule 1 at the end.
+`GET /api/items/[id]`, is different: `giver.phone` is present in its
+response for anyone who can reach the response at all — see that
+endpoint's own section, and DECISIONS.md, 2026-08-25 — except that it is
+`null` if the giver has since deleted their account (DECISIONS.md,
+2026-08-30). Everywhere else the field is absent — not null, absent — the
+distinction matters: `giver.phone` is the one place `null` is a real,
+possible value and a client must handle it, while every other endpoint
+either sends the key with a real string or omits it entirely. Do not write
+client code that expects a `phone` key to exist unconditionally. See Rule 1
+at the end.
 
 **Dates.** ISO 8601 strings in JSON. Cursors are ISO timestamps taken
 from the previous page's `nextCursor`.
@@ -235,6 +240,61 @@ Clears the cookie. Always succeeds, signed in or not.
 
 ---
 
+### DELETE /api/auth/me
+
+Deletes the caller's own account. Requires auth.
+
+**No body.**
+
+**200** `{ "ok": true }`
+
+This is a **soft delete** — the row stays, `deleted_at` is stamped, and:
+
+- `phone` is nulled. The number is free to sign up again as a genuinely
+  new account; it does not come back to this one.
+- `displayName` becomes an empty-string placeholder, not a name stored in
+  one language — resolve it to translated "deleted user" copy on the
+  client, the same as any other display name that could be this
+  placeholder (see `giver.displayName` on `GET /api/items/[id]`).
+- `avatarUrl` is cleared.
+- Every listing that can legally come down does: `draft`,
+  `pending_review`, `active` and `rejected` items move to `removed`, the
+  same transition `DELETE /api/items/[id]` uses, with the same cascades
+  (every pending claim on each one is rejected).
+- Every `pending` or `approved` claim the caller holds **as a claimant**
+  is withdrawn, releasing any item it had reserved back to `active`.
+- Claims with status `completed` or `no_show` are left exactly as they
+  are — that is the other party's history, not the deleting user's to
+  erase.
+- Registered push-notification device tokens are deleted outright, not
+  soft — a token is a device credential, not a transaction record.
+
+The session cookie is cleared, the same as `POST /api/auth/logout`. A
+deleted account cannot sign back in through the OTP flow that created
+it — the freed phone number starts a brand-new account instead.
+
+**Refused with `ACCOUNT_HAS_RESERVED_ITEMS` if the caller owns an item
+that is currently `reserved`.** Somebody was approved and may be on their
+way to collect it; deletion must not be what un-reserves it out from
+under them. The UI needs to tell the giver to resolve the handover first
+— complete it, mark a no-show, or wait for it to release on its own —
+and then delete again.
+
+**Errors**
+
+| Code | Status | Meaning |
+|---|---|---|
+| `UNAUTHORIZED` | 401 | Also returned for a banned account — a ban blocks this the same as it blocks everything else, so a banned phone can never be freed by deleting the account |
+| `ACCOUNT_HAS_RESERVED_ITEMS` | 409 | Caller owns an item reserved for an approved claimant |
+| `RATE_LIMITED` | 429 | Carries a `Retry-After` header, in seconds |
+
+**Rate limits.** 3/user/hour, 10/IP/hour. Not a cost control like OTP or
+image upload — a deletion costs nothing per call — just a circuit breaker
+against a retry loop or a stolen session hammering an irreversible
+action.
+
+---
+
 ## Images
 
 Uploads go **directly from the browser to Cloudflare R2**. The server
@@ -423,14 +483,21 @@ A malformed uuid also returns 404.
 }
 ```
 
-`giver.phone` is always present — for the owner and for an approved or
-completed claimant, the same as for a public viewer. The access rules
-above already decide who gets a response at all (public for an `active`
-item, the owner, an approved/completed claimant), so there is no further
+`giver.phone` is present — for the owner and for an approved or completed
+claimant, the same as for a public viewer. The access rules above already
+decide who gets a response at all (public for an `active` item, the
+owner, an approved/completed claimant), so there is no further
 conditional on the phone itself. See DECISIONS.md, 2026-08-25, for why
 this reverses the earlier "phone hidden until approved" design for this
 one endpoint. `GET /api/claims/mine` still also carries the giver's phone
 once a claim is `approved`; that endpoint's behavior did not change.
+
+`giver.phone` is `null`, not a string, if the giver has since deleted
+their account — a `given` item is terminal, so an entitled claimant can
+still be reading this long after the giver is gone, and there is no
+number left to show (DECISIONS.md, 2026-08-30). `giver.displayName` is
+also a placeholder in that case: an empty string, which the client
+resolves to translated "deleted user" copy rather than rendering raw.
 
 `titleHy`/`titleRu`/`titleEn`/`descriptionHy`/`descriptionRu`/`descriptionEn`
 are all six, unresolved — pick one per field for the viewer's locale,
@@ -789,9 +856,12 @@ The giver picks this person. Owner only.
 }
 ```
 
-**This is the only response in the entire API that returns a phone
-number.** Both parties get both numbers. Show them prominently — this is
-the moment the transaction becomes possible.
+**This is the only response in the entire API that returns both parties'
+phone numbers in one payload.** Both parties get both numbers. Show them
+prominently — this is the moment the transaction becomes possible for
+these two people. (`GET /api/items/[id]` also carries a phone, the
+giver's own, to a wider audience than just this claim's two parties — see
+that endpoint's section.)
 
 Side effects, all atomic:
 - Item → `reserved`, held for the claimant for **48 hours**
@@ -1157,6 +1227,7 @@ Documented here only so nobody wires a UI button to it.
 | `CLAIM_NOT_FOUND` | 404 |
 | `INVALID_STATUS_TRANSITION` | 409 |
 | `TRANSLATIONS_REQUIRED` | 400 |
+| `ACCOUNT_HAS_RESERVED_ITEMS` | 409 |
 | `NOT_FOUND` | 404 |
 | `INTERNAL` | 500 |
 
@@ -1168,9 +1239,12 @@ A `429` may carry a `Retry-After` header, in whole seconds.
 
 1. **Never assume a `phone` key exists, except on `GET /api/items/[id]`.**
    On `POST /api/claims/[id]/approve`, `GET /api/items/[id]/claims`, and
-   `GET /api/claims/mine` it appears only on an approved claim.
-   `GET /api/items/[id]` is the exception: `giver.phone` is always present
-   for any caller who can view the item at all.
+   `GET /api/claims/mine` it appears only on an approved claim — absent
+   otherwise, never `null`. `GET /api/items/[id]` is the exception: the key
+   itself is present for anyone who can view the item at all, but its
+   *value* can be `null` if the giver has since deleted their account — the
+   one place in the API where `phone` is a real key with no guarantee of a
+   string behind it.
 
 2. **404 means 404.** Several endpoints return 404 where 403 would be
    natural — non-owner, non-admin, non-active item. That's deliberate.

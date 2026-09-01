@@ -30,7 +30,12 @@ export type VisibleItemImage = {
  * Unlike the other three phone-bearing endpoints there is no claim status
  * to gate it on here — every caller this function returns a result for has
  * already been decided to be allowed to see the item, phone included. See
- * DECISIONS.md, 2026-08-25.
+ * DECISIONS.md, 2026-08-25 — narrowed by 2026-08-30: `phone` is `null` when
+ * the giver has deleted their account (`users.phone` is nullable exactly
+ * for this), which a `given` item's entitled claimant can still read long
+ * after the giver is gone. `displayName` on a deleted giver is likewise the
+ * empty-string sentinel, not a real name — resolve it with
+ * `resolveDisplayName` (src/lib/displayName.ts) before rendering.
  */
 export type VisibleItem = {
   id: string;
@@ -59,7 +64,7 @@ export type VisibleItem = {
   images: VisibleItemImage[];
   district: { slug: string; nameHy: string; nameRu: string; nameEn: string };
   category: { slug: string; nameHy: string; nameRu: string; nameEn: string };
-  giver: { displayName: string; avatarUrl: string | null; phone: string };
+  giver: { displayName: string; avatarUrl: string | null; phone: string | null };
   ownerId: string;
 };
 

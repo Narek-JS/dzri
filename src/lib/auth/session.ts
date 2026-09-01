@@ -102,9 +102,15 @@ export type SessionUser = {
 
 /**
  * Resolves the session against the database. Returns null if the session
- * is absent or invalid, if the row is gone, or if the user has been
- * banned since the token was issued — a 90-day cookie must not outlive a
- * ban.
+ * is absent or invalid, if the row is gone, if the user has been banned
+ * since the token was issued — a 90-day cookie must not outlive a ban —
+ * or if the account has been deleted since. Deletion clears the cookie on
+ * the device that requested it (`DELETE /api/auth/me`), the same as
+ * logout; this is what closes off every authenticated action from a
+ * *different* device still holding a valid, unexpired cookie for the same
+ * account — the identical gap `isBanned` already lives with, not a new
+ * one this feature introduces. See DECISIONS.md, 2026-08-30, for why
+ * `getSession()` itself stays cookie-only rather than gaining this check.
  */
 export async function requireUser(): Promise<SessionUser | null> {
   const session = await getSession();
@@ -119,12 +125,13 @@ export async function requireUser(): Promise<SessionUser | null> {
       isBanned: users.isBanned,
       createdAt: users.createdAt,
       lastSeenAt: users.lastSeenAt,
+      deletedAt: users.deletedAt,
     })
     .from(users)
     .where(eq(users.id, session.userId))
     .limit(1);
 
-  if (!user || user.isBanned) return null;
+  if (!user || user.isBanned || user.deletedAt) return null;
 
   return {
     id: user.id,
@@ -150,12 +157,17 @@ export async function getSessionProfile(
   userId: string,
 ): Promise<{ isAdmin: boolean; avatarUrl: string | null }> {
   const [user] = await db
-    .select({ avatarUrl: users.avatarUrl, isAdmin: users.isAdmin, isBanned: users.isBanned })
+    .select({
+      avatarUrl: users.avatarUrl,
+      isAdmin: users.isAdmin,
+      isBanned: users.isBanned,
+      deletedAt: users.deletedAt,
+    })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
 
-  if (!user) return { isAdmin: false, avatarUrl: null };
+  if (!user || user.deletedAt) return { isAdmin: false, avatarUrl: null };
 
   return { isAdmin: user.isAdmin && !user.isBanned, avatarUrl: user.avatarUrl };
 }
@@ -185,12 +197,13 @@ export async function requireAdmin(): Promise<SessionUser | null> {
       isAdmin: users.isAdmin,
       createdAt: users.createdAt,
       lastSeenAt: users.lastSeenAt,
+      deletedAt: users.deletedAt,
     })
     .from(users)
     .where(eq(users.id, session.userId))
     .limit(1);
 
-  if (!user || user.isBanned || !user.isAdmin) return null;
+  if (!user || user.isBanned || !user.isAdmin || user.deletedAt) return null;
 
   return {
     id: user.id,

@@ -50,7 +50,9 @@ type MineResponse = { items: MineItem[]; nextCursor: string | null };
 // typing lets those ride along untyped.
 type FeedItem = { id: string; createdAt: string };
 type FeedResponse = { items: FeedItem[]; nextCursor: string | null };
-type DetailResponse = { item: { id: string; status: string; giver: { phone: string } } };
+type DetailResponse = {
+  item: { id: string; status: string; giver: { phone: string | null } };
+};
 
 type ApiErrorBody = { error: { code: string; message: string } };
 
@@ -123,8 +125,20 @@ describe.skipIf(!hasDatabase)('items API', () => {
     const insertedCategories = await db
       .insert(categories)
       .values([
-        { slug: categorySlug, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test', groupId: categoryGroupId },
-        { slug: categorySlug2, nameHy: 'Թեստ', nameRu: 'Тест', nameEn: 'Test', groupId: categoryGroupId },
+        {
+          slug: categorySlug,
+          nameHy: 'Թեստ',
+          nameRu: 'Тест',
+          nameEn: 'Test',
+          groupId: categoryGroupId,
+        },
+        {
+          slug: categorySlug2,
+          nameHy: 'Թեստ',
+          nameRu: 'Тест',
+          nameEn: 'Test',
+          groupId: categoryGroupId,
+        },
       ])
       .returning({ id: categories.id });
     const insertedDistricts = await db
@@ -1129,6 +1143,45 @@ describe.skipIf(!hasDatabase)('items API', () => {
       const item = parse<DetailResponse>(response.text).item;
       expect(item.status).toBe('given');
       expect(item.giver.phone).toBe(owner.phone);
+    });
+
+    /**
+     * `given` is terminal and untouched by `deleteUser` (src/lib/users/
+     * delete.ts) — only draft/pending_review/active/rejected items are
+     * removed — so a claimant who completed a handover can still land here
+     * long after the giver deletes their account. DECISIONS.md, 2026-08-30,
+     * narrows the 2026-08-25 "giver.phone always present" invariant for
+     * exactly this case: `phone` is null in the database once the giver is
+     * gone, and this asserts the response is null too, never a stale or
+     * fabricated number.
+     */
+    it('nulls the giver phone once the giver deletes their account, without breaking the completed claim', async () => {
+      const owner = await signIn();
+      const claimant = await signIn();
+      const { itemId, claimId } = await reserveFor(owner, claimant);
+
+      const completed = await post(`/api/claims/${claimId}/complete`, {}, owner.cookie);
+      expect(completed.status, completed.text).toBe(200);
+
+      const deleted = await del('/api/auth/me', owner.cookie);
+      expect(deleted.status, deleted.text).toBe(200);
+
+      try {
+        const response = await api(`/api/items/${itemId}`, { cookie: claimant.cookie });
+        expect(response.status, response.text).toBe(200);
+
+        const item = parse<DetailResponse>(response.text).item;
+        expect(item.status).toBe('given');
+        expect(item.giver.phone).toBeNull();
+        expectPhoneValueAbsent(response.text, owner.phone);
+      } finally {
+        // The owner's row now has phone = null, not `owner.phone`, so the
+        // phone-keyed `afterEach` cleanup below can never find it — clean it
+        // up by id directly. Cascades away the item and its now-orphaned
+        // claim the same way a phone-keyed delete would (both `items.userId`
+        // and `claims.userId` are `onDelete: 'cascade'`).
+        await db.delete(users).where(eq(users.id, owner.userId));
+      }
     });
 
     it("includes the giver's phone but never the claimant's own number, and stays out of the public cache", async () => {

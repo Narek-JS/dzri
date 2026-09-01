@@ -57,6 +57,13 @@
       "when": 1787300609404,
       "tag": "0007_lumpy_unus",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788280682143,
+      "tag": "0008_rainy_nehzno",
+      "breakpoints": true
     }
   ]
 }

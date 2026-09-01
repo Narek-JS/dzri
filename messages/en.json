@@ -32,11 +32,34 @@
   "session": {
     "login": "Log in",
     "logout": "Log out",
+    "account": "Account",
     "accountMenu": "Account menu",
     "logoutConfirm": {
       "title": "Log out?",
       "confirm": "Log out",
       "cancel": "Cancel"
+    }
+  },
+  "account": {
+    "delete": {
+      "title": "Delete account",
+      "intro": "This cannot be undone. What's removed and what stays is listed below.",
+      "removedTitle": "Removed:",
+      "removedPhone": "Your phone number",
+      "removedName": "Your name and photo",
+      "removedListings": "Your active and pending items",
+      "removedClaims": "Your pending and approved claims (withdrawn)",
+      "keptTitle": "Kept:",
+      "keptHistory": "The history of completed handovers, for the other party",
+      "acknowledge": "I understand this cannot be undone",
+      "button": "Delete account",
+      "reservedError": "One of your items is reserved for an approved claimant. Finish the handover or wait for the reservation to release automatically, then try again",
+      "dialog": {
+        "title": "Delete your account permanently?",
+        "body": "This cannot be undone. You will not be able to sign back into this account.",
+        "cancel": "Cancel",
+        "confirm": "Yes, delete my account"
+      }
     }
   },
   "login": {
@@ -68,6 +91,7 @@
     "itemClaims": "Claims on this item",
     "admin": "Admin",
     "login": "Log in",
+    "account": "Account",
     "privacy": "Privacy policy"
   },
   "notFound": {
@@ -101,6 +125,7 @@
     "alreadyClaimed": "You already claimed this item",
     "invalidStatusTransition": "This action is not available right now",
     "translationsRequired": "Every missing translation must be filled in first",
+    "accountHasReservedItems": "One of your items is reserved for an approved claimant. Finish the handover or wait for the reservation to release automatically, then try again",
     "invalidBody": "The form was not filled in correctly",
     "unauthorized": "Sign in is required",
     "smsFailed": "Could not send the code",
@@ -186,6 +211,7 @@
     "contact": { "label": "Phone number" }
   },
   "common": {
+    "deletedUser": "Deleted user",
     "pendingClaimCount": "{count, plural, one {# pending claim} other {# pending claims}}",
     "relativeTime": {
       "now": "just now",

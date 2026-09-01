@@ -175,6 +175,28 @@ const FEED_PER_IP: LimiterSpec = {
   windowMs: 60 * 1000,
 };
 
+/**
+ * Account deletion isn't on CLAUDE.md's required list — it costs nothing
+ * the way an SMS send or an image upload does — but every other
+ * authenticated write endpoint in this codebase is limited, and a
+ * destructive one-shot action is exactly the kind of thing a buggy client
+ * retry-loop or a stolen session should not get to hammer. This is a
+ * circuit breaker, not an economics budget: low on purpose.
+ */
+const ACCOUNT_DELETE_PER_USER: LimiterSpec = {
+  prefix: 'account:delete:user',
+  tokens: 3,
+  window: '1 h',
+  windowMs: 60 * 60 * 1000,
+};
+
+const ACCOUNT_DELETE_PER_IP: LimiterSpec = {
+  prefix: 'account:delete:ip',
+  tokens: 10,
+  window: '1 h',
+  windowMs: 60 * 60 * 1000,
+};
+
 /** Fixed-window counter used only when there is no Redis (local dev). */
 class InMemoryLimiter implements Limiter {
   private readonly counters = new Map<string, { count: number; reset: number }>();
@@ -251,6 +273,8 @@ export const claimCreatePerUser = (): Limiter => getLimiter(CLAIM_CREATE_PER_USE
 export const claimCreatePerIp = (): Limiter => getLimiter(CLAIM_CREATE_PER_IP);
 export const feedPerIp = (): Limiter => getLimiter(FEED_PER_IP);
 export const pushRegisterPerUser = (): Limiter => getLimiter(PUSH_REGISTER_PER_USER);
+export const accountDeletePerUser = (): Limiter => getLimiter(ACCOUNT_DELETE_PER_USER);
+export const accountDeletePerIp = (): Limiter => getLimiter(ACCOUNT_DELETE_PER_IP);
 
 /**
  * Vercel sets `x-forwarded-for`; the left-most entry is the client. The

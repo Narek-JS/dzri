@@ -20,10 +20,23 @@ import { districts } from './reference';
  *
  * `phone` must never reach an API response. See CLAUDE.md: select
  * columns explicitly, never spread a whole user row into a payload.
+ *
+ * `phone` is nullable so account deletion (`deleteUser`, src/lib/users/
+ * delete.ts) can null it out rather than tombstone it with a placeholder
+ * string — see DECISIONS.md, 2026-08-30. `unique()` still holds: Postgres
+ * treats every `NULL` as distinct from every other, so any number of
+ * deleted rows can carry one with no conflict, and `NULL` can never match
+ * a real E.164 string in a `WHERE phone = $1`, which is what keeps a
+ * fresh signup at a freed number from ever resolving back to the old row.
+ *
+ * `deletedAt` is the soft-delete marker. A non-null value means: no
+ * sign-in (`requireUser`/`requireAdmin`), no phone, and `displayName` is
+ * the empty-string sentinel `resolveDisplayName` (src/lib/displayName.ts)
+ * renders as a translated placeholder rather than a name.
  */
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  phone: text('phone').notNull().unique(),
+  phone: text('phone').unique(),
   displayName: text('display_name').notNull(),
   avatarUrl: text('avatar_url'),
   districtId: integer('district_id').references(() => districts.id),
@@ -31,6 +44,7 @@ export const users = pgTable('users', {
   isAdmin: boolean('is_admin').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 
 /** Only the hash is stored. Never the raw code. */

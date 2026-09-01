@@ -42,6 +42,13 @@ type Props = {
  * fill in a form"), and complete gets the same treatment because it is only
  * ever confirming something that already happened in person, not causing a
  * consequence the way approve does.
+ *
+ * `claimant.displayName` is never the deleted-account sentinel here: an
+ * `approved` claim is one `deleteUser` (src/lib/users/delete.ts) withdraws
+ * in the same call that wipes a claimant's name, so this view can never be
+ * showing a deleted claimant's own approved claim (DECISIONS.md,
+ * 2026-08-30). `GivenView`, the terminal state this view transitions into,
+ * has no such guarantee and resolves it.
  */
 export function HandoverView({
   claim,

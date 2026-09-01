@@ -34,6 +34,13 @@ type Props = {
  * phone numbers and auto-rejects every other pending claim in the same
  * transaction. A giver who taps the wrong row by mistake should get one more
  * chance to notice before that happens.
+ *
+ * `claimant.displayName` is never the deleted-account sentinel here:
+ * `deleteUser` (src/lib/users/delete.ts) withdraws every `pending` claim the
+ * deleting user holds in the same call that wipes their name, so a `pending`
+ * row can never belong to an already-deleted claimant (DECISIONS.md,
+ * 2026-08-30) — unlike `HistoryRow`/`GivenView`, which render terminal
+ * statuses a deletion doesn't touch.
  */
 export function PendingClaimRow({ claim, now, busy, errorCode, onApprove, onReject }: Props) {
   const t = useTranslations();
@@ -88,13 +95,7 @@ export function PendingClaimRow({ claim, now, busy, errorCode, onApprove, onReje
             >
               {t('itemClaims.approve.cancel')}
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={onApprove}
-              disabled={busy}
-              aria-busy={busy}
-            >
+            <Button type="button" size="sm" onClick={onApprove} disabled={busy} aria-busy={busy}>
               {t('itemClaims.approve.submit')}
             </Button>
           </div>
