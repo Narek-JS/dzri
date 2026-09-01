@@ -470,7 +470,7 @@
     "loadingMore": "Loading…"
   },
   "privacy": {
-    "lastUpdated": "Last updated: [to be filled: last updated date]",
+    "lastUpdated": "Last updated: 2026-09-01",
     "intro": "dzri (dzri.am) is a free item-swap platform in Armenia. This page explains what data we collect, why, and how we protect it.",
     "collect": {
       "heading": "What we collect",
@@ -496,11 +496,11 @@
     },
     "retention": {
       "heading": "Retention",
-      "body": "OTP codes are deleted 24 hours after they expire. Items expire after 30 days. Account data is kept for as long as the account stays active."
+      "body": "OTP codes are deleted 24 hours after they expire. Items expire after 30 days. Account data is kept for as long as the account stays active. Deleting your account removes your phone number and replaces your display name; records of completed handovers stay, because they are also part of the other party's history."
     },
     "rights": {
       "heading": "Your rights",
-      "body": "You can request deletion of your data by writing to [to be filled: contact email]."
+      "body": "You can delete your account any time from <link>account settings</link>. This removes your phone number, replaces your display name, and takes down your active listings. Records of completed handovers stay, because they are also part of the other person's history. For questions, or requests you can't complete yourself, email privacy@dzri.am."
     },
     "cookies": {
       "heading": "Cookies",

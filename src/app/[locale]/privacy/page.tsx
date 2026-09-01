@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { containerClassName } from '@/components/ui/Container';
+import { Link } from '@/i18n/navigation';
 import { type LocaleParams, resolveLocale } from '@/i18n/params';
 
 /**
@@ -77,7 +78,11 @@ export default async function PrivacyPage({
 
       <section className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold text-neutral-900">{t('privacy.rights.heading')}</h2>
-        <p className="text-neutral-700">{t('privacy.rights.body')}</p>
+        <p className="text-neutral-700">
+          {t.rich('privacy.rights.body', {
+            link: (chunks) => <Link href="/my/account">{chunks}</Link>,
+          })}
+        </p>
       </section>
 
       <section className="flex flex-col gap-2">
